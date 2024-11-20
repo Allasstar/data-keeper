@@ -2,9 +2,6 @@
 
 **DataKeeper** is a comprehensive package/Unity extension that enhances the functionality and convenience of Unity development. It includes a collection of scripts designed to streamline common tasks and improve efficiency. From reactive variables and preferences to data serialization and registration systems, DataKeeper offers a wide range of tools to simplify your workflow.
 
-# **Install Newtonsoft’s Json.NET Package**
-On Unity go to Windows->Package Manager, once the Package Manager window opens, go to Add package from git URL, type com.unity.nuget.newtonsoft-json press Add and done.
-
 # --- SCRIPTS ---
 
 ## [Reactive<T>](https://github.com/Allasstar/DataKeeper/blob/main/Assets/DataKeeper/Generic/Reactive.cs)
