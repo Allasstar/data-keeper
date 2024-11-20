@@ -1,6 +1,6 @@
 {
   "name": "com.micrarriors.data-keeper",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "displayName": "DataKeeper",
   "description": "DataKeeper is a comprehensive package/Unity extension that enhances the functionality and convenience of Unity development.",
   "unity": "2021.3",
@@ -22,5 +22,17 @@
     "name": "Micrarriors",
     "email": "micrarriors@gmail.com",
     "url": "https://github.com/Allasstar"
-  }
+  },
+  "samples": [
+        {
+            "displayName": "IconKeeper Font",
+            "description": "Contains font with icons",
+            "path": "Samples~/IconKeeper Font"
+        },
+        {
+            "displayName": "UI Mask Materials",
+            "description": "Contains Mask Materials for UI",
+            "path": "Samples~/UI Mask Materials"
+        }
+    ]
 }
