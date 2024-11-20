@@ -1,0 +1,14 @@
+{
+    "samples": [
+        {
+            "displayName": "IconKeeper Font",
+            "description": "Contains font with icons",
+            "path": "Samples~/IconKeeper Font"
+        },
+        {
+            "displayName": "UI Mask Materials",
+            "description": "Contains Mask Materials for UI",
+            "path": "Samples~/UI Mask Materials"
+        }
+    ]
+}
