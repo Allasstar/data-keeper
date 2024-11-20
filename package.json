@@ -1,0 +1,26 @@
+{
+  "name": "com.micrarriors.data-keeper",
+  "version": "0.4.0",
+  "displayName": "DataKeeper",
+  "description": "DataKeeper is a comprehensive package/Unity extension that enhances the functionality and convenience of Unity development.",
+  "unity": "2021.3",
+  "unityRelease": "11f1",
+  "documentationUrl": "https://github.com/Allasstar/DataKeeper/tree/main",
+  "changelogUrl": "https://github.com/Allasstar/DataKeeper/tree/main",
+  "licensesUrl": "https://github.com/Allasstar/DataKeeper/tree/main",
+  "dependencies": {
+    "com.unity.textmeshpro": "3.0.6",
+    "com.unity.nuget.newtonsoft-json": "3.0.2"
+ },
+ "keywords": [
+    "Reactive",
+    "PlayerPrefs",
+	"Extensions",
+	"UI"
+  ],
+  "author": {
+    "name": "Micrarriors",
+    "email": "micrarriors@gmail.com",
+    "url": "https://github.com/Allasstar"
+  }
+}
