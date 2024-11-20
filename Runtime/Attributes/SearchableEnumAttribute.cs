@@ -1,6 +1,9 @@
 using UnityEngine;
 
-public class SearchableEnumAttribute : PropertyAttribute
+namespace DataKeeper.Attributes
 {
-    
+    public class SearchableEnumAttribute : PropertyAttribute
+    {
+
+    }
 }
