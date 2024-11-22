@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace DataKeeper.Signals
 {
-   public class SignalChanelBase<T> : ScriptableObject
+   public abstract class SignalChanelBase<T> : ScriptableObject
    {
       /// <summary>
       /// On List Changed event.
