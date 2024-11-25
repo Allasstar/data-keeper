@@ -2,6 +2,25 @@
 
 **DataKeeper** is a comprehensive package/Unity extension that enhances the functionality and convenience of Unity development. It includes a collection of scripts designed to streamline common tasks and improve efficiency. From reactive variables and preferences to data serialization and registration systems, DataKeeper offers a wide range of tools to simplify your workflow.
 
+
+# **Install via Package Manager**
+
+Please follow the instrustions:
+
+-   open  **Edit/Project Settings/Package Manager**
+-   add a new Scoped Registry (or edit the existing OpenUPM entry)
+    
+    Name
+    `package.openupm.com`
+    
+    URL
+    `https://package.openupm.com`
+    
+    Scope(s)
+    `com.micrarriors.data-keeper`
+    
+-   click  **Save**  or  **Apply**
+
 # --- SCRIPTS ---
 
 ## [Reactive<T>](https://github.com/Allasstar/DataKeeper/blob/main/Assets/DataKeeper/Generic/Reactive.cs)
