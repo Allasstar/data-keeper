@@ -39,6 +39,7 @@ namespace DataKeeper.Extra
         
         private void Init()
         {
+            if(string.IsNullOrEmpty(_initialScene.SceneName)) return;
             SceneManager.LoadScene(_initialScene.SceneName);
         }
         
