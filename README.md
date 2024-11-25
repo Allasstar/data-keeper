@@ -20,6 +20,13 @@ Please follow the instrustions:
     `com.micrarriors.data-keeper`
     
 -   click  **Save**  or  **Apply**
+-   open  **Window/Package Manager**
+-   click  **+**
+-   select  **Add package by name...**  or  **Add package from git URL...**
+-   paste  `com.micrarriors.data-keeper`  into name
+-   paste  `0.4.8`  into version
+-   click  **Add**
+
 
 # --- SCRIPTS ---
 
