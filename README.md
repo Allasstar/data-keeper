@@ -22,20 +22,6 @@ Please follow the instrustions:
 -   paste  `com.micrarriors.data-keeper`  into name
 -   paste  `0.4.4`  into version
 -   click  **Add**
-Install via Package Manager
-Please follow the instrustions:
-
-open Edit/Project Settings/Package Manager
-add a new Scoped Registry (or edit the existing OpenUPM entry)
-Namepackage.openupm.com
-URLhttps://package.openupm.com
-click Save or Apply
-open Window/Package Manager
-click +
-select Add package by name... or Add package from git URL...
-paste com.micrarriors.data-keeper into name
-paste 0.4.4 into version
-click Add
 
 # --- SCRIPTS ---
 
