@@ -12,19 +12,14 @@ Please follow the instrustions:
     
     Name
     `package.openupm.com`
+    
     URL
     `https://package.openupm.com`
+    
     Scope(s)
     `com.micrarriors.data-keeper`
     
 -   click  **Save**  or  **Apply**
--   open  **Window/Package Manager**
--   click  **+**
--   select  **Add package by name...**  or  **Add package from git URL...**
--   paste  `com.micrarriors.data-keeper`  into name
--   paste  `0.4.4`  into version
--   click  **Add**
-
 
 # --- SCRIPTS ---
 
