@@ -93,7 +93,7 @@ namespace DataKeeper.UI
 
         public void ForceUpdate()
         {
-            (m_Group, false);
+            SetToggleGroup(m_Group, false);
             if (group != null && IsActive())
             {
                 if (isOn || (!group.AnyTogglesOn() && !group.allowSwitchOff))
@@ -133,13 +133,13 @@ namespace DataKeeper.UI
         protected override void OnEnable()
         {
             base.OnEnable();
-            (m_Group, false);
+            SetToggleGroup(m_Group, false);
             UpdateUI();
         }
 
         protected override void OnDisable()
         {
-            (null, false);
+            SetToggleGroup(null, false);
             base.OnDisable();
         }
 
