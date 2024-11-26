@@ -93,7 +93,7 @@ namespace DataKeeper.UI
 
         public void ForceUpdate()
         {
-            SetToggleGroup(m_Group, false);
+            (m_Group, false);
             if (group != null && IsActive())
             {
                 if (isOn || (!group.AnyTogglesOn() && !group.allowSwitchOff))
@@ -133,19 +133,31 @@ namespace DataKeeper.UI
         protected override void OnEnable()
         {
             base.OnEnable();
-            SetToggleGroup(m_Group, false);
+            (m_Group, false);
             UpdateUI();
         }
 
         protected override void OnDisable()
         {
-            SetToggleGroup(null, false);
+            (null, false);
             base.OnDisable();
         }
 
         protected override void OnDidApplyAnimationProperties()
         {
 
+        }
+
+        public void SetOnText(string onText)
+        {
+            _labelText.Value.SetOnText(onText);
+            UpdateUI();
+        }
+
+        public void SetOffText(string offText)
+        {
+            _labelText.Value.SetOffText(offText);
+            UpdateUI();
         }
 
         private void SetToggleGroup(ToggleUIGroup newGroup, bool setMemberValue)
@@ -278,6 +290,16 @@ namespace DataKeeper.UI
         {
             [field: SerializeField] public string On { private set; get; } = "On";
             [field: SerializeField] public string Off { private set; get; } = "Off";
+
+            public void SetOnText(string onText)
+            {
+                On = onText;
+            }
+            
+            public void SetOffText(string offText)
+            {
+                Off = offText;
+            }
         }
     }
 }
