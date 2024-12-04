@@ -4,6 +4,7 @@ namespace DataKeeper.UI
 {
     [AddComponentMenu("DataKeeper/UI/Safe Area UI")]
     [RequireComponent(typeof(RectTransform))]
+    [DefaultExecutionOrder(-1000)]
     public class SafeAreaUI : MonoBehaviour
     {
         private RectTransform _rectTransform;
