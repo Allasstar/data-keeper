@@ -16,23 +16,27 @@ namespace DataKeeper.PoolSystem
         private Transform _poolContainer;
         private List<T> _poolInactive;
         private List<T> _poolActive;
+        private bool _isInitialized;
 
         public int GetPoolPrefabID() => _poolPrefab.GetHashCode();
         public string GetPoolPrefabName() => _poolPrefab.name;
+        public bool IsInitialized() => _isInitialized;
 
        public virtual void Initialize()
        {
+           if(_isInitialized) return;
+           _isInitialized = true;
+           
            new PoolContainer<T>(GetPoolPrefabID(), GetPoolPrefabName())
                .Deconstruct(out _poolContainer, out _poolInactive, out _poolActive);
 
            if (!_prewarm.Enabled) return;
+
+           if (_poolInactive.Count >= _prewarm.Value) return;
            
-           if (_poolInactive.Count < _prewarm.Value)
+           for (int i = 0; i < _prewarm.Value - _poolInactive.Count; i++)
            {
-               for (int i = 0; i < _prewarm.Value - _poolInactive.Count; i++)
-               {
-                   Create();
-               }
+               Create();
            }
        }
        
