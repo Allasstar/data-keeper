@@ -1,14 +1,14 @@
 # Documentation for `Reactive<T>` Class
 The `Reactive<T>` class, located within the `DataKeeper.Generic` namespace, provides a generic reactive data type that can track and trigger events when its value changes. This feature is useful in scenarios where you want to maintain and observe the state of a value reactively.
 ## Table of Contents
-- [Namespace]()
-- [Purpose]()
-- [Type Parameters]()
-- [Properties]()
-- [Constructors]()
-- [Methods]()
-- [Implicit Conversion]()
-- [Interfaces Implemented]()
+- [Namespace](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md#namespace)
+- [Purpose](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md#purpose)
+- [Type Parameters](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md#type-parameters)
+- [Properties](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md#properties)
+- [Constructors](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md#constructors)
+- [Methods](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md#methods)
+- [Implicit Conversion](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md#implicit-conversion)
+- [Interfaces Implemented](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md#interfaces-implemented)
 
 ## Namespace
 `DataKeeper.Generic`
