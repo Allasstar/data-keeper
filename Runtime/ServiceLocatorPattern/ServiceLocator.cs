@@ -11,6 +11,7 @@ namespace DataKeeper.ServiceLocatorPattern
     {
         private static readonly Register<object> GlobalRegister = new Register<object>();
         private static readonly Dictionary<string, Register<object>> SceneRegisters = new Dictionary<string, Register<object>>();
+        private static readonly Dictionary<string, Register<object>> TableRegisters = new Dictionary<string, Register<object>>();
         private static readonly Dictionary<GameObject, Register<object>> GameObjectRegisters = new Dictionary<GameObject, Register<object>>();
 
         public static Register<object> ForGlobal()
@@ -44,6 +45,16 @@ namespace DataKeeper.ServiceLocatorPattern
             }
             
             return SceneRegisters[sceneName];
+        }
+        
+        public static Register<object> ForTableOf(string tableName)
+        {
+            if (!TableRegisters.ContainsKey(tableName))
+            {
+                TableRegisters[tableName] = new Register<object>();
+            }
+            
+            return TableRegisters[tableName];
         }
         
         public static Register<object> ForGameObjectOf(Component component)
