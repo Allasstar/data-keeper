@@ -43,19 +43,19 @@ The `Initializator` class is a static utility located in the `DataKeeper.Init` n
 The `BootstrapSO` class, located within the `DataKeeper.Extra` namespace, is a specialized Scriptable Object designed for managing scene loading and object instantiation during the initialization phase of a Unity project. It acts as a bootstrapper, managing the loading of scenes, initialization of objects, and setup of required resources at the start of a game or application.
 
 
-## [Reactive<T>](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md)
+## [Reactive](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md)
 
 The `Reactive<T>` class, located within the `DataKeeper.Generic` namespace, provides a generic reactive data type that can track and trigger events when its value changes. This feature is useful in scenarios where you want to maintain and observe the state of a value reactively.
 
-## [ReactivePref<T>](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/ReactivePref.md)
+## [ReactivePref](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/ReactivePref.md)
 
 The `ReactivePref<T>` class, located in the `DataKeeper.Generic` namespace, offers a generic mechanism for storing and managing reactive preferences in Unity. Built with `PlayerPrefs` as the underlying storage, this class enables seamless handling of different data types in a reactive way. It includes features such as event-driven updates on changes, auto-saving, and serialization support for custom data types.
 
-## [ReactiveList<T>](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/ReactiveList.md)
+## [ReactiveList](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/ReactiveList.md)
 
 The `ReactiveList<T>` class, located in the `DataKeeper.Generic` namespace, is a reactive list implementation that allows tracking changes to its elements and triggering events. This class is particularly useful for scenarios in reactive programming, where you need to observe or respond to changes in the list dynamically.
 
-## [ReactiveDictionary<TKey, TValue>](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/ReactiveDictionary.md)
+## [ReactiveDictionary](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/ReactiveDictionary.md)
 
 The `ReactiveDictionary<TKey, TValue>` class, located within the `DataKeeper.Generic` namespace, provides a generic dictionary with reactive capabilities. This dictionary triggers events when changes are made to its contents, such as elements being added, removed, updated, or cleared. This is especially useful in scenarios where observation patterns are necessary for synchronization, dynamic updates in UI, or other reactive programming use cases.
 
