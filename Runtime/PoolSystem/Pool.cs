@@ -22,6 +22,17 @@ namespace DataKeeper.PoolSystem
         public string GetPoolPrefabName() => _poolPrefab.name;
         public bool IsInitialized() => _isInitialized;
 
+        public Pool()
+        {
+            
+        }
+        
+        public Pool(int prewarm, int maxActive = -1)
+        {
+            _prewarm = new Optional<int>(prewarm, prewarm > 0);
+            _maxActive = new Optional<int>(maxActive, maxActive > 0);
+        }
+        
        public virtual void Initialize()
        {
            if(_isInitialized) return;
