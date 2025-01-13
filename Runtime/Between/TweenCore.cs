@@ -18,7 +18,7 @@ namespace DataKeeper.Between
         {
             if (!isInitialized)
             {
-                InitializePlayerLoop();
+                Initialize();
             }
             
             actions.Add(action);
@@ -29,7 +29,7 @@ namespace DataKeeper.Between
             remove.Add(action);
         }
 
-        private static void InitializePlayerLoop()
+        public static void Initialize()
         {
             if (isInitialized) return;
             
@@ -144,8 +144,8 @@ namespace DataKeeper.Between
         {
             // Quadratic
             EaseType.EaseInQuad => t * t,
-            EaseType.EaseOutQuad => t * (2 - t),
-            EaseType.EaseInOutQuad => t < 0.5f ? 2 * t * t : -1 + (4 - 2 * t) * t,
+            EaseType.EaseOutQuad => 1 - (1 - t) * (1 - t),
+            EaseType.EaseInOutQuad => (float)(t < 0.5 ? 2 * t * t : 1 - Math.Pow(-2 * t + 2, 2) / 2),
 
             // Cubic
             EaseType.EaseInCubic => t * t * t,
@@ -173,9 +173,9 @@ namespace DataKeeper.Between
             EaseType.EaseInOutExpo => (float)(t == 0 ? 0 : Mathf.Approximately(t, 1) ? 1 : t < 0.5 ? Math.Pow(2, 20 * t - 10) / 2 : (2 - Math.Pow(2, -20 * t + 10)) / 2),
 
             // Circular
-            EaseType.EaseInCirc => (float)(1 - Math.Sqrt(1 - t * t)),
-            EaseType.EaseOutCirc => (float)Math.Sqrt(1 - (--t) * t),
-            EaseType.EaseInOutCirc => (float)(t < 0.5f ? (1 - Math.Sqrt(1 - 4 * t * t)) / 2 : (Math.Sqrt(1 - (--t) * (2 * t - 2)) + 1) / 2),
+            EaseType.EaseInCirc => (float)(1 - Math.Sqrt(1 -  Math.Pow(t, 2))),
+            EaseType.EaseOutCirc => (float)Math.Sqrt(1 - Math.Pow(t - 1, 2)),
+            EaseType.EaseInOutCirc => (float)(t < 0.5f ? (1 - Math.Sqrt(1 - Math.Pow(2 * t, 2))) / 2 : Math.Sqrt(1 - Math.Pow(-2 * t + 2, 2)) + 1) / 2,
 
             // Bounce
             EaseType.EaseInBounce => 1 - ApplyEasing(1 - t, EaseType.EaseOutBounce),

@@ -119,13 +119,26 @@ namespace DataKeeper.Between
             {
                 t = 1 - t;
             }
-        
-            target.position = Vector3.Lerp(startPosition, endPosition, t);
+
+            try
+            {
+                if (float.IsNaN(t) || float.IsInfinity(t))
+                {
+                    Debug.Log($"t: {t} :: easeType: {easeType}");
+                }
+                else
+                {
+                    target.position = Vector3.Lerp(startPosition, endPosition, t);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Log($"Catch > easeType: {easeType}");
+            }
         }
 
         private void InvokeOnComplete()
         {
-            Debug.Log($"Tween complete - invoking callback");
             IsComplete = true;
             TweenCore.RemoveFromUpdate(Update);
             onComplete?.Invoke();
