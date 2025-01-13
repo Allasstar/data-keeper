@@ -27,8 +27,9 @@ namespace DataKeeper.PoolSystem
             
         }
         
-        public Pool(int prewarm, int maxActive = -1)
+        public Pool(T prefab, int prewarm, int maxActive = -1)
         {
+            _poolPrefab = prefab;
             _prewarm = new Optional<int>(prewarm, prewarm > 0);
             _maxActive = new Optional<int>(maxActive, maxActive > 0);
         }
