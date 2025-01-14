@@ -45,8 +45,9 @@ namespace DataKeeper.PoolSystem
            if (!_prewarm.Enabled) return;
 
            if (_poolInactive.Count >= _prewarm.Value) return;
-           
-           for (int i = 0; i < _prewarm.Value - _poolInactive.Count; i++)
+
+           var count = _prewarm.Value - _poolInactive.Count;
+           for (int i = 0; i < count; i++)
            {
                Create();
            }
