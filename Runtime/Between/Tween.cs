@@ -4,11 +4,33 @@ namespace DataKeeper.Between
 {
     public static class Tween
     {
-        public static MoveTransform<Transform> Move(Transform target)
+        // Transform
+        public static TransformPosition Move(Transform target)
         {
-            return new MoveTransform<Transform>(target);
+            return new TransformPosition(target);
         }
-
+        
+        public static TransformLocalPosition MoveLocal(Transform target)
+        {
+            return new TransformLocalPosition(target);
+        }
+        
+        public static TransformScale Scale(Transform target)
+        {
+            return new TransformScale(target);
+        }
+        
+        public static TransformEuler RotateEuler(Transform target)
+        {
+            return new TransformEuler(target);
+        }
+        
+        public static TransformQuaternion RotateQuaternion(Transform target)
+        {
+            return new TransformQuaternion(target);
+        }
+        
+        // RectTransform
         public static MoveTransform<RectTransform> Move(RectTransform target)
         {
             return new MoveTransform<RectTransform>(target);
