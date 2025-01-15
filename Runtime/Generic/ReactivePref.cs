@@ -89,6 +89,20 @@ namespace DataKeeper.Generic
                 this.OnValueChanged?.Invoke(value);
             }
         }
+        
+        [JsonIgnore]
+        public T UniqueValue
+        {
+            get => Value;
+       
+            set
+            {
+                if (Value.Equals(value))
+                    return;
+                
+                Value = value;
+            }
+        }
 
         [JsonIgnore]
         public T SilentValue
