@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using DataKeeper.Signals;
 using Newtonsoft.Json;
 using UnityEngine;
@@ -47,7 +48,7 @@ namespace DataKeeper.Generic
        
             set
             {
-                if (value != null && value.Equals(this.value))
+                if (EqualityComparer<T>.Default.Equals(value, this.value))
                     return;
                 
                 Value = value;
