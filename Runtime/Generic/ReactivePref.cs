@@ -97,7 +97,7 @@ namespace DataKeeper.Generic
        
             set
             {
-                if (Value.Equals(value))
+                if (value != null && value.Equals(this.value))
                     return;
                 
                 Value = value;
