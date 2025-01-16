@@ -51,7 +51,8 @@ namespace DataKeeper.Between
             UnityEditor.EditorApplication.playModeStateChanged += PlayModeStateChanged;
 #endif
         }
-
+        
+#if UNITY_EDITOR
         private static void PlayModeStateChanged(UnityEditor.PlayModeStateChange state)
         {
             if (state != UnityEditor.PlayModeStateChange.ExitingPlayMode) return;
@@ -60,11 +61,10 @@ namespace DataKeeper.Between
             actions.Clear();
             RemoveSystemFromPlayerLoop();
 
-#if UNITY_EDITOR
             UnityEditor.EditorApplication.playModeStateChanged -= PlayModeStateChanged;
-#endif
         }
-        
+#endif
+
         private static void RemoveSystemFromPlayerLoop()
         {
             PlayerLoopSystem playerLoop = PlayerLoop.GetCurrentPlayerLoop();
