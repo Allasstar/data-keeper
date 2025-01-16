@@ -31,9 +31,9 @@ namespace DataKeeper.Between
         }
         
         // RectTransform
-        public static MoveTransform<RectTransform> Move(RectTransform target)
+        public static RectTransformPosition Move(RectTransform target)
         {
-            return new MoveTransform<RectTransform>(target);
+            return new RectTransformPosition(target);
         }
     }
     
