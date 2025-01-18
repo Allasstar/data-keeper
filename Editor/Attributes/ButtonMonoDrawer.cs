@@ -1,3 +1,4 @@
+using DataKeeper.Editor.FSM;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,6 +11,7 @@ namespace DataKeeper.Editor.Attributes
         {
             base.OnInspectorGUI();
             PropertyGUI.DrawButtons(target);
+            FSMDebugger.DrawFSMDebuger(target);
         }
     }
 }
