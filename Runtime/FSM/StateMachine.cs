@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace DataKeeper.FSM
@@ -9,6 +10,7 @@ namespace DataKeeper.FSM
 #if UNITY_EDITOR
         private FSMHistory<TState> stateHistory = new FSMHistory<TState>();
         public TransitionRecordHistory[] GetStateHistory() => stateHistory.GetHistory();
+        public string[] GetAllStates() => states.Select(s => s.Key.ToString()).ToArray();
 #endif
         
         private Dictionary<TState, State<TState, TTarget>> states = new Dictionary<TState, State<TState, TTarget>>();
@@ -45,16 +47,18 @@ namespace DataKeeper.FSM
             }
         }
 
-        public void AddTransition(TState fromState, TState toState, Func<bool> condition, Action onTransition = null,
-            float cooldown = 0f)
+        public Transition<TState> AddTransition(TState fromState, TState toState, Func<bool> condition)
         {
-            transitions.Add(new Transition<TState>(fromState, toState, condition, onTransition, cooldown));
+            var transition = new Transition<TState>(fromState, toState, condition, null, 0);
+            transitions.Add(transition);
+            return transition;
         }
 
-        public void AddAnyStateTransition(TState toState, Func<bool> condition, Action onTransition = null,
-            float cooldown = 0f)
+        public Transition<TState> AddAnyStateTransition(TState toState, Func<bool> condition)
         {
-            anyStateTransitions.Add(new Transition<TState>(default, toState, condition, onTransition, cooldown));
+            var transition = new Transition<TState>(default, toState, condition, null, 0);
+            anyStateTransitions.Add(transition);
+            return transition;
         }
 
         private bool TryTransition(Transition<TState> transition)
@@ -63,7 +67,7 @@ namespace DataKeeper.FSM
             if (!transition.Condition()) return false;
 
             transition.LastTransitionTime = Time.time;
-            transition.OnTransition?.Invoke();
+            transition.OnTransitionCallback?.Invoke();
             ChangeState(transition.ToState);
             return true;
         }

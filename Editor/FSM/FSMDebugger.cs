@@ -51,12 +51,12 @@ namespace DataKeeper.Editor.FSM
 
                 var type = stateMachine.GetType();
                 if (type == null) return;
-
+                
                 // Current State
-                DrawStateProperty(stateMachine, "CurrentStateType", "Current State");
+                DrawStateProperty(stateMachine, "CurrentStateType", "Current State \u25b6");
 
                 // Previous State
-                DrawStateProperty(stateMachine, "PreviousStateType", "Previous State");
+                DrawStateProperty(stateMachine, "PreviousStateType", "Previous State \u25c1");
 
                 // History
                 DrawHistory(stateMachine);
@@ -87,12 +87,78 @@ namespace DataKeeper.Editor.FSM
             }
         }
 
+        private static bool showAllStates = false;
         private static bool showHistory = false;
         private static void DrawHistory(object stateMachine)
         {
+            showAllStates = EditorGUILayout.Foldout(showAllStates, "States", true);
+            if (showAllStates)
+            {
+                States(stateMachine);
+            }
+            
             showHistory = EditorGUILayout.Foldout(showHistory, "State History", true);
-            if(!showHistory) return;
+            if (showHistory)
+            {
+                History(stateMachine);
+            }
+        }
 
+        private static void States(object stateMachine)
+        {
+            try
+            {
+                var getAllStatesMethod = stateMachine.GetType().GetMethod("GetAllStates");
+                if (getAllStatesMethod == null) return;
+                
+                var allStates = getAllStatesMethod.Invoke(stateMachine, null) as string[];
+                if (allStates == null || allStates.Length == 0) return;
+                
+                var curState = "";
+                var prevState = "";
+
+                var propertyCurrentStateType = stateMachine.GetType().GetProperty("CurrentStateType");
+                if (propertyCurrentStateType != null)
+                {
+                    curState = propertyCurrentStateType.GetValue(stateMachine).ToString();
+                }
+            
+                var propertyPreviousStateType = stateMachine.GetType().GetProperty("PreviousStateType");
+                if (propertyPreviousStateType != null)
+                {
+                    prevState = propertyPreviousStateType.GetValue(stateMachine).ToString();
+                }
+                
+                EditorGUILayout.Space();
+
+                foreach (var state in allStates)
+                {
+                    var status = "";
+                    if (state.Equals(curState))
+                    {
+                        status = "\u25b6";
+                    }
+                    else if (state.Equals(prevState))
+                    {
+                        status = "\u25c1";
+                    }
+
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField(status, GUILayout.Width(20));
+                    EditorGUILayout.LabelField(state);
+                    EditorGUILayout.EndHorizontal();
+                    
+                    EditorGUI.DrawRect(EditorGUILayout.GetControlRect(false, 1), new Color(0.3f, 0.3f, 0.3f));
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error drawing states: {e.Message}");
+            }
+        }
+
+        private static void History(object stateMachine)
+        {
             EditorGUILayout.Space();
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Time", EditorStyles.boldLabel, GUILayout.Width(100));
