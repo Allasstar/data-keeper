@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace DataKeeper.FSM
@@ -10,7 +9,17 @@ namespace DataKeeper.FSM
 #if UNITY_EDITOR
         private FSMHistory<TState> stateHistory = new FSMHistory<TState>();
         public TransitionRecordHistory[] GetStateHistory() => stateHistory.GetHistory();
-        public string[] GetAllStates() => states.Select(s => s.Key.ToString()).ToArray();
+        
+        private string[] allStates;
+        public string[] GetAllStates()
+        {
+            if (allStates == null || allStates.Length == 0 || allStates.Length != states.Keys.Count)
+            {
+                allStates = Enum.GetNames(typeof(TState));
+            }
+            
+            return allStates;
+        }
 #endif
         
         private Dictionary<TState, State<TState, TTarget>> states = new Dictionary<TState, State<TState, TTarget>>();

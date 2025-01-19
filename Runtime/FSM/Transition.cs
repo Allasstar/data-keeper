@@ -19,7 +19,7 @@ namespace DataKeeper.FSM
             Condition = condition;
             OnTransitionCallback = onTransition;
             CooldownTime = cooldown;
-            LastTransitionTime = -cooldown; // Allow immediate first transition
+            LastTransitionTime = -1;
         }
 
         public Transition<TState> OnTransition(Action onTransition)
@@ -31,7 +31,11 @@ namespace DataKeeper.FSM
         public Transition<TState> Cooldown(float cooldown)
         {
             CooldownTime = cooldown;
-            LastTransitionTime = -cooldown; // Allow immediate first transition
+            if (LastTransitionTime <= 0)
+            {
+                LastTransitionTime = -cooldown; 
+            }
+            
             return this;
         }
 
