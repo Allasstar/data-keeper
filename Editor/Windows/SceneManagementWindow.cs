@@ -1,12 +1,11 @@
+using UnityEditor.SceneManagement;
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace DataKeeper.Editor.Windows
 {
-   
     public class SceneManagementWindow : EditorWindow
     {
         private Vector2 scrollPosition;
@@ -41,16 +40,14 @@ namespace DataKeeper.Editor.Windows
                     EditorGUILayout.BeginHorizontal();
                 
                     // Index
-                    EditorGUILayout.LabelField(i.ToString(), GUILayout.Width(20));
+                    EditorGUILayout.LabelField(i.ToString(), EditorStyles.boldLabel,GUILayout.Width(20));
                 
                     // Scene name in bold
-                    EditorGUILayout.LabelField(new GUIContent(
-                        sceneName, 
-                        "Scene path: " + scenePath
-                    ), EditorStyles.boldLabel, GUILayout.Width(120));
+                    EditorGUILayout.LabelField(new GUIContent(sceneName, "Scene path: " + scenePath), EditorStyles.boldLabel, GUILayout.Width(120));
 
                     // Scene status
-                    bool isLoaded = SceneManager.GetSceneByPath(scenePath).isLoaded;
+                    Scene sceneObject = SceneManager.GetSceneByPath(scenePath);
+                    bool isLoaded = sceneObject.isLoaded;
 
                     // Action buttons
                     GUI.enabled = !isLoaded;
@@ -71,19 +68,31 @@ namespace DataKeeper.Editor.Windows
                         SceneManagement.UnloadScene(scenePath);
                     }
 
-                    EditorGUILayout.LabelField(
-                        isLoaded ? "Loaded" : "",
-                        GUILayout.Width(80)
-                    );
+                    var labelBuilder = new System.Text.StringBuilder();
+                    if (sceneObject.isDirty)
+                        labelBuilder.Append("*");
+                    else 
+                        labelBuilder.Append(" ");
+                    
+                    if (isLoaded) labelBuilder.Append("Loaded");
+                    var label = labelBuilder.ToString();
+
+                    EditorGUILayout.LabelField(label, GUILayout.Width(80));
                 
                     GUI.enabled = true;
 
                     EditorGUILayout.EndHorizontal();
+                    DrawHorizontalLine();
                     EditorGUILayout.Space();
                 }
             }
 
             EditorGUILayout.EndScrollView();
+        }
+        
+        private void DrawHorizontalLine(float height = 1f)
+        {
+            EditorGUI.DrawRect(EditorGUILayout.GetControlRect(false, height), Color.gray);
         }
 
         // Helper class to manage scene loading with error handling
@@ -106,29 +115,39 @@ namespace DataKeeper.Editor.Windows
                 if (dirtyScenesNames.Count == 0)
                     return true;
 
-                // Prompt user to save multiple dirty scenes
-                bool saveAll = EditorUtility.DisplayDialog(
-                    "Unsaved Changes", 
-                    $"The following scenes have unsaved changes:\n\n{string.Join("\n", dirtyScenesNames)}\n\nDo you want to save all changed scenes?", 
-                    "Save All and Load",
-                    "Cancel Load"
+                // Prompt user with options: Save All, Discard All, Cancel
+                int option = EditorUtility.DisplayDialogComplex(
+                    "Unsaved Changes",
+                    $"The following scenes have unsaved changes:\n\n{string.Join("\n", dirtyScenesNames)}\n\nYour changes will be lost if you don't save them.\n\nWhat would you like to do?",
+                    "Save All",
+                    "Discard All",
+                    "Cancel"
                 );
 
-                if (saveAll)
+                switch (option)
                 {
-                    // Save all dirty scenes
-                    for (int i = 0; i < SceneManager.sceneCount; i++)
-                    {
-                        Scene scene = SceneManager.GetSceneAt(i);
-                        if (scene.isDirty)
+                    case 0: // Save All
+                        for (int i = 0; i < SceneManager.sceneCount; i++)
                         {
-                            EditorSceneManager.SaveScene(scene);
+                            Scene scene = SceneManager.GetSceneAt(i);
+                            if (scene.isDirty)
+                            {
+                                EditorSceneManager.SaveScene(scene);
+                            }
                         }
-                    }
-                }
+                        return true;
 
-                return saveAll;
+                    case 1: // Discard All
+                        return true;
+
+                    case 2: // Cancel
+                        return false;
+
+                    default:
+                        return false;
+                }
             }
+
 
             public static void LoadScene(string scenePath)
             {
