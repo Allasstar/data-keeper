@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace DataKeeper.PoolSystem
 {
-    public class PoolContainer<T>
+    public class PoolContainer<T> where T : Component
     {
         private static Dictionary<int, Transform> PoolParentDictionary = new Dictionary<int, Transform>();
         private static Dictionary<int, List<T>> PoolInactiveDictionary = new Dictionary<int, List<T>>();
@@ -36,6 +36,7 @@ namespace DataKeeper.PoolSystem
             if (PoolInactiveDictionary.ContainsKey(_poolPrefabID))
             {
                 poolInactive = PoolInactiveDictionary[_poolPrefabID];
+                poolInactive.RemoveAll(r => r == null || r.gameObject == null);
             }
             else
             {
