@@ -15,7 +15,7 @@ namespace DataKeeper.PoolSystem
         {
             Transform poolParent;
           
-            if (PoolParentDictionary.ContainsKey(_poolPrefabID))
+            if (PoolParentDictionary.ContainsKey(_poolPrefabID) && PoolParentDictionary[_poolPrefabID] != null)
             {
                 poolParent = PoolParentDictionary[_poolPrefabID];
             }
