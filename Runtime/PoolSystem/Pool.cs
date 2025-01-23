@@ -17,19 +17,24 @@ namespace DataKeeper.PoolSystem
         private List<T> _poolInactive;
         private List<T> _poolActive;
         private bool _isInitialized;
+        private bool _isGlobalPool;
 
         public int GetPoolPrefabID() => _poolPrefab.GetHashCode();
         public string GetPoolPrefabName() => _poolPrefab.name;
         public bool IsInitialized() => _isInitialized;
+        public bool IsGlobalPool() => _isGlobalPool;
+        public List<T> GetAllInactive() => _poolInactive;
+        public List<T> GetAllActive() => _poolActive;
 
         public Pool()
         {
             
         }
         
-        public Pool(T prefab, int prewarm, int maxActive = -1)
+        public Pool(T prefab, int prewarm, bool isGlobalPool = false, int maxActive = -1)
         {
             _poolPrefab = prefab;
+            _isGlobalPool = isGlobalPool;
             _prewarm = new Optional<int>(prewarm, prewarm > 0);
             _maxActive = new Optional<int>(maxActive, maxActive > 0);
         }
@@ -38,9 +43,19 @@ namespace DataKeeper.PoolSystem
        {
            if(_isInitialized) return;
            _isInitialized = true;
-           
-           new PoolContainer<T>(GetPoolPrefabID(), GetPoolPrefabName())
-               .Deconstruct(out _poolContainer, out _poolInactive, out _poolActive);
+
+           if (IsGlobalPool())
+           {
+               new PoolContainer<T>(GetPoolPrefabID(), GetPoolPrefabName())
+                   .Deconstruct(out _poolContainer, out _poolInactive, out _poolActive);
+           }
+           else
+           {
+               new PoolContainer<T>(GetPoolPrefabID(), GetPoolPrefabName())
+                   .Deconstruct(out _poolContainer);
+               _poolInactive = new List<T>();
+               _poolActive = new List<T>();
+           }
 
            if (!_prewarm.Enabled) return;
 
@@ -112,6 +127,32 @@ namespace DataKeeper.PoolSystem
            }
            
            _poolActive.Clear();
+       }
+
+       public virtual void DestroyAllActive()
+       {
+           foreach (var component in _poolActive)
+           {
+               Object.Destroy(component.gameObject);
+           }
+           
+           _poolActive.Clear();
+       }
+       
+       public virtual void DestroyAllInactive()
+       {
+           foreach (var component in _poolInactive)
+           {
+               Object.Destroy(component.gameObject);
+           }
+           
+           _poolInactive.Clear();
+       }
+       
+       public virtual void DestroyAll()
+       {
+           DestroyAllInactive();
+           DestroyAllActive();
        }
     }
 }

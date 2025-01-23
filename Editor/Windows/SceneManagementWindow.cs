@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -12,7 +11,7 @@ namespace DataKeeper.Editor.Windows
     {
         private Vector2 scrollPosition;
 
-        [MenuItem("Tools/Scene Management Window")]
+        [MenuItem("Tools/Windows/Scene Manager")]
         public static void ShowWindow()
         {
             GetWindow<SceneManagementWindow>("Scene Manager");

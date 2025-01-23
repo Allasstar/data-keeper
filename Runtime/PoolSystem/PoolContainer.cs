@@ -63,5 +63,10 @@ namespace DataKeeper.PoolSystem
             poolInactive = GetPoolInactive();
             poolActive = GetPoolActive();
         }
+        
+        public void Deconstruct(out Transform poolParent)
+        {
+            poolParent = GetPoolParent();
+        }
     }
 }
