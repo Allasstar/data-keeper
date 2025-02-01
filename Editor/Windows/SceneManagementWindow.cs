@@ -10,7 +10,7 @@ namespace DataKeeper.Editor.Windows
     {
         private Vector2 scrollPosition;
 
-        [MenuItem("Tools/Windows/Scene Manager")]
+        [MenuItem("Tools/Windows/Scene Manager", priority = 0)]
         public static void ShowWindow()
         {
             GetWindow<SceneManagementWindow>("Scene Manager");

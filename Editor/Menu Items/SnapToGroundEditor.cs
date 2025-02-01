@@ -7,7 +7,7 @@ namespace DataKeeper.Editor.MenuItems
     {
         private const string UNDO_GROUP_NAME = "Snap to Ground";
 
-        [MenuItem("Tools/Snap to Ground (Auto) %g")]
+        [MenuItem("Tools/Snap to Ground (Auto) %g", priority = 4)]
         private static void SnapToGroundAuto()
         {
             Undo.SetCurrentGroupName(UNDO_GROUP_NAME);
@@ -17,7 +17,7 @@ namespace DataKeeper.Editor.MenuItems
             }
         }
 
-        [MenuItem("Tools/Snap to Ground (Collider) _home")]
+        [MenuItem("Tools/Snap to Ground (Collider) _home", priority = 5)]
         private static void SnapToGroundCollider()
         {
             Undo.SetCurrentGroupName(UNDO_GROUP_NAME);
@@ -27,7 +27,7 @@ namespace DataKeeper.Editor.MenuItems
             }
         }
 
-        [MenuItem("Tools/Snap to Ground (Mesh) _end")]
+        [MenuItem("Tools/Snap to Ground (Mesh) _end", priority = 6)]
         private static void SnapToGroundMesh()
         {
             Undo.SetCurrentGroupName(UNDO_GROUP_NAME);
@@ -37,7 +37,7 @@ namespace DataKeeper.Editor.MenuItems
             }
         }
 
-        [MenuItem("Tools/Snap to Ground (Transform) _pgdn")]
+        [MenuItem("Tools/Snap to Ground (Transform) _pgdn", priority = 7)]
         private static void SnapToGroundTransform()
         {
             Undo.SetCurrentGroupName(UNDO_GROUP_NAME);

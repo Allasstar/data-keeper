@@ -13,28 +13,39 @@ namespace DataKeeper.PoolSystem
         [SerializeField] private Optional<int> _prewarm = new Optional<int>();
         [SerializeField] private Optional<int> _maxActive = new Optional<int>();
         
-        private Transform _poolContainer;
-        private List<T> _poolInactive;
-        private List<T> _poolActive;
         private bool _isInitialized;
-        private bool _isGlobalPool;
+        private Transform _poolContainer;
+        private List<T> _poolInactive  = new List<T>();
+        private List<T> _poolActive  = new List<T>();
 
         public int GetPoolPrefabID() => _poolPrefab.GetHashCode();
         public string GetPoolPrefabName() => _poolPrefab.name;
         public bool IsInitialized() => _isInitialized;
-        public bool IsGlobalPool() => _isGlobalPool;
         public List<T> GetAllInactive() => _poolInactive;
         public List<T> GetAllActive() => _poolActive;
+        
+        private Transform PoolContainer
+        {
+            get
+            {
+                if(_poolContainer == null) 
+                {
+                    _poolContainer = new GameObject($":: [{typeof(T).Name}] > {GetPoolPrefabName()}").transform;
+                    Object.DontDestroyOnLoad(_poolContainer.gameObject);
+                }
+            
+                return _poolContainer;
+            }   
+        }
 
         public Pool()
         {
             
         }
         
-        public Pool(T prefab, int prewarm, bool isGlobalPool = false, int maxActive = -1)
+        public Pool(T prefab, int prewarm, int maxActive = -1)
         {
             _poolPrefab = prefab;
-            _isGlobalPool = isGlobalPool;
             _prewarm = new Optional<int>(prewarm, prewarm > 0);
             _maxActive = new Optional<int>(maxActive, maxActive > 0);
         }
@@ -43,20 +54,7 @@ namespace DataKeeper.PoolSystem
        {
            if(_isInitialized) return;
            _isInitialized = true;
-
-           if (IsGlobalPool())
-           {
-               new PoolContainer<T>(GetPoolPrefabID(), GetPoolPrefabName())
-                   .Deconstruct(out _poolContainer, out _poolInactive, out _poolActive);
-           }
-           else
-           {
-               new PoolContainer<T>(GetPoolPrefabID(), GetPoolPrefabName())
-                   .Deconstruct(out _poolContainer);
-               _poolInactive = new List<T>();
-               _poolActive = new List<T>();
-           }
-
+           
            if (!_prewarm.Enabled) return;
 
            if (_poolInactive.Count >= _prewarm.Value) return;
@@ -70,7 +68,7 @@ namespace DataKeeper.PoolSystem
        
        public virtual T Create()
        {
-           var obj = Object.Instantiate(_poolPrefab, _poolContainer);
+           var obj = Object.Instantiate(_poolPrefab, PoolContainer);
            obj.gameObject.name = $"{_poolPrefab.name} [{obj.GetInstanceID()}]";
            obj.gameObject.SetActive(false);
            _poolInactive.Add(obj);
@@ -111,7 +109,7 @@ namespace DataKeeper.PoolSystem
        public virtual void Release(T poolObject)
        {
            poolObject.gameObject.SetActive(false);
-           poolObject.transform.SetParent(_poolContainer);
+           poolObject.transform.SetParent(PoolContainer);
            
            _poolActive.Remove(poolObject);
            

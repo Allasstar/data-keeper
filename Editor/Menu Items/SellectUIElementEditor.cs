@@ -9,7 +9,7 @@ namespace DataKeeper.Editor.MenuItems
 {
     public class SelectUIElementEditor : UnityEditor.Editor
     {
-        [MenuItem("Tools/Select UI _PGUP")]
+        [MenuItem("Tools/Select UI _PGUP", priority = 2)]
         private static void Select()
         {
             Debug.Log("Select");
