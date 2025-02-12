@@ -18,6 +18,7 @@ namespace DataKeeper.PoolSystem
         private List<T> _poolInactive  = new List<T>();
         private List<T> _poolActive  = new List<T>();
 
+        public T GetPoolPrefab() => _poolPrefab;
         public int GetPoolPrefabID() => _poolPrefab.GetHashCode();
         public string GetPoolPrefabName() => _poolPrefab.name;
         public bool IsInitialized() => _isInitialized;
