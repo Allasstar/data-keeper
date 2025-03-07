@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DataKeeper.Attributes;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
 namespace DataKeeper.Editor.Attributes
@@ -14,6 +15,7 @@ namespace DataKeeper.Editor.Attributes
         private const string MANAGED_REFERENCE = "managedReference";
 
         private static Dictionary<Type, Type[]> s_TypeCache = new Dictionary<Type, Type[]>();
+        private static AdvancedDropdownState s_DropdownState = new AdvancedDropdownState();
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
@@ -42,7 +44,7 @@ namespace DataKeeper.Editor.Attributes
 
         private void DrawSerializeReferenceField(Rect position, SerializedProperty property, GUIContent label)
         {
-            SerializeReferenceSelectorAttribute attribute = (SerializeReferenceSelectorAttribute) this.attribute;
+            SerializeReferenceSelectorAttribute attribute = (SerializeReferenceSelectorAttribute)this.attribute;
 
             Type baseType = attribute.BaseType ?? fieldInfo.FieldType;
 
@@ -52,51 +54,43 @@ namespace DataKeeper.Editor.Attributes
                 baseType = baseType.GetGenericArguments()[0];
             }
 
-            string currentTypeName = NULL_TYPE_NAME;
-            int currentTypeIndex = 0;
-
             // Get all valid types that can be assigned
             Type[] validTypes = GetValidTypes(baseType);
 
-            // Make the list include "null" as the first option
-            string[] options = new string[validTypes.Length + 1];
-            options[0] = NULL_TYPE_NAME;
-
-            for (int i = 0; i < validTypes.Length; i++)
+            string currentTypeName = NULL_TYPE_NAME;
+            if (property.managedReferenceValue != null)
             {
-                options[i + 1] = validTypes[i].Name;
-
-                // Check if this is the current type
-                if (property.managedReferenceValue != null && property.managedReferenceValue.GetType() == validTypes[i])
-                {
-                    currentTypeIndex = i + 1;
-                }
+                Type currentType = property.managedReferenceValue.GetType();
+                currentTypeName = currentType.Name;
             }
 
             // Determine the main fieldRect and the dropdown rect
-            Rect fieldRect = position;
-            fieldRect.height = EditorGUIUtility.singleLineHeight;
+            Rect dropdownRect = position;
+            dropdownRect.height = EditorGUIUtility.singleLineHeight;
 
-            Rect dropdownRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
+            // Draw the label
+            Rect popupRect = EditorGUI.PrefixLabel(dropdownRect, GUIUtility.GetControlID(FocusType.Passive), label);
 
-            // Draw the dropdown field using EditorGUI.Popup
-            EditorGUI.BeginChangeCheck();
-            int selectedIndex = EditorGUI.Popup(dropdownRect, label.text, currentTypeIndex, options);
-            if (EditorGUI.EndChangeCheck())
+            // Show the dropdown button
+            if (GUI.Button(popupRect, $"<{currentTypeName}>", EditorStyles.popup))
             {
-                if (selectedIndex == 0)
-                {
-                    // Selected "null"
-                    property.managedReferenceValue = null;
-                }
-                else
-                {
-                    // Create instance of selected type
-                    Type selectedType = validTypes[selectedIndex - 1];
-                    property.managedReferenceValue = Activator.CreateInstance(selectedType);
-                }
+                var dropdown = new TypeDropdown(s_DropdownState, validTypes, baseType, 
+                    selectedType =>
+                    {
+                        if (selectedType == null)
+                        {
+                            // Selected "null"
+                            property.managedReferenceValue = null;
+                        }
+                        else
+                        {
+                            // Create instance of selected type
+                            property.managedReferenceValue = Activator.CreateInstance(selectedType);
+                        }
+                        property.serializedObject.ApplyModifiedProperties();
+                    });
 
-                property.serializedObject.ApplyModifiedProperties();
+                dropdown.Show(popupRect);
             }
 
             // Draw the property fields if not null
@@ -120,7 +114,18 @@ namespace DataKeeper.Editor.Attributes
 
             // Get all types that derive from the base type
             List<Type> derivedTypes = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(assembly => assembly.GetTypes())
+                .SelectMany(assembly => 
+                {
+                    try
+                    {
+                        return assembly.GetTypes();
+                    }
+                    catch (Exception)
+                    {
+                        // Handle reflection exceptions gracefully
+                        return Type.EmptyTypes;
+                    }
+                })
                 .Where(type => baseType.IsAssignableFrom(type) && !type.IsAbstract && !type.IsInterface)
                 .OrderBy(type => type.Name) // Sort alphabetically
                 .ToList();
@@ -139,6 +144,74 @@ namespace DataKeeper.Editor.Attributes
             }
 
             return EditorGUI.GetPropertyHeight(property, label, true);
+        }
+
+        private class TypeDropdown : AdvancedDropdown
+        {
+            private readonly Type[] _validTypes;
+            private readonly Type _baseType;
+            private readonly Action<Type> _onSelected;
+
+            public TypeDropdown(AdvancedDropdownState state, Type[] validTypes, Type baseType, Action<Type> onSelected) 
+                : base(state)
+            {
+                _validTypes = validTypes;
+                _baseType = baseType;
+                _onSelected = onSelected;
+                minimumSize = new Vector2(200, 300);
+            }
+
+            protected override AdvancedDropdownItem BuildRoot()
+            {
+                var root = new AdvancedDropdownItem("Types");
+
+                // Add null option
+                var nullItem = new TypeDropdownItem(NULL_TYPE_NAME, null);
+                root.AddChild(nullItem);
+
+                // Group types by namespace
+                var typesWithNamespace = _validTypes.Where(t => !string.IsNullOrEmpty(t.Namespace))
+                    .GroupBy(t => t.Namespace)
+                    .OrderBy(g => g.Key);
+                
+                // Add types without namespace directly to root
+                foreach (var type in _validTypes.Where(t => string.IsNullOrEmpty(t.Namespace)).OrderBy(t => t.Name))
+                {
+                    root.AddChild(new TypeDropdownItem(type.Name, type));
+                }
+
+                // Add namespaced types to their respective groups
+                foreach (var namespaceGroup in typesWithNamespace)
+                {
+                    var namespaceItem = new AdvancedDropdownItem(namespaceGroup.Key);
+                    root.AddChild(namespaceItem);
+                    
+                    foreach (var type in namespaceGroup.OrderBy(t => t.Name))
+                    {
+                        namespaceItem.AddChild(new TypeDropdownItem(type.Name, type));
+                    }
+                }
+
+                return root;
+            }
+
+            protected override void ItemSelected(AdvancedDropdownItem item)
+            {
+                if (item is TypeDropdownItem typeItem)
+                {
+                    _onSelected?.Invoke(typeItem.Type);
+                }
+            }
+        }
+
+        private class TypeDropdownItem : AdvancedDropdownItem
+        {
+            public Type Type { get; }
+
+            public TypeDropdownItem(string displayName, Type type) : base(displayName)
+            {
+                Type = type;
+            }
         }
     }
 }
