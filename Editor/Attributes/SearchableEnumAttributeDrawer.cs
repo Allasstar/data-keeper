@@ -24,7 +24,7 @@ namespace DataKeeper.Editor.Attributes
                 if (GUI.Button(position, property.enumDisplayNames[property.enumValueIndex], EditorStyles.popup))
                 {
                     // Open the dropdown with state
-                    var dropdown = new SearchableEnumDropdown(dropdownState, property.enumDisplayNames, property.enumValueIndex,
+                    var dropdown = new SearchableEnumDropdown(dropdownState, property.enumDisplayNames,
                         selectedIndex =>
                         {
                             property.enumValueIndex = selectedIndex;
@@ -48,11 +48,12 @@ namespace DataKeeper.Editor.Attributes
         private string[] enumNames;
         private Action<int> onSelected;
 
-        public SearchableEnumDropdown(AdvancedDropdownState state, string[] enumNames, int selectedIndex, Action<int> onSelected)
+        public SearchableEnumDropdown(AdvancedDropdownState state, string[] enumNames, Action<int> onSelected)
             : base(state)
         {
             this.enumNames = enumNames;
             this.onSelected = onSelected;
+            minimumSize = new Vector2(200, 200);
         }
 
         protected override AdvancedDropdownItem BuildRoot()
