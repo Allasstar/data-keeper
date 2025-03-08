@@ -30,48 +30,64 @@ public class PlayerPrefsViewer : EditorWindow
     {
         GUILayout.Space(10);
         DrawToolbar();
-        GUILayout.Space(10);
-        DrawSearchBar();
+        
         GUILayout.Space(10);
         DrawPlayerPrefsList();
-        GUILayout.Space(10);
-        DrawAddNewKeySection();
+       
         GUILayout.Space(10);
         DrawBottomButtons();
+        
+        GUILayout.Space(10);
+        DrawAddNewKeySection();
     }
 
     private void DrawToolbar()
     {
         GUILayout.BeginHorizontal();
-        
-        if (GUILayout.Button("Refresh", GUILayout.Width(100)))
+        if (GUILayout.Button("Delete All", GUILayout.Width(80)))
         {
-            RefreshPlayerPrefs();
+            if (EditorUtility.DisplayDialog("Delete All PlayerPrefs", 
+                    "Are you sure you want to delete all PlayerPrefs for this application?", 
+                    "Yes, delete all", "Cancel"))
+            {
+                PlayerPrefs.DeleteAll();
+                PlayerPrefs.Save();
+                RefreshPlayerPrefs();
+            }
         }
         
-        GUILayout.EndHorizontal();
-    }
+        GUILayout.Space(10);
 
-    private void DrawSearchBar()
-    {
-        GUILayout.BeginHorizontal();
         GUILayout.Label("Search:", GUILayout.Width(50));
         string newSearch = GUILayout.TextField(searchString);
         if (newSearch != searchString)
         {
             searchString = newSearch;
         }
-        
-        if (GUILayout.Button("Clear", GUILayout.Width(60)))
+
+        if (GUILayout.Button("Clear", GUILayout.Width(55)))
         {
             searchString = "";
             GUI.FocusControl(null);
         }
-        GUILayout.EndHorizontal();
+        
+        GUILayout.Space(10);
+        
+        if (GUILayout.Button("Refresh", GUILayout.Width(80)))
+        {
+            RefreshPlayerPrefs();
+        }
+       
+        EditorGUILayout.EndHorizontal();
     }
-
+    
     private void DrawPlayerPrefsList()
     {
+        var columnKey = GUILayout.Width(200);
+        var columnType = GUILayout.Width(50);
+        var columnValue = GUILayout.Width(200);
+        var columnDelete = GUILayout.Width(60);
+        
         EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
         
         if (prefsDict.Count == 0)
@@ -82,15 +98,15 @@ public class PlayerPrefsViewer : EditorWindow
 
         // Column headers
         EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("Key", EditorStyles.boldLabel, GUILayout.Width(200));
-        EditorGUILayout.LabelField("Type", EditorStyles.boldLabel, GUILayout.Width(80));
-        EditorGUILayout.LabelField("Value", EditorStyles.boldLabel, GUILayout.Width(200));
-        EditorGUILayout.LabelField("", EditorStyles.boldLabel, GUILayout.Width(80)); // Delete column
+        EditorGUILayout.LabelField("Key", EditorStyles.boldLabel, columnKey);
+        EditorGUILayout.LabelField("Type", EditorStyles.boldLabel, columnType);
+        EditorGUILayout.LabelField("Value", EditorStyles.boldLabel, columnValue);
+        EditorGUILayout.LabelField("", EditorStyles.boldLabel, columnDelete);
         EditorGUILayout.EndHorizontal();
 
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
-        var filteredKeys = prefsDict.Keys.OrderBy(k => k).ToList();
+        var filteredKeys = prefsDict.Keys.Where(w => w.Contains(searchString)).OrderBy(k => k).ToList();
 
         if (filteredKeys.Count == 0)
         {
@@ -102,11 +118,11 @@ public class PlayerPrefsViewer : EditorWindow
             EditorGUILayout.BeginHorizontal();
             
             // Key
-            EditorGUILayout.LabelField(key, GUILayout.Width(200));
+            EditorGUILayout.LabelField(key, columnKey);
             
             // Type
             string typeName = prefsTypes[key].Name;
-            EditorGUILayout.LabelField(typeName, GUILayout.Width(80));
+            EditorGUILayout.LabelField(typeName, columnType);
             
             // Value with editing capability
             object newValue = null;
@@ -119,7 +135,7 @@ public class PlayerPrefsViewer : EditorWindow
                 {
                     currentValue = (int)editedValues[key];
                 }
-                newValue = EditorGUILayout.IntField(currentValue, GUILayout.Width(200));
+                newValue = EditorGUILayout.IntField(currentValue, columnValue);
             }
             else if (type == typeof(float))
             {
@@ -128,7 +144,7 @@ public class PlayerPrefsViewer : EditorWindow
                 {
                     currentValue = (float)editedValues[key];
                 }
-                newValue = EditorGUILayout.FloatField(currentValue, GUILayout.Width(200));
+                newValue = EditorGUILayout.FloatField(currentValue, columnValue);
             }
             else if (type == typeof(string))
             {
@@ -137,7 +153,7 @@ public class PlayerPrefsViewer : EditorWindow
                 {
                     currentValue = (string)editedValues[key];
                 }
-                newValue = EditorGUILayout.TextField(currentValue, GUILayout.Width(200));
+                newValue = EditorGUILayout.TextField(currentValue, columnValue);
             }
             
             // Check if value changed
@@ -170,7 +186,7 @@ public class PlayerPrefsViewer : EditorWindow
             }
             
             // Delete button
-            if (GUILayout.Button("Delete", GUILayout.Width(60)))
+            if (GUILayout.Button("Delete", columnDelete))
             {
                 if (!keysToDelete.Contains(key))
                 {
@@ -186,7 +202,7 @@ public class PlayerPrefsViewer : EditorWindow
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Space(20);
                 EditorGUILayout.HelpBox("Will be deleted when you save changes", MessageType.Warning);
-                if (GUILayout.Button("Cancel", GUILayout.Width(60)))
+                if (GUILayout.Button("Cancel", columnDelete))
                 {
                     keysToDelete.Remove(key);
                 }
@@ -295,25 +311,6 @@ public class PlayerPrefsViewer : EditorWindow
             int totalChanges = editedValues.Count + keysToDelete.Count;
             EditorGUILayout.HelpBox($"You have {totalChanges} unsaved changes.", MessageType.Info);
         }
-        
-        GUILayout.Space(5);
-        
-        EditorGUILayout.BeginHorizontal();
-        GUILayout.FlexibleSpace();
-        
-        if (GUILayout.Button("Delete All PlayerPrefs", GUILayout.Width(150)))
-        {
-            if (EditorUtility.DisplayDialog("Delete All PlayerPrefs", 
-                "Are you sure you want to delete all PlayerPrefs for this application?", 
-                "Yes, delete all", "Cancel"))
-            {
-                PlayerPrefs.DeleteAll();
-                PlayerPrefs.Save();
-                RefreshPlayerPrefs();
-            }
-        }
-        
-        EditorGUILayout.EndHorizontal();
     }
 
     private void SaveChanges()
@@ -409,7 +406,6 @@ public class PlayerPrefsViewer : EditorWindow
                 foreach (string valueName in valueNames)
                 {
                     string actualKey = valueName;
-                    
                     // Unity's registry values are prefixed with types
                     if (valueName.StartsWith("unity."))
                     {
@@ -419,6 +415,12 @@ public class PlayerPrefsViewer : EditorWindow
                             actualKey = valueName.Substring(11);
                         else if (valueName.StartsWith("unity.string"))
                             actualKey = valueName.Substring(13);
+                    }
+                    
+                    int lastUnderscoreIndex = actualKey.LastIndexOf('_');
+                    if (lastUnderscoreIndex != -1)
+                    {
+                        actualKey = actualKey.Substring(0, lastUnderscoreIndex);
                     }
                     
                     if (!string.IsNullOrEmpty(actualKey) && !keys.Contains(actualKey))
