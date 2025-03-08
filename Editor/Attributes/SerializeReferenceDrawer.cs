@@ -64,12 +64,8 @@ namespace DataKeeper.Editor.Attributes
                 currentTypeName = currentType.Name;
             }
 
-            // Determine the main fieldRect and the dropdown rect
-            Rect dropdownRect = position;
-            dropdownRect.height = EditorGUIUtility.singleLineHeight;
-
             // Draw the label
-            Rect popupRect = EditorGUI.PrefixLabel(dropdownRect, GUIUtility.GetControlID(FocusType.Passive), label);
+            Rect popupRect = EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
 
             // Show the dropdown button
             if (GUI.Button(popupRect, $"<{currentTypeName}>", EditorStyles.popup))
@@ -158,7 +154,7 @@ namespace DataKeeper.Editor.Attributes
                 _validTypes = validTypes;
                 _baseType = baseType;
                 _onSelected = onSelected;
-                minimumSize = new Vector2(200, 300);
+                minimumSize = new Vector2(200, 200);
             }
 
             protected override AdvancedDropdownItem BuildRoot()
