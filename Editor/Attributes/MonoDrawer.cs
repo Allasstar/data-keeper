@@ -5,7 +5,7 @@ using UnityEngine;
 namespace DataKeeper.Editor.Attributes
 {
     [CustomEditor(typeof(MonoBehaviour), true), CanEditMultipleObjects]
-    public class ButtonMonoDrawer : UnityEditor.Editor
+    public class MonoDrawer : UnityEditor.Editor
     {
         public override void OnInspectorGUI()
         {

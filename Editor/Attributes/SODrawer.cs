@@ -4,7 +4,7 @@ using UnityEngine;
 namespace DataKeeper.Editor.Attributes
 {
     [CustomEditor(typeof(ScriptableObject), true), CanEditMultipleObjects]
-    public class ButtonSODrawer : UnityEditor.Editor
+    public class SODrawer : UnityEditor.Editor
     {
         public override void OnInspectorGUI()
         {
