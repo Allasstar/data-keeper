@@ -104,7 +104,10 @@ public class PlayerPrefsViewer : EditorWindow
         }
 
         // Column headers
-        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        Rect headerRect = EditorGUILayout.BeginHorizontal();
+        EditorGUI.DrawRect(headerRect, new Color(0.1f, 0.1f, 0.1f, 0.3f));
+        
         EditorGUILayout.LabelField("Key", EditorStyles.boldLabel, columnKey);
         EditorGUILayout.LabelField("Type", EditorStyles.boldLabel, columnType);
         EditorGUILayout.LabelField("Value", EditorStyles.boldLabel, columnValue);
@@ -218,6 +221,7 @@ public class PlayerPrefsViewer : EditorWindow
         }
         
         EditorGUILayout.EndScrollView();
+        EditorGUILayout.EndVertical();
     }
 
     private void DrawAddNewKeyFoldout()
