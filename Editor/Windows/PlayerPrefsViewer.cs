@@ -21,6 +21,10 @@ public class PlayerPrefsViewer : EditorWindow
     private GUILayoutOption columnType = GUILayout.Width(50);
     private GUILayoutOption columnValue = GUILayout.ExpandWidth(true);
     private GUILayoutOption columnDelete = GUILayout.Width(60);
+    
+    private Texture2D deleteIcon;
+    private Texture2D crossIcon;
+    private Texture2D refreshIcon;
 
     [MenuItem("Tools/Windows/PlayerPrefs Viewer", priority = 1)]
     public static void ShowWindow()
@@ -30,12 +34,17 @@ public class PlayerPrefsViewer : EditorWindow
 
     private void OnEnable()
     {
+        deleteIcon = EditorGUIUtility.FindTexture("TreeEditor.Trash");
+        crossIcon = EditorGUIUtility.FindTexture("CrossIcon");
+        
+        
+        refreshIcon = EditorGUIUtility.FindTexture("Refresh");
+        
         RefreshPlayerPrefs();
     }
 
     private void OnGUI()
     {
-        GUILayout.Space(5);
         DrawToolbar();
         DrawPlayerPrefsList();
         DrawBottomButtons();
@@ -45,8 +54,9 @@ public class PlayerPrefsViewer : EditorWindow
 
     private void DrawToolbar()
     {
+        EditorGUILayout.BeginVertical(EditorStyles.toolbar);
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Delete All", GUILayout.Width(80)))
+        if (GUILayout.Button(deleteIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
         {
             if (EditorUtility.DisplayDialog("Delete All PlayerPrefs", 
                     "Are you sure you want to delete all PlayerPrefs for this application?", 
@@ -58,34 +68,34 @@ public class PlayerPrefsViewer : EditorWindow
             }
         }
         
-        GUILayout.Space(10);
+        GUILayout.Space(50);
 
-        GUILayout.Label("Search:", GUILayout.Width(50));
-        string newSearch = GUILayout.TextField(searchString);
+        string newSearch = GUILayout.TextField(searchString, style: EditorStyles.toolbarSearchField);
         if (newSearch != searchString)
         {
             searchString = newSearch;
         }
 
-        if (GUILayout.Button("Clear", GUILayout.Width(55)))
+        if (GUILayout.Button(crossIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
         {
             searchString = "";
             GUI.FocusControl(null);
         }
         
-        GUILayout.Space(10);
+        GUILayout.Space(50);
         
-        if (GUILayout.Button("Refresh", GUILayout.Width(80)))
+        if (GUILayout.Button(refreshIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
         {
             RefreshPlayerPrefs();
         }
-       
+
         EditorGUILayout.EndHorizontal();
+        EditorGUILayout.EndVertical();
     }
     
     private void DrawPlayerPrefsList()
     {
-        GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(2));
+        // GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(2));
         
         if (prefsDict.Count == 0)
         {
@@ -183,7 +193,7 @@ public class PlayerPrefsViewer : EditorWindow
             }
             
             // Delete button
-            if (GUILayout.Button("Delete", columnDelete))
+            if (GUILayout.Button(deleteIcon, GUILayout.Width(25)))
             {
                 if (!keysToDelete.Contains(key))
                 {
@@ -199,7 +209,7 @@ public class PlayerPrefsViewer : EditorWindow
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Space(20);
                 EditorGUILayout.HelpBox("Will be deleted when you save changes", MessageType.Warning);
-                if (GUILayout.Button("Cancel", columnDelete))
+                if (GUILayout.Button(crossIcon, GUILayout.Width(25), GUILayout.Height(38)))
                 {
                     keysToDelete.Remove(key);
                 }
