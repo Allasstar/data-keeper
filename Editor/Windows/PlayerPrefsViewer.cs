@@ -37,7 +37,7 @@ public class PlayerPrefsViewer : EditorWindow
     private void OnEnable()
     {
         deleteIcon = EditorGUIUtility.FindTexture("TreeEditor.Trash");
-        crossIcon = EditorGUIUtility.FindTexture("CrossIcon");
+        crossIcon = EditorGUIUtility.FindTexture("winbtn_win_close");
         refreshIcon = EditorGUIUtility.FindTexture("Refresh");
         
         RefreshPlayerPrefs();
