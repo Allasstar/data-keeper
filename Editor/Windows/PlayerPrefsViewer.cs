@@ -12,6 +12,7 @@ public class PlayerPrefsViewer : EditorWindow
     private Dictionary<string, System.Type> prefsTypes = new Dictionary<string, System.Type>();
     private Dictionary<string, object> editedValues = new Dictionary<string, object>();
     private List<string> keysToDelete = new List<string>();
+    private bool addNewKeyFoldout = false;
     private string newKeyName = "";
     private int newValueType = 0;
     private string newValueString = "";
@@ -38,7 +39,8 @@ public class PlayerPrefsViewer : EditorWindow
         DrawToolbar();
         DrawPlayerPrefsList();
         DrawBottomButtons();
-        DrawAddNewKeySection();
+        DrawAddNewKeyFoldout();
+        GUILayout.Space(5);
     }
 
     private void DrawToolbar()
@@ -83,7 +85,7 @@ public class PlayerPrefsViewer : EditorWindow
     
     private void DrawPlayerPrefsList()
     {
-        EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+        GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(2));
         
         if (prefsDict.Count == 0)
         {
@@ -208,40 +210,82 @@ public class PlayerPrefsViewer : EditorWindow
         EditorGUILayout.EndScrollView();
     }
 
-    private void DrawAddNewKeySection()
+    private void DrawAddNewKeyFoldout()
     {
-        EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
-        EditorGUILayout.LabelField("Add New PlayerPref", EditorStyles.boldLabel);
+        GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(2));
+
+        // Create a custom style for the foldout with bold text
+        GUIStyle foldoutStyle = new GUIStyle(EditorStyles.foldout);
+        foldoutStyle.fontStyle = FontStyle.Bold;
         
-        EditorGUILayout.BeginHorizontal();
-        GUILayout.Label("Key:", GUILayout.Width(50));
-        newKeyName = EditorGUILayout.TextField(newKeyName);
-        GUILayout.EndHorizontal();
+        // Draw the foldout header
+        addNewKeyFoldout = EditorGUILayout.Foldout(addNewKeyFoldout, "Add New PlayerPref", true, foldoutStyle);
         
-        EditorGUILayout.BeginHorizontal();
-        GUILayout.Label("Type:", GUILayout.Width(50));
-        string[] types = new string[] { "Int", "Float", "String" };
-        newValueType = EditorGUILayout.Popup(newValueType, types);
-        GUILayout.EndHorizontal();
-        
-        EditorGUILayout.BeginHorizontal();
-        GUILayout.Label("Value:", GUILayout.Width(50));
-        newValueString = EditorGUILayout.TextField(newValueString);
-        GUILayout.EndHorizontal();
-        
-        EditorGUILayout.BeginHorizontal();
-        GUILayout.FlexibleSpace();
-        
-        bool canAdd = !string.IsNullOrEmpty(newKeyName);
-        EditorGUI.BeginDisabledGroup(!canAdd);
-        
-        if (GUILayout.Button("Add PlayerPref", GUILayout.Width(120)))
+        if (addNewKeyFoldout)
         {
-            AddNewPlayerPref();
+            EditorGUI.indentLevel++;
+            
+            // Create a box around the content for better visual separation
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            GUILayout.Space(5);
+            
+            // Key name field
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Key:", GUILayout.Width(50));
+            GUI.SetNextControlName("KeyNameField");
+            newKeyName = EditorGUILayout.TextField(newKeyName);
+            GUILayout.EndHorizontal();
+            
+            GUILayout.Space(5);
+            
+            // Type selection
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Type:", GUILayout.Width(50));
+            string[] types = new string[] { "Int", "Float", "String" };
+            newValueType = EditorGUILayout.Popup(newValueType, types);
+            GUILayout.EndHorizontal();
+            
+            GUILayout.Space(5);
+            
+            // Value field
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Value:", GUILayout.Width(50));
+            newValueString = EditorGUILayout.TextField(newValueString);
+            GUILayout.EndHorizontal();
+            
+            GUILayout.Space(10);
+            
+            // Add button
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            
+            bool canAdd = !string.IsNullOrEmpty(newKeyName);
+            EditorGUI.BeginDisabledGroup(!canAdd);
+            
+            if (GUILayout.Button("Add PlayerPref", GUILayout.Width(120)))
+            {
+                AddNewPlayerPref();
+            }
+            
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+            
+            GUILayout.Space(5);
+            EditorGUILayout.EndVertical();
+            
+            EditorGUI.indentLevel--;
+            
+            // Handle Enter key to add when focus is in one of the fields
+            if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return)
+            {
+                if (canAdd && (GUI.GetNameOfFocusedControl() == "KeyNameField" || 
+                               GUI.GetNameOfFocusedControl().Contains("TextField")))
+                {
+                    AddNewPlayerPref();
+                    Event.current.Use();
+                }
+            }
         }
-        
-        EditorGUI.EndDisabledGroup();
-        GUILayout.EndHorizontal();
     }
 
     private void AddNewPlayerPref()
@@ -269,6 +313,9 @@ public class PlayerPrefsViewer : EditorWindow
             // Clear fields
             newKeyName = "";
             newValueString = "";
+            
+            // Keep the focus in the Key field for quick consecutive additions
+            GUI.FocusControl("KeyNameField");
         }
         catch (System.Exception e)
         {
