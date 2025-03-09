@@ -29,15 +29,15 @@ public class PlayerPrefsViewer : EditorWindow
     [MenuItem("Tools/Windows/PlayerPrefs Viewer", priority = 1)]
     public static void ShowWindow()
     {
-        GetWindow<PlayerPrefsViewer>("PlayerPrefs Viewer");
+        Texture2D icon = EditorGUIUtility.FindTexture("SaveActive");
+        var window = GetWindow<PlayerPrefsViewer>();
+        window.titleContent = new GUIContent("PlayerPrefs Viewer", icon);
     }
 
     private void OnEnable()
     {
         deleteIcon = EditorGUIUtility.FindTexture("TreeEditor.Trash");
         crossIcon = EditorGUIUtility.FindTexture("CrossIcon");
-        
-        
         refreshIcon = EditorGUIUtility.FindTexture("Refresh");
         
         RefreshPlayerPrefs();
