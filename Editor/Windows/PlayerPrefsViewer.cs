@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
@@ -14,6 +15,11 @@ public class PlayerPrefsViewer : EditorWindow
     private string newKeyName = "";
     private int newValueType = 0;
     private string newValueString = "";
+    
+    private GUILayoutOption columnKey = GUILayout.Width(200);
+    private GUILayoutOption columnType = GUILayout.Width(50);
+    private GUILayoutOption columnValue = GUILayout.ExpandWidth(true);
+    private GUILayoutOption columnDelete = GUILayout.Width(60);
 
     [MenuItem("Tools/Windows/PlayerPrefs Viewer", priority = 1)]
     public static void ShowWindow()
@@ -28,16 +34,10 @@ public class PlayerPrefsViewer : EditorWindow
 
     private void OnGUI()
     {
-        GUILayout.Space(10);
+        GUILayout.Space(5);
         DrawToolbar();
-        
-        GUILayout.Space(10);
         DrawPlayerPrefsList();
-       
-        GUILayout.Space(10);
         DrawBottomButtons();
-        
-        GUILayout.Space(10);
         DrawAddNewKeySection();
     }
 
@@ -83,11 +83,6 @@ public class PlayerPrefsViewer : EditorWindow
     
     private void DrawPlayerPrefsList()
     {
-        var columnKey = GUILayout.Width(200);
-        var columnType = GUILayout.Width(50);
-        var columnValue = GUILayout.Width(200);
-        var columnDelete = GUILayout.Width(60);
-        
         EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
         
         if (prefsDict.Count == 0)
@@ -106,14 +101,14 @@ public class PlayerPrefsViewer : EditorWindow
 
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
-        var filteredKeys = prefsDict.Keys.Where(w => w.Contains(searchString)).OrderBy(k => k).ToList();
+        List<string> filteredKeys = prefsDict.Keys.Where(w => w.Contains(searchString)).OrderBy(k => k).ToList();
 
         if (filteredKeys.Count == 0)
         {
             EditorGUILayout.HelpBox($"No results found for '{searchString}'", MessageType.Info);
         }
 
-        foreach (var key in filteredKeys)
+        foreach (string key in filteredKeys)
         {
             EditorGUILayout.BeginHorizontal();
             
@@ -126,7 +121,7 @@ public class PlayerPrefsViewer : EditorWindow
             
             // Value with editing capability
             object newValue = null;
-            var type = prefsTypes[key];
+            Type type = prefsTypes[key];
             
             if (type == typeof(int))
             {
