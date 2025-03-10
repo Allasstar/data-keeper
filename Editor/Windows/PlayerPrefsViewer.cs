@@ -26,19 +26,20 @@ public class PlayerPrefsViewer : EditorWindow
     private Texture2D crossIcon;
     private Texture2D refreshIcon;
 
-    [MenuItem("Tools/Windows/PlayerPrefs Viewer", priority = 1)]
+    [MenuItem("Tools/Windows/PlayerPrefs", priority = 1)]
     public static void ShowWindow()
     {
-        Texture2D icon = EditorGUIUtility.FindTexture("SaveActive");
+        Texture2D icon = EditorGUIUtility.FindTexture("d_Preset.Context");
+        
         var window = GetWindow<PlayerPrefsViewer>();
-        window.titleContent = new GUIContent("PlayerPrefs Viewer", icon);
+        window.titleContent = new GUIContent("PlayerPrefs", icon);
     }
 
     private void OnEnable()
     {
         deleteIcon = EditorGUIUtility.FindTexture("TreeEditor.Trash");
-        crossIcon = EditorGUIUtility.FindTexture("winbtn_win_close");
-        refreshIcon = EditorGUIUtility.FindTexture("Refresh");
+        crossIcon = EditorGUIUtility.FindTexture("CrossIcon");
+        refreshIcon = EditorGUIUtility.FindTexture("TreeEditor.Refresh");
         
         RefreshPlayerPrefs();
     }
