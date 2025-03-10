@@ -10,10 +10,13 @@ namespace DataKeeper.Editor.Windows
     {
         private Vector2 scrollPosition;
 
-        [MenuItem("Tools/Windows/Scene Manager", priority = 0)]
+        [MenuItem("Tools/Windows/Scenes", priority = 0)]
         public static void ShowWindow()
         {
-            GetWindow<SceneManagementWindow>("Scene Manager");
+            Texture2D icon = EditorGUIUtility.FindTexture("SceneLoadIn");
+        
+            var window = GetWindow<SceneManagementWindow>();
+            window.titleContent = new GUIContent("Scenes", icon);
         }
 
         private void OnGUI()
