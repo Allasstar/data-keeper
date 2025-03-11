@@ -3,7 +3,13 @@ guid: 5e28aeeea113c425eaff183d4402c629
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - m_ViewDataDictionary: {instanceID: 0}
+  - deleteAllIcon: {fileID: 2800000, guid: ece2b83d095b2444eb6881ef60283a3c, type: 3}
+  - deleteOneIcon: {fileID: 2800000, guid: 7ee327e8f4086474f8967aac5b554342, type: 3}
+  - deleteTextIcon: {fileID: 2800000, guid: 63b1d9758d8c43b4a8bbf8136f147df7, type: 3}
+  - closeIcon: {fileID: 2800000, guid: ceddfd0238f44b54f8796cebf4e9e282, type: 3}
+  - refreshIcon: {fileID: 2800000, guid: 5bce2797dc92ca74ab6d6337dccbd2c0, type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

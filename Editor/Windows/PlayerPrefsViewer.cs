@@ -22,9 +22,12 @@ public class PlayerPrefsViewer : EditorWindow
     private GUILayoutOption columnValue = GUILayout.ExpandWidth(true);
     private GUILayoutOption columnDelete = GUILayout.Width(60);
     
-    private Texture2D deleteIcon;
-    private Texture2D crossIcon;
-    private Texture2D refreshIcon;
+    [SerializeField] private Texture2D deleteAllIcon;
+    [SerializeField] private Texture2D deleteOneIcon;
+    [SerializeField] private Texture2D deleteTextIcon;
+    [SerializeField] private Texture2D closeIcon;
+    [SerializeField] private Texture2D refreshIcon;
+    
 
     [MenuItem("Tools/Windows/PlayerPrefs", priority = 1)]
     public static void ShowWindow()
@@ -37,10 +40,6 @@ public class PlayerPrefsViewer : EditorWindow
 
     private void OnEnable()
     {
-        deleteIcon = EditorGUIUtility.FindTexture("TreeEditor.Trash");
-        crossIcon = EditorGUIUtility.FindTexture("CrossIcon");
-        refreshIcon = EditorGUIUtility.FindTexture("TreeEditor.Refresh");
-        
         RefreshPlayerPrefs();
     }
 
@@ -57,7 +56,7 @@ public class PlayerPrefsViewer : EditorWindow
     {
         EditorGUILayout.BeginVertical(EditorStyles.toolbar);
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button(deleteIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
+        if (GUILayout.Button(deleteAllIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
         {
             if (EditorUtility.DisplayDialog("Delete All PlayerPrefs", 
                     "Are you sure you want to delete all PlayerPrefs for this application?", 
@@ -77,7 +76,7 @@ public class PlayerPrefsViewer : EditorWindow
             searchString = newSearch;
         }
 
-        if (GUILayout.Button(crossIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
+        if (GUILayout.Button(deleteTextIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
         {
             searchString = "";
             GUI.FocusControl(null);
@@ -197,7 +196,7 @@ public class PlayerPrefsViewer : EditorWindow
             }
             
             // Delete button
-            if (GUILayout.Button(deleteIcon, GUILayout.Width(25)))
+            if (GUILayout.Button(deleteOneIcon, GUILayout.Width(25), GUILayout.Height(18)))
             {
                 if (!keysToDelete.Contains(key))
                 {
@@ -213,7 +212,7 @@ public class PlayerPrefsViewer : EditorWindow
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Space(20);
                 EditorGUILayout.HelpBox("Will be deleted when you save changes", MessageType.Warning);
-                if (GUILayout.Button(crossIcon, GUILayout.Width(25), GUILayout.Height(38)))
+                if (GUILayout.Button(closeIcon, GUILayout.Width(25), GUILayout.Height(38)))
                 {
                     keysToDelete.Remove(key);
                 }

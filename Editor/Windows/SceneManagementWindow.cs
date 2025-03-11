@@ -46,7 +46,7 @@ namespace DataKeeper.Editor.Windows
                     EditorGUILayout.LabelField(i.ToString(), EditorStyles.boldLabel,GUILayout.Width(20));
                 
                     // Scene name in bold
-                    EditorGUILayout.LabelField(new GUIContent(sceneName, "Scene path: " + scenePath), EditorStyles.boldLabel, GUILayout.Width(120));
+                    EditorGUILayout.LabelField(new GUIContent(sceneName, "Scene path: " + scenePath), EditorStyles.boldLabel, GUILayout.Width(125));
 
                     // Scene status
                     Scene sceneObject = SceneManager.GetSceneByPath(scenePath);
@@ -66,7 +66,7 @@ namespace DataKeeper.Editor.Windows
 
                     // Disable Unload if only one scene is loaded
                     GUI.enabled = isLoaded && loadedSceneCount > 1;
-                    if (GUILayout.Button("Remove", GUILayout.Width(60)))
+                    if (GUILayout.Button("Unload", GUILayout.Width(60)))
                     {
                         SceneManagement.UnloadScene(scenePath);
                     }
