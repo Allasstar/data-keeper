@@ -34,6 +34,9 @@ Please follow the instrustions:
 
 # --- Documentation ---
 
+## Settings
+`Edit > Preferences > Data Keeper`
+
 ## [Initializator](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Initializator.md)
 
 The `Initializator` class is a static utility located in the `DataKeeper.Init` namespace. It serves as an initialization helper that loads and initializes all `SO` (Scriptable Object) resources at a specific moment during runtime. This can be particularly useful to set up and prepare resources before a scene is loaded.
