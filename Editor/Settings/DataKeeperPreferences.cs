@@ -1,6 +1,6 @@
 using UnityEditor;
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace DataKeeper.Editor.Settings
 {
@@ -15,6 +15,7 @@ namespace DataKeeper.Editor.Settings
                 guiHandler = (searchContext) =>
                 {
                     EnhanceHierarchyIconUI();
+                    EnhanceHierarchyPrefabIconUI();
                 },
                 
                 // Keywords to help find these preferences when searching
@@ -26,12 +27,17 @@ namespace DataKeeper.Editor.Settings
         
         private static void EnhanceHierarchyIconUI()
         {
+            EditorGUILayout.Space();
+
+            EditorGUILayout.LabelField("Enhance:");
+            EditorGUI.indentLevel++;
+
             // Load the current value
             bool currentValue = DataKeeperEditorPref.EnhanceHierarchyIconPref.Value;
             
             // Create a toggle for enabling/disabling the feature
             EditorGUI.BeginChangeCheck();
-            bool newValue = EditorGUILayout.Toggle("Enhance Hierarchy Icon", currentValue);
+            bool newValue = EditorGUILayout.Toggle("Hierarchy Icon", currentValue);
             
             if (EditorGUI.EndChangeCheck())
             {
@@ -41,13 +47,35 @@ namespace DataKeeper.Editor.Settings
                 EditorApplication.RepaintHierarchyWindow();
             }
             
-            // Add some space
-            EditorGUILayout.Space();
-            
-            // Add a help box with additional information
             EditorGUILayout.HelpBox(
                 "When enabled, this will show component icons next to GameObjects in the hierarchy view.", 
-                MessageType.Info);
+                MessageType.None);
+        }
+        
+        private static void EnhanceHierarchyPrefabIconUI()
+        {
+            EditorGUI.BeginDisabledGroup(!DataKeeperEditorPref.EnhanceHierarchyIconPref.Value);
+
+            EditorGUILayout.Space();
+
+            // Load the current value
+            bool currentValue = DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
+            
+            // Create a toggle for enabling/disabling the feature
+            EditorGUI.BeginChangeCheck();
+            bool newValue = EditorGUILayout.Toggle("Hierarchy Prefab", currentValue);
+            
+            if (EditorGUI.EndChangeCheck())
+            {
+                DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value = newValue;
+                EditorApplication.RepaintHierarchyWindow();
+            }
+            
+            EditorGUILayout.HelpBox(
+                "When enabled, this will show blue line for Prefabs in the hierarchy view.", 
+                MessageType.None);
+            
+            EditorGUI.EndDisabledGroup();
         }
     }
 }

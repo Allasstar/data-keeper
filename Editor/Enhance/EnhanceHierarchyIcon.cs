@@ -15,6 +15,7 @@ namespace DataKeeper.Editor.Enhance
         // Settings
         private static List<System.Type> priorityComponents = new List<System.Type>();
         private static bool isEnabled => DataKeeperEditorPref.EnhanceHierarchyIconPref.Value;
+        private static bool isEnabledPrefab => DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
 
         // Colors
         private static readonly Color SelectionColor = new Color(0.17f, 0.36f, 0.53f);
@@ -24,6 +25,8 @@ namespace DataKeeper.Editor.Enhance
         
         private static readonly Color NormalProColor = new Color(0.22f, 0.22f, 0.22f);
         private static readonly Color NormalLightColor = new Color(0.76f, 0.76f, 0.76f);
+        
+        private static readonly Color PrefabColor = new Color(0.4f, 0.5f, 0.8f);
         
         // Constructor runs when Unity starts or scripts recompile
         static EnhanceHierarchyIcon()
@@ -51,6 +54,14 @@ namespace DataKeeper.Editor.Enhance
                 priorityComponents.Add(typeof(UnityEngine.UI.ToggleGroup));
                 priorityComponents.Add(typeof(DataKeeper.UI.ToggleUIGroup));
                 priorityComponents.Add(typeof(UnityEngine.UI.Image));
+                priorityComponents.Add(typeof(UnityEngine.UI.LayoutGroup));
+                priorityComponents.Add(typeof(UnityEngine.UI.LayoutElement));
+                priorityComponents.Add(typeof(UnityEngine.UI.ContentSizeFitter));
+                priorityComponents.Add(typeof(UnityEngine.UI.AspectRatioFitter));
+                priorityComponents.Add(typeof(UnityEngine.UI.GridLayoutGroup));
+                priorityComponents.Add(typeof(UnityEngine.UI.HorizontalLayoutGroup));
+                priorityComponents.Add(typeof(UnityEngine.UI.VerticalLayoutGroup));
+                priorityComponents.Add(typeof(UnityEngine.UI.HorizontalOrVerticalLayoutGroup));
                 priorityComponents.Add(typeof(DataKeeper.UI.SafeAreaUI));
                 priorityComponents.Add(typeof(TextMeshProUGUI));
                 priorityComponents.Add(typeof(TMP_InputField));
@@ -89,11 +100,17 @@ namespace DataKeeper.Editor.Enhance
 
                     // Determine if this item is selected
                     bool isSelected = Selection.Contains(instanceID);
+                    bool isMouseDown = Event.current.type == EventType.MouseDown || 
+                                       Event.current.type == EventType.MouseDrag ||
+                                       (Event.current.type == EventType.Repaint && 
+                                        Event.current.button > 0 
+                                        && Event.current.mousePosition.y > 0);
+
 
                     // Get appropriate background color based on selection state
                     Color backgroundColor;
 
-                    if (isSelected)
+                    if (isSelected || isMouseDown)
                     {
                         // Use Unity's selection color
                         backgroundColor = SelectionColor;
@@ -102,7 +119,8 @@ namespace DataKeeper.Editor.Enhance
                     {
                         // Check if item is being hovered (mouse over)
                         bool isHovered = selectionRect.Contains(Event.current.mousePosition);
-
+                      
+                        // Fix for hover color when mouse is held down
                         if (isHovered && Event.current.type == EventType.Repaint)
                         {
                             // Use Unity's hover color
@@ -119,8 +137,20 @@ namespace DataKeeper.Editor.Enhance
                         }
                     }
 
-                    // Cover default icon with background
                     EditorGUI.DrawRect(iconRect, backgroundColor);
+
+                    if (isEnabledPrefab)
+                    {
+                        bool isPrefab = PrefabUtility.GetPrefabInstanceStatus(gameObject) != PrefabInstanceStatus.NotAPrefab;
+                        
+                        if (isPrefab)
+                        {
+                            var prefabRect = new Rect(iconRect);
+                            prefabRect.x = 40f;
+                            prefabRect.width = 3f;
+                            EditorGUI.DrawRect(prefabRect, PrefabColor);
+                        }
+                    }
 
                     GUI.DrawTexture(iconRect, icon);
                 }
