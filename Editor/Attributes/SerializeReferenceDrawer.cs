@@ -41,20 +41,18 @@ namespace DataKeeper.Editor.Attributes
 
             EditorGUI.EndProperty();
         }
-
+        
         private void DrawSerializeReferenceField(Rect position, SerializedProperty property, GUIContent label)
         {
             SerializeReferenceSelectorAttribute attribute = (SerializeReferenceSelectorAttribute)this.attribute;
 
             Type baseType = attribute.BaseType ?? fieldInfo.FieldType;
 
-            // If it's a generic type (like List<T>), get the element type
             if (baseType.IsGenericType && baseType.GetGenericTypeDefinition() == typeof(List<>))
             {
                 baseType = baseType.GetGenericArguments()[0];
             }
 
-            // Get all valid types that can be assigned
             Type[] validTypes = GetValidTypes(baseType);
 
             string currentTypeName = NULL_TYPE_NAME;
@@ -64,42 +62,42 @@ namespace DataKeeper.Editor.Attributes
                 currentTypeName = currentType.Name;
             }
 
-            // Draw the label
             Rect popupRect = EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
-
-            // Show the dropdown button
+            popupRect.height = EditorGUIUtility.singleLineHeight;
+            
             if (GUI.Button(popupRect, $"<{currentTypeName}>", EditorStyles.popup))
             {
-                var dropdown = new TypeDropdown(s_DropdownState, validTypes, baseType, 
-                    selectedType =>
+                var dropdown = new TypeDropdown(s_DropdownState, validTypes, baseType, selectedType =>
+                {
+                    foreach (var target in property.serializedObject.targetObjects)
                     {
+                        SerializedObject serializedObject = new SerializedObject(target);
+                        SerializedProperty targetProperty = serializedObject.FindProperty(property.propertyPath);
+
                         if (selectedType == null)
                         {
-                            // Selected "null"
-                            property.managedReferenceValue = null;
+                            targetProperty.managedReferenceValue = null;
                         }
                         else
                         {
-                            // Create instance of selected type
-                            property.managedReferenceValue = Activator.CreateInstance(selectedType);
+                            targetProperty.managedReferenceValue = Activator.CreateInstance(selectedType);
                         }
-                        property.serializedObject.ApplyModifiedProperties();
-                    });
+
+                        serializedObject.ApplyModifiedProperties();
+                    }
+                });
 
                 dropdown.Show(popupRect);
             }
 
-            // Draw the property fields if not null
             if (property.managedReferenceValue != null)
             {
                 Rect contentRect = position;
                 contentRect.height = position.height;
-
-                // Use a sub-property drawer without the label
                 EditorGUI.PropertyField(contentRect, property, GUIContent.none, true);
             }
         }
-
+     
         private Type[] GetValidTypes(Type baseType)
         {
             // Check the cache first
