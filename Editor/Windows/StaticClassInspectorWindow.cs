@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using DataKeeper.Attributes;
+using DataKeeper.Generic;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
@@ -184,6 +185,40 @@ namespace DataKeeper.Editor.Windows
             {
                 return EditorGUILayout.BoundsField(name, (Bounds)value);
             }
+            else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Reactive<>))
+            {
+                // TODO: Handle Reactive<T> properties
+                Type innerType = type.GetGenericArguments()[0];
+                object innerValue = value != null ? type.GetProperty("Value").GetValue(value) : null;
+        
+                EditorGUI.BeginChangeCheck();
+                object newInnerValue = DrawPropertyEditor($"{name}.Value", innerType, innerValue);
+        
+                if (EditorGUI.EndChangeCheck() && value != null)
+                {
+                    // Set the inner value using the Value property
+                    type.GetProperty("Value").SetValue(value, newInnerValue);
+                }
+        
+                return value; // Return the original reactive object
+            }
+            else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ReactivePref<>))
+            {
+                // TODO: Handle ReactivePref<T> properties
+                Type innerType = type.GetGenericArguments()[0];
+                object innerValue = value != null ? type.GetProperty("Value").GetValue(value) : null;
+        
+                EditorGUI.BeginChangeCheck();
+                object newInnerValue = DrawPropertyEditor($"{name}.Value", innerType, innerValue);
+        
+                if (EditorGUI.EndChangeCheck() && value != null)
+                {
+                    // Set the inner value using the Value property
+                    type.GetProperty("Value").SetValue(value, newInnerValue);
+                }
+        
+                return value; // Return the original reactive object
+            }
             else if (type.IsEnum)
             {
                 return EditorGUILayout.EnumPopup(name, (Enum)value);
@@ -259,5 +294,3 @@ namespace DataKeeper.Editor.Windows
         }
     }
 }
-
-// Example usage - just an example to demonstrate functionality
