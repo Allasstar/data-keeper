@@ -146,6 +146,8 @@ namespace DataKeeper.Editor.Windows
             if (GUILayout.Button("Restore Original"))
             {
                 jsonData = (string)jsonDataOriginal.Clone();
+                GUI.FocusControl(null);
+                Repaint();
             }
             
             // if (GUILayout.Button("Reset to Default Object"))
