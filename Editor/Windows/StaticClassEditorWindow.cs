@@ -23,10 +23,13 @@ namespace DataKeeper.Editor.Windows
         private AdvancedDropdownState classDropdownState = new AdvancedDropdownState();
         private AdvancedDropdownState memberDropdownState = new AdvancedDropdownState();
 
-        [MenuItem("Tools/Windows/Static Class Editor", priority = 2)]
+        [MenuItem("Tools/Windows/Static Class Editor", priority = 3)]
         public static void ShowWindow()
         {
-            GetWindow<StaticClassEditorWindow>("Static Class Editor");
+            Texture2D icon = EditorGUIUtility.FindTexture("d_editicon.sml");
+
+            var window = GetWindow<StaticClassEditorWindow>();
+            window.titleContent = new GUIContent("Static Class Editor", icon);
         }
 
         private void OnEnable()

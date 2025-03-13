@@ -13,7 +13,7 @@ namespace DataKeeper.Editor.Windows
         [MenuItem("Tools/Windows/Scenes", priority = 0)]
         public static void ShowWindow()
         {
-            Texture2D icon = EditorGUIUtility.FindTexture("SceneLoadIn");
+            Texture2D icon = EditorGUIUtility.FindTexture("d_Scene");
         
             var window = GetWindow<SceneManagementWindow>();
             window.titleContent = new GUIContent("Scenes", icon);
