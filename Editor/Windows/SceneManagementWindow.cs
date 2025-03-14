@@ -74,7 +74,7 @@ namespace DataKeeper.Editor.Windows
                     if (isLoaded) labelBuilder.Append("Loaded");
                     var label = labelBuilder.ToString();
 
-                    EditorGUILayout.LabelField(label, GUILayout.Width(80));
+                    EditorGUILayout.LabelField(label, GUILayout.Width(55));
                 
                     GUI.enabled = true;
 
