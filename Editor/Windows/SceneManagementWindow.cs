@@ -42,31 +42,25 @@ namespace DataKeeper.Editor.Windows
 
                     EditorGUILayout.BeginHorizontal();
                 
-                    // Index
-                    EditorGUILayout.LabelField(i.ToString(), EditorStyles.boldLabel,GUILayout.Width(20));
-                
-                    // Scene name in bold
-                    EditorGUILayout.LabelField(new GUIContent(sceneName, "Scene path: " + scenePath), EditorStyles.boldLabel, GUILayout.Width(125));
-
                     // Scene status
                     Scene sceneObject = SceneManager.GetSceneByPath(scenePath);
                     bool isLoaded = sceneObject.isLoaded;
 
                     // Action buttons
                     GUI.enabled = !isLoaded;
-                    if (GUILayout.Button("Load", GUILayout.Width(50)))
+                    if (GUILayout.Button(new GUIContent(sceneName, $"Load Scene: {scenePath}"), GUILayout.Height(25)))
                     {
                         SceneManagement.LoadScene(scenePath);
                     }
 
-                    if (GUILayout.Button("Add", GUILayout.Width(45)))
+                    if (GUILayout.Button("Add", GUILayout.Width(45), GUILayout.Height(25)))
                     {
                         SceneManagement.LoadSceneAdditive(scenePath);
                     }
 
                     // Disable Unload if only one scene is loaded
                     GUI.enabled = isLoaded && loadedSceneCount > 1;
-                    if (GUILayout.Button("Unload", GUILayout.Width(60)))
+                    if (GUILayout.Button("Unload", GUILayout.Width(60), GUILayout.Height(25)))
                     {
                         SceneManagement.UnloadScene(scenePath);
                     }
