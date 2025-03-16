@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Linq;
 using System.Reflection;
 using DataKeeper.Attributes;
@@ -28,12 +29,12 @@ namespace DataKeeper.Editor.Windows
 
         private void OnEnable()
         {
-            // Find all static classes with StaticClassInspectorAttribute
-            var types = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes())
-                .Where(t => t.IsClass && t.IsAbstract && t.IsSealed && // Static class check
-                            t.GetCustomAttribute<StaticClassInspectorAttribute>() != null)
-                .ToList();
+            GetTypes();
+        }
+
+        private void GetTypes()
+        {
+            var types = TypeCache.GetTypesWithAttribute(typeof(StaticClassInspectorAttribute));
 
             // Group types by category
             categoryToTypes.Clear();
@@ -184,6 +185,10 @@ namespace DataKeeper.Editor.Windows
             else if (type == typeof(Bounds))
             {
                 return EditorGUILayout.BoundsField(name, (Bounds)value);
+            }
+            else if (type == typeof(AnimationCurve))
+            {
+                return EditorGUILayout.CurveField(name, (AnimationCurve)value);
             }
             else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Reactive<>))
             {
