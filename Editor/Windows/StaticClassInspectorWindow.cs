@@ -12,6 +12,7 @@ namespace DataKeeper.Editor.Windows
     public class StaticClassInspectorWindow : EditorWindow
     {
         private Type selectedType;
+        private bool showPrivate;
         private Vector2 scrollPosition;
         private AdvancedDropdown dropdown;
         private Dictionary<string, List<Type>> categoryToTypes = new Dictionary<string, List<Type>>();
@@ -60,6 +61,10 @@ namespace DataKeeper.Editor.Windows
                 new StaticClassDropdown(new AdvancedDropdownState(), categoryToTypes, OnStaticClassSelected)
                     .Show(new Rect(Event.current.mousePosition, Vector2.zero));
             }
+            
+            GUILayout.Space(10);
+
+            showPrivate = GUILayout.Toggle(showPrivate, "Show Private");
 
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();
@@ -75,10 +80,12 @@ namespace DataKeeper.Editor.Windows
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
             // Get all fields and properties of the selected type
-            var fields = selectedType.GetFields(BindingFlags.Public | BindingFlags.Static);
+            var fields = showPrivate 
+                ? selectedType.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static) 
+                : selectedType.GetFields(BindingFlags.Public | BindingFlags.Static);
+            
             var properties = selectedType.GetProperties(BindingFlags.Public | BindingFlags.Static)
-                .Where(p => p.CanRead &&
-                            p.GetIndexParameters().Length == 0); // Only properties that we can read and aren't indexers
+                .Where(p => p.CanRead && p.GetIndexParameters().Length == 0); // Only properties that we can read and aren't indexers
 
             // Display fields
             if (fields.Length > 0)
@@ -106,7 +113,7 @@ namespace DataKeeper.Editor.Windows
             }
 
             // Display properties
-            if (properties.Count() > 0)
+            if (properties.Any())
             {
                 GUILayout.Space(10);
                 EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
@@ -194,38 +201,6 @@ namespace DataKeeper.Editor.Windows
             {
                 return EditorGUILayout.CurveField(name, (AnimationCurve)value);
             }
-            // else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Reactive<>))
-            // {
-            //     Type innerType = type.GetGenericArguments()[0];
-            //     object innerValue = value != null ? type.GetProperty("Value").GetValue(value) : null;
-            //
-            //     EditorGUI.BeginChangeCheck();
-            //     object newInnerValue = DrawPropertyEditor("Value", innerType, innerValue, fullPath);
-            //
-            //     if (EditorGUI.EndChangeCheck() && value != null)
-            //     {
-            //         // Set the inner value using the Value property
-            //         type.GetProperty("Value").SetValue(value, newInnerValue);
-            //     }
-            //
-            //     return value; // Return the original reactive object
-            // }
-            // else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ReactivePref<>))
-            // {
-            //     Type innerType = type.GetGenericArguments()[0];
-            //     object innerValue = value != null ? type.GetProperty("Value").GetValue(value) : null;
-            //
-            //     EditorGUI.BeginChangeCheck();
-            //     object newInnerValue = DrawPropertyEditor("Value", innerType, innerValue, fullPath);
-            //
-            //     if (EditorGUI.EndChangeCheck() && value != null)
-            //     {
-            //         // Set the inner value using the Value property
-            //         type.GetProperty("Value").SetValue(value, newInnerValue);
-            //     }
-            //
-            //     return value; // Return the original reactive object
-            // }
             else if (type.IsEnum)
             {
                 return EditorGUILayout.EnumPopup(name, (Enum)value);
