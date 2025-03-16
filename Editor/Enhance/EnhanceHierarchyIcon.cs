@@ -26,7 +26,7 @@ namespace DataKeeper.Editor.Enhance
         private static readonly Color NormalProColor = new Color(0.22f, 0.22f, 0.22f);
         private static readonly Color NormalLightColor = new Color(0.76f, 0.76f, 0.76f);
         
-        private static readonly Color PrefabColor = new Color(0.4f, 0.5f, 0.8f);
+        private static readonly Color PrefabColor = new Color(0.3f, 0.7f, 0.4f);
         
         // Constructor runs when Unity starts or scripts recompile
         static EnhanceHierarchyIcon()
