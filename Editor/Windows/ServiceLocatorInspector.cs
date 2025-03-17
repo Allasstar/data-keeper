@@ -102,7 +102,7 @@ namespace DataKeeper.Editor
         private void DrawSearchBar()
         {
             EditorGUILayout.Space();
-            _searchFilter = EditorGUILayout.TextField("Search", _searchFilter, EditorStyles.toolbarSearchField);
+            _searchFilter = EditorGUILayout.TextField(_searchFilter, EditorStyles.toolbarSearchField);
             EditorGUILayout.Space();
         }
 
