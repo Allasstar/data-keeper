@@ -63,7 +63,7 @@ namespace DataKeeper.Editor.Windows
                     .Show(new Rect(Event.current.mousePosition, Vector2.zero));
             }
             
-            GUILayout.Space(10);
+            GUILayout.FlexibleSpace();
 
             showPrivate = GUILayout.Toggle(showPrivate, "Show Private");
 
