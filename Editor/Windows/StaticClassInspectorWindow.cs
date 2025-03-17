@@ -65,7 +65,7 @@ namespace DataKeeper.Editor.Windows
             
             GUILayout.FlexibleSpace();
 
-            showPrivate = GUILayout.Toggle(showPrivate, "Show Private");
+            showPrivate = GUILayout.Toggle(showPrivate, "Show Private", EditorStyles.toolbarButton);
 
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();
