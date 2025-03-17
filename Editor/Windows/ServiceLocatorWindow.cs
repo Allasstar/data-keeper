@@ -72,10 +72,10 @@ namespace DataKeeper.Editor.Windows
             if (GUILayout.Toggle(_currentMode == InspectionMode.Global, "Global", EditorStyles.toolbarButton))
                 _currentMode = InspectionMode.Global;
 
-            if (GUILayout.Toggle(_currentMode == InspectionMode.Scene, "Scene", EditorStyles.toolbarButton))
+            if (GUILayout.Toggle(_currentMode == InspectionMode.Scene, "Scenes", EditorStyles.toolbarButton))
                 _currentMode = InspectionMode.Scene;
 
-            if (GUILayout.Toggle(_currentMode == InspectionMode.GameObject, "GameObject", EditorStyles.toolbarButton))
+            if (GUILayout.Toggle(_currentMode == InspectionMode.GameObject, "GameObjects", EditorStyles.toolbarButton))
                 _currentMode = InspectionMode.GameObject;
 
             if (GUILayout.Toggle(_currentMode == InspectionMode.Table, "Tables", EditorStyles.toolbarButton))
