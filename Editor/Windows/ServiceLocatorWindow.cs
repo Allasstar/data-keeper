@@ -109,7 +109,7 @@ namespace DataKeeper.Editor.Windows
         {
             EditorGUILayout.LabelField("Global Register", EditorStyles.boldLabel);
             var register = ServiceLocator.GlobalRegister;
-            DrawRegisterTable(register);
+            DrawTableGUI(register);
         }
 
         private void DrawSceneRegisters()
@@ -156,7 +156,7 @@ namespace DataKeeper.Editor.Windows
                 if (_sceneFoldouts[sceneName])
                 {
                     EditorGUI.indentLevel++;
-                    DrawRegisterTable(register);
+                    DrawTableGUI(register);
                     EditorGUI.indentLevel--;
                 }
             }
@@ -219,7 +219,7 @@ namespace DataKeeper.Editor.Windows
                 if (_gameObjectFoldouts[gameObject])
                 {
                     EditorGUI.indentLevel++;
-                    DrawRegisterTable(register);
+                    DrawTableGUI(register);
                     EditorGUI.indentLevel--;
                 }
             }
@@ -287,13 +287,13 @@ namespace DataKeeper.Editor.Windows
                 if (_tableFoldouts[tableName])
                 {
                     EditorGUI.indentLevel++;
-                    DrawRegisterTable(register);
+                    DrawTableGUI(register);
                     EditorGUI.indentLevel--;
                 }
             }
         }
 
-        private void DrawRegisterTable(Register<object> register)
+        private void DrawTableGUI(Register<object> register)
         {
             if (register == null || register.Count == 0)
             {
