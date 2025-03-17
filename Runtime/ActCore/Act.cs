@@ -30,6 +30,11 @@ namespace DataKeeper.ActCore
         
         public static UnityEvent OnUpdateEvent => Engine.OnUpdateEvent;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void Reset()
+        {
+            IsInitialized = false;
+        }
         
         public static void Init()
         {
