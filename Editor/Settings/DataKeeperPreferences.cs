@@ -17,7 +17,7 @@ namespace DataKeeper.Editor.Settings
                 guiHandler = (searchContext) =>
                 {
                     EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                    EditorGUILayout.LabelField("Hierarchy Icon:", EditorStyles.boldLabel);
+                    EditorGUILayout.LabelField("Enhance Hierarchy Icon:", EditorStyles.boldLabel);
                     EnhanceHierarchyIconUI();
                     EnhanceHierarchyPrefabIconUI();
                     EditorGUILayout.EndVertical();
