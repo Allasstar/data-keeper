@@ -172,67 +172,7 @@ namespace DataKeeper.Editor
                 }
             }
         }
-
-        private void DrawTableRegisters()
-        {
-            // Use reflection to access the TableRegisters dictionary
-            var tableRegistersField = typeof(ServiceLocator).GetField("TableRegisters", 
-                BindingFlags.NonPublic | BindingFlags.Static);
-            
-            if (tableRegistersField == null)
-            {
-                EditorGUILayout.HelpBox("Could not access TableRegisters via reflection", MessageType.Error);
-                return;
-            }
-            
-            var tableRegisters = tableRegistersField.GetValue(null) as Dictionary<string, Register<object>>;
-            
-            if (tableRegisters == null || tableRegisters.Count == 0)
-            {
-                EditorGUILayout.HelpBox("No tables registered", MessageType.Info);
-                return;
-            }
-            
-            EditorGUILayout.LabelField("Table Registers", EditorStyles.boldLabel);
-            
-            foreach (var kvp in tableRegisters)
-            {
-                string tableName = kvp.Key;
-                Register<object> register = kvp.Value;
-                
-                // Skip if doesn't match search filter
-                if (!string.IsNullOrEmpty(_searchFilter) && !tableName.Contains(_searchFilter))
-                {
-                    bool hasMatchingItem = false;
-                    foreach (var item in register.All)
-                    {
-                        if (item.Key.Contains(_searchFilter) || 
-                            (item.Value != null && item.Value.GetType().Name.Contains(_searchFilter)))
-                        {
-                            hasMatchingItem = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!hasMatchingItem)
-                        continue;
-                }
-                
-                // Ensure the table has a foldout state
-                if (!_tableFoldouts.ContainsKey(tableName))
-                    _tableFoldouts[tableName] = false;
-                
-                _tableFoldouts[tableName] = EditorGUILayout.Foldout(_tableFoldouts[tableName], $"Table: {tableName}", true);
-                
-                if (_tableFoldouts[tableName])
-                {
-                    EditorGUI.indentLevel++;
-                    DrawRegisterTable(register);
-                    EditorGUI.indentLevel--;
-                }
-            }
-        }
-
+        
         private void DrawGameObjectRegisters()
         {
             // Use reflection to access the GameObjectRegisters dictionary
@@ -293,7 +233,7 @@ namespace DataKeeper.Editor
                     $"GameObject: {gameObjectName}", true);
                 
                 // Add an object field to highlight the GameObject
-                EditorGUILayout.ObjectField(gameObject, typeof(GameObject), true, GUILayout.Width(100));
+                EditorGUILayout.ObjectField(gameObject, typeof(GameObject), true, GUILayout.Width(200));
                 
                 EditorGUILayout.EndHorizontal();
                 
@@ -321,6 +261,66 @@ namespace DataKeeper.Editor
             foreach (var key in keysToRemove)
             {
                 _gameObjectFoldouts.Remove(key);
+            }
+        }
+
+        private void DrawTableRegisters()
+        {
+            // Use reflection to access the TableRegisters dictionary
+            var tableRegistersField = typeof(ServiceLocator).GetField("TableRegisters", 
+                BindingFlags.NonPublic | BindingFlags.Static);
+            
+            if (tableRegistersField == null)
+            {
+                EditorGUILayout.HelpBox("Could not access TableRegisters via reflection", MessageType.Error);
+                return;
+            }
+            
+            var tableRegisters = tableRegistersField.GetValue(null) as Dictionary<string, Register<object>>;
+            
+            if (tableRegisters == null || tableRegisters.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No tables registered", MessageType.Info);
+                return;
+            }
+            
+            EditorGUILayout.LabelField("Table Registers", EditorStyles.boldLabel);
+            
+            foreach (var kvp in tableRegisters)
+            {
+                string tableName = kvp.Key;
+                Register<object> register = kvp.Value;
+                
+                // Skip if doesn't match search filter
+                if (!string.IsNullOrEmpty(_searchFilter) && !tableName.Contains(_searchFilter))
+                {
+                    bool hasMatchingItem = false;
+                    foreach (var item in register.All)
+                    {
+                        if (item.Key.Contains(_searchFilter) || 
+                            (item.Value != null && item.Value.GetType().Name.Contains(_searchFilter)))
+                        {
+                            hasMatchingItem = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!hasMatchingItem)
+                        continue;
+                }
+                
+                // Ensure the table has a foldout state
+                if (!_tableFoldouts.ContainsKey(tableName))
+                    _tableFoldouts[tableName] = false;
+                
+                _tableFoldouts[tableName] = EditorGUILayout.Foldout(_tableFoldouts[tableName], $"Table: {tableName}", true);
+                
+                if (_tableFoldouts[tableName])
+                {
+                    EditorGUI.indentLevel++;
+                    DrawRegisterTable(register);
+                    EditorGUI.indentLevel--;
+                }
             }
         }
 
