@@ -24,6 +24,7 @@ namespace DataKeeper.Editor.Windows
             Texture2D icon = EditorGUIUtility.FindTexture("d_UnityEditor.DebugInspectorWindow");
 
             var window = GetWindow<StaticClassInspectorWindow>();
+            window.minSize = new Vector2(400, 300);
             window.titleContent = new GUIContent("Static Class Inspector", icon);
         }
 

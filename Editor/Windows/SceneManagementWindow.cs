@@ -16,6 +16,7 @@ namespace DataKeeper.Editor.Windows
             Texture2D icon = EditorGUIUtility.FindTexture("d_Scene");
         
             var window = GetWindow<SceneManagementWindow>();
+            window.minSize = new Vector2(250, 300);
             window.titleContent = new GUIContent("Scenes", icon);
         }
 

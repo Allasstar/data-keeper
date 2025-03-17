@@ -37,6 +37,7 @@ namespace DataKeeper.Editor.Windows
             Texture2D icon = EditorGUIUtility.FindTexture("d_Preset.Context");
 
             var window = GetWindow<PlayerPrefsViewer>();
+            window.minSize = new Vector2(400, 300);
             window.titleContent = new GUIContent("PlayerPrefs", icon);
         }
 
