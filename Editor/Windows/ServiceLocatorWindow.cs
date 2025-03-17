@@ -24,11 +24,6 @@ namespace DataKeeper.Editor.Windows
         private Dictionary<string, bool> _sceneFoldouts = new Dictionary<string, bool>();
         private Dictionary<GameObject, bool> _gameObjectFoldouts = new Dictionary<GameObject, bool>();
 
-        // Table column widths
-        private float _keyColumnWidth = 200f;
-        private float _valueColumnWidth = 200f;
-        private float _typeColumnWidth = 150f;
-
 
         [MenuItem("Tools/Windows/Service Locator Inspector", priority = 3)]
         public static void ShowWindow()
