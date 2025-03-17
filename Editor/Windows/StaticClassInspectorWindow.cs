@@ -25,7 +25,7 @@ namespace DataKeeper.Editor.Windows
 
             var window = GetWindow<StaticClassInspectorWindow>();
             window.minSize = new Vector2(400, 300);
-            window.titleContent = new GUIContent("Static Class Inspector", icon);
+            window.titleContent = new GUIContent("Static Class", icon);
         }
 
         private void OnEnable()

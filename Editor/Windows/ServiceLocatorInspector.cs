@@ -1,11 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using DataKeeper.Generic;
 using DataKeeper.ServiceLocatorPattern;
-using UnityEngine.SceneManagement;
 
 namespace DataKeeper.Editor
 {
@@ -29,8 +27,9 @@ namespace DataKeeper.Editor
 
         // Table column widths
         private float _keyColumnWidth = 200f;
+        private float _valueColumnWidth = 200f;
         private float _typeColumnWidth = 150f;
-        private float _valueColumnWidth = 150f;
+
 
         [MenuItem("Tools/Windows/Service Locator Inspector", priority = 3)]
         public static void ShowWindow()
@@ -40,7 +39,6 @@ namespace DataKeeper.Editor
             var window = GetWindow<ServiceLocatorInspector>();
             window.minSize = new Vector2(400, 300);
             window.titleContent = new GUIContent("Service Locator", icon);
-
         }
 
         private void OnGUI()
@@ -104,7 +102,7 @@ namespace DataKeeper.Editor
         private void DrawSearchBar()
         {
             EditorGUILayout.Space();
-            _searchFilter = EditorGUILayout.TextField("Search", _searchFilter);
+            _searchFilter = EditorGUILayout.TextField("Search", _searchFilter, EditorStyles.toolbarSearchField);
             EditorGUILayout.Space();
         }
 
@@ -338,9 +336,9 @@ namespace DataKeeper.Editor
             
             // Table header
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            EditorGUILayout.LabelField("Key", EditorStyles.toolbarButton, GUILayout.Width(_keyColumnWidth));
-            EditorGUILayout.LabelField("Type", EditorStyles.toolbarButton, GUILayout.Width(_typeColumnWidth));
-            EditorGUILayout.LabelField("Value", EditorStyles.toolbarButton, GUILayout.Width(_valueColumnWidth));
+            EditorGUILayout.LabelField("Key", EditorStyles.boldLabel, GUILayout.Width(_keyColumnWidth));
+            EditorGUILayout.LabelField("Value", EditorStyles.boldLabel, GUILayout.Width(_valueColumnWidth));
+            EditorGUILayout.LabelField("Type", EditorStyles.boldLabel, GUILayout.Width(_typeColumnWidth));
             EditorGUILayout.EndHorizontal();
             
             // Table rows
@@ -367,10 +365,6 @@ namespace DataKeeper.Editor
                 // Key
                 EditorGUILayout.LabelField(entry.Key, GUILayout.Width(_keyColumnWidth));
                 
-                // Type
-                string typeName = entry.Value?.GetType().Name ?? "null";
-                EditorGUILayout.LabelField(typeName, GUILayout.Width(_typeColumnWidth));
-                
                 // Value
                 if (entry.Value == null)
                 {
@@ -388,6 +382,10 @@ namespace DataKeeper.Editor
                         EditorGUILayout.LabelField(entry.Value.ToString(), GUILayout.Width(_valueColumnWidth));
                     }
                 }
+                
+                // Type
+                string typeName = entry.Value?.GetType().Name ?? "null";
+                EditorGUILayout.LabelField(typeName, GUILayout.Width(_typeColumnWidth));
                 
                 EditorGUILayout.EndHorizontal();
                 
