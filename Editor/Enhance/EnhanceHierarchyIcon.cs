@@ -18,15 +18,33 @@ namespace DataKeeper.Editor.Enhance
         private static bool isEnabledPrefab => DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
 
         // Colors
-        private static readonly Color SelectionColor = new Color(0.17f, 0.36f, 0.53f);
+        private static readonly Color DefaultColorPro = new Color(0.219f, 0.219f, 0.219f);
+        private static readonly Color DefaultColorLight = new Color(0.219f, 0.219f, 0.219f);
         
-        private static readonly Color HoverProColor = new Color(0.27f, 0.27f, 0.27f);
-        private static readonly Color HoverLightColor = new Color(0.85f, 0.85f, 0.85f);
+        private static readonly Color HoveredColorPro = new Color(0.270f, 0.270f, 0.270f);
+        private static readonly Color HoveredColorLight = new Color(0.698f, 0.698f, 0.698f);
         
-        private static readonly Color NormalProColor = new Color(0.22f, 0.22f, 0.22f);
-        private static readonly Color NormalLightColor = new Color(0.76f, 0.76f, 0.76f);
+        private static readonly Color SelectedColorPro = new Color(0.172f, 0.364f, 0.529f);
+        private static readonly Color SelectedColorLight = new Color(0.227f, 0.447f, 0.690f);
         
-        private static readonly Color PrefabColor = new Color(0.3f, 0.7f, 0.4f);
+        private static readonly Color SelectedUnfocusColorPro = new Color(0.3f, 0.3f, 0.3f);
+        private static readonly Color SelectedUnfocusColorLight = new Color(0.68f, 0.68f, 0.68f);
+        
+        private static Color DefaultColor => EditorGUIUtility.isProSkin 
+            ? DefaultColorPro
+            : DefaultColorLight;
+
+        private static Color HoveredColor => EditorGUIUtility.isProSkin 
+            ? HoveredColorPro
+            : HoveredColorLight;
+        
+        private static Color SelectedColor => EditorGUIUtility.isProSkin 
+            ? SelectedColorPro
+            : SelectedColorLight;
+
+        private static Color SelectedUnfocusColor => EditorGUIUtility.isProSkin 
+            ? SelectedUnfocusColorPro
+            : SelectedUnfocusColorLight;
         
         // Constructor runs when Unity starts or scripts recompile
         static EnhanceHierarchyIcon()
@@ -73,85 +91,51 @@ namespace DataKeeper.Editor.Enhance
 
         private static void HandleHierarchyWindowItemOnGUI(int instanceID, Rect selectionRect)
         {
-            if (!isEnabled)
-                return;
+            if (!isEnabled) return;
 
-            // Get the GameObject with the given instanceID
             GameObject gameObject = EditorUtility.InstanceIDToObject(instanceID) as GameObject;
+            if (gameObject == null) return;
 
-            if (gameObject == null)
-                return;
-
-            // Get the component to use for the icon
             Component targetComponent = GetIconComponent(gameObject);
+            if (targetComponent == null) return;
 
-            if (targetComponent != null)
+            Texture icon = GetComponentIcon(targetComponent);
+            if (icon == null) return;
+
+            Rect iconRect = new Rect(selectionRect);
+            iconRect.width = 16f;
+            iconRect.height = 16f;
+
+            Event e = Event.current;
+
+            bool isSelected = Selection.Contains(instanceID);
+            bool isHovered = selectionRect.Contains(e.mousePosition);
+            bool isMouseHeld = e.type == EventType.MouseDown;
+            bool isClicked = isHovered && isMouseHeld;
+
+            Color backgroundColor = DefaultColor;
+
+            if (isSelected || isClicked)
             {
-                // Get icon for this component
-                Texture icon = GetComponentIcon(targetComponent);
-
-                if (icon != null)
-                {
-                    // Draw the icon
-                    Rect iconRect = new Rect(selectionRect);
-                    iconRect.x = selectionRect.x;
-                    iconRect.width = 16f;
-                    iconRect.height = 16f;
-
-                    // Determine if this item is selected
-                    bool isSelected = Selection.Contains(instanceID);
-                    bool isMouseDown = Event.current.type == EventType.MouseDown || 
-                                       Event.current.type == EventType.MouseDrag ||
-                                       (Event.current.type == EventType.Repaint && 
-                                        Event.current.button > 0 
-                                        && Event.current.mousePosition.y > 0);
-
-
-                    // Get appropriate background color based on selection state
-                    Color backgroundColor;
-
-                    if (isSelected || isMouseDown)
-                    {
-                        // Use Unity's selection color
-                        backgroundColor = SelectionColor;
-                    }
-                    else
-                    {
-                        // Check if item is being hovered (mouse over)
-                        bool isHovered = selectionRect.Contains(Event.current.mousePosition);
-                      
-                        // Fix for hover color when mouse is held down
-                        if (isHovered && Event.current.type == EventType.Repaint)
-                        {
-                            // Use Unity's hover color
-                            backgroundColor = EditorGUIUtility.isProSkin
-                                ? HoverProColor
-                                : HoverLightColor;
-                        }
-                        else
-                        {
-                            // Use normal background color
-                            backgroundColor = EditorGUIUtility.isProSkin
-                                ? NormalProColor
-                                : NormalLightColor;
-                        }
-                    }
-                    
-                    bool isPrefab = PrefabUtility.GetPrefabInstanceStatus(gameObject) != PrefabInstanceStatus.NotAPrefab;
-
-                    if (isPrefab && isEnabledPrefab)
-                    {
-                        iconRect.height *= 0.7f;
-                        iconRect.width *= 0.7f;
-                        
-                        iconRect.x += iconRect.width * 0.5f;
-                        iconRect.y += iconRect.height * 0.5f;
-                    }
-
-                    EditorGUI.DrawRect(iconRect, backgroundColor);
-                    GUI.DrawTexture(iconRect, icon);
-                }
+                backgroundColor = SelectedColor;
             }
+            else if (isHovered && e.type == EventType.Repaint)
+            {
+                backgroundColor = HoveredColor;
+            }
+
+            bool isPrefab = PrefabUtility.GetPrefabInstanceStatus(gameObject) != PrefabInstanceStatus.NotAPrefab;
+
+            if (isPrefab && isEnabledPrefab)
+            {
+                iconRect.height *= 0.7f;
+                iconRect.width *= 0.7f;
+                iconRect.x += iconRect.width * 0.5f;
+                iconRect.y += iconRect.height * 0.5f;
+            }
+
+            EditorGUI.DrawRect(iconRect, backgroundColor);
+            GUI.DrawTexture(iconRect, icon);
         }
 
         // Gets the component to use for icon based on priority settings
