@@ -1,13 +1,12 @@
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using DataKeeper.Generic;
 using DataKeeper.ServiceLocatorPattern;
 
-namespace DataKeeper.Editor
+namespace DataKeeper.Editor.Windows
 {
-    public class ServiceLocatorInspector : EditorWindow
+    public class ServiceLocatorWindow : EditorWindow
     {
         private enum InspectionMode
         {
@@ -36,7 +35,7 @@ namespace DataKeeper.Editor
         {
             Texture2D icon = EditorGUIUtility.FindTexture("d_UnityEditor.DebugInspectorWindow");
 
-            var window = GetWindow<ServiceLocatorInspector>();
+            var window = GetWindow<ServiceLocatorWindow>();
             window.minSize = new Vector2(400, 300);
             window.titleContent = new GUIContent("Service Locator", icon);
         }
