@@ -1,3 +1,4 @@
+using DataKeeper.Editor.Enhance;
 using DataKeeper.Editor.Generic;
 
 namespace DataKeeper.Editor.Settings
@@ -7,7 +8,7 @@ namespace DataKeeper.Editor.Settings
         public static ReactiveEditorPref<bool> EnhanceHierarchyIconPref =
             new ReactiveEditorPref<bool>(true, "EnhanceHierarchyIcon_Enabled");
         
-        public static ReactiveEditorPref<bool> EnhanceHierarchyPrefabIconPref =
-            new ReactiveEditorPref<bool>(true, "EnhanceHierarchyPrefabIcon_Enabled");
+        public static ReactiveEditorPref<PrefabHierarchyIcon> EnhanceHierarchyPrefabIconPref =
+            new ReactiveEditorPref<PrefabHierarchyIcon>(PrefabHierarchyIcon.Small, "EnhanceHierarchyPrefabIcon_Enabled");
     }
 }

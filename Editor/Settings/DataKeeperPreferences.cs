@@ -1,5 +1,7 @@
+using System;
 using UnityEditor;
 using System.Collections.Generic;
+using DataKeeper.Editor.Enhance;
 using UnityEngine;
 
 namespace DataKeeper.Editor.Settings
@@ -14,8 +16,11 @@ namespace DataKeeper.Editor.Settings
                 label = "Data Keeper",
                 guiHandler = (searchContext) =>
                 {
+                    EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                    EditorGUILayout.LabelField("Hierarchy Icon:", EditorStyles.boldLabel);
                     EnhanceHierarchyIconUI();
                     EnhanceHierarchyPrefabIconUI();
+                    EditorGUILayout.EndVertical();
                 },
                 
                 // Keywords to help find these preferences when searching
@@ -27,9 +32,6 @@ namespace DataKeeper.Editor.Settings
         
         private static void EnhanceHierarchyIconUI()
         {
-            EditorGUILayout.Space();
-
-            EditorGUILayout.LabelField("Enhance:");
             EditorGUI.indentLevel++;
 
             // Load the current value
@@ -37,7 +39,7 @@ namespace DataKeeper.Editor.Settings
             
             // Create a toggle for enabling/disabling the feature
             EditorGUI.BeginChangeCheck();
-            bool newValue = EditorGUILayout.Toggle("Hierarchy Icon", currentValue);
+            bool newValue = EditorGUILayout.Toggle("Enabled", currentValue);
             
             if (EditorGUI.EndChangeCheck())
             {
@@ -46,24 +48,19 @@ namespace DataKeeper.Editor.Settings
                 // Force Unity to repaint the hierarchy window
                 EditorApplication.RepaintHierarchyWindow();
             }
-            
-            EditorGUILayout.HelpBox(
-                "When enabled, this will show component icons next to GameObjects in the hierarchy view.", 
-                MessageType.None);
         }
         
         private static void EnhanceHierarchyPrefabIconUI()
         {
             EditorGUI.BeginDisabledGroup(!DataKeeperEditorPref.EnhanceHierarchyIconPref.Value);
 
-            EditorGUILayout.Space();
-
             // Load the current value
-            bool currentValue = DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
+            PrefabHierarchyIcon currentValue = DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
             
             // Create a toggle for enabling/disabling the feature
             EditorGUI.BeginChangeCheck();
-            bool newValue = EditorGUILayout.Toggle("Hierarchy Prefab", currentValue);
+
+            var newValue = (PrefabHierarchyIcon)EditorGUILayout.EnumPopup("Prefab", currentValue, GUILayout.MaxWidth(300));
             
             if (EditorGUI.EndChangeCheck())
             {
@@ -71,11 +68,8 @@ namespace DataKeeper.Editor.Settings
                 EditorApplication.RepaintHierarchyWindow();
             }
             
-            EditorGUILayout.HelpBox(
-                "When enabled, this will show small icon on top of Prefab icon.", 
-                MessageType.None);
-            
             EditorGUI.EndDisabledGroup();
+            EditorGUILayout.Space();
         }
     }
 }

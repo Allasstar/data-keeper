@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using DataKeeper.Editor.Settings;
 using TMPro;
@@ -6,6 +7,13 @@ using UnityEngine;
 
 namespace DataKeeper.Editor.Enhance
 {
+    public enum PrefabHierarchyIcon
+    {
+        Small = 0,
+        Big = 1,
+        Default = 2,
+    }
+    
     [InitializeOnLoad]
     public class EnhanceHierarchyIcon
     {
@@ -15,7 +23,7 @@ namespace DataKeeper.Editor.Enhance
         // Settings
         private static List<System.Type> priorityComponents = new List<System.Type>();
         private static bool isEnabled => DataKeeperEditorPref.EnhanceHierarchyIconPref.Value;
-        private static bool isEnabledPrefab => DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
+        private static PrefabHierarchyIcon PrefabHierarchyIconType => DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
 
         // Colors
         private static readonly Color DefaultColorPro = new Color(0.219f, 0.219f, 0.219f);
@@ -126,12 +134,22 @@ namespace DataKeeper.Editor.Enhance
 
             bool isPrefab = PrefabUtility.GetPrefabInstanceStatus(gameObject) != PrefabInstanceStatus.NotAPrefab;
 
-            if (isPrefab && isEnabledPrefab)
+            if (isPrefab)
             {
-                iconRect.height *= 0.7f;
-                iconRect.width *= 0.7f;
-                iconRect.x += iconRect.width * 0.5f;
-                iconRect.y += iconRect.height * 0.5f;
+                switch (PrefabHierarchyIconType)
+                {
+                    case PrefabHierarchyIcon.Small:
+                        iconRect.height *= 0.7f;
+                        iconRect.width *= 0.7f;
+                        iconRect.x += iconRect.width * 0.5f;
+                        iconRect.y += iconRect.height * 0.5f;
+                        break;
+                    case PrefabHierarchyIcon.Big:
+                        break;
+                    case PrefabHierarchyIcon.Default:
+                        return;
+                        break;
+                }
             }
 
             EditorGUI.DrawRect(iconRect, backgroundColor);
