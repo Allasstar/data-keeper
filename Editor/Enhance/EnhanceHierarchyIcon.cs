@@ -136,22 +136,19 @@ namespace DataKeeper.Editor.Enhance
                                 : NormalLightColor;
                         }
                     }
+                    
+                    bool isPrefab = PrefabUtility.GetPrefabInstanceStatus(gameObject) != PrefabInstanceStatus.NotAPrefab;
 
-                    EditorGUI.DrawRect(iconRect, backgroundColor);
-
-                    if (isEnabledPrefab)
+                    if (isPrefab && isEnabledPrefab)
                     {
-                        bool isPrefab = PrefabUtility.GetPrefabInstanceStatus(gameObject) != PrefabInstanceStatus.NotAPrefab;
+                        iconRect.height *= 0.7f;
+                        iconRect.width *= 0.7f;
                         
-                        if (isPrefab)
-                        {
-                            var prefabRect = new Rect(iconRect);
-                            prefabRect.x = 40f;
-                            prefabRect.width = 3f;
-                            EditorGUI.DrawRect(prefabRect, PrefabColor);
-                        }
+                        iconRect.x += iconRect.width * 0.5f;
+                        iconRect.y += iconRect.height * 0.5f;
                     }
 
+                    EditorGUI.DrawRect(iconRect, backgroundColor);
                     GUI.DrawTexture(iconRect, icon);
                 }
             }

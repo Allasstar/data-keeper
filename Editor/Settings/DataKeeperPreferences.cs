@@ -72,7 +72,7 @@ namespace DataKeeper.Editor.Settings
             }
             
             EditorGUILayout.HelpBox(
-                "When enabled, this will show blue line for Prefabs in the hierarchy view.", 
+                "When enabled, this will show small icon on top of Prefab icon.", 
                 MessageType.None);
             
             EditorGUI.EndDisabledGroup();
