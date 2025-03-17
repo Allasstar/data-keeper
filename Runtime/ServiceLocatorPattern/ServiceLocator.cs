@@ -9,10 +9,10 @@ namespace DataKeeper.ServiceLocatorPattern
 {
     public static class ServiceLocator
     {
-        private static readonly Register<object> GlobalRegister = new Register<object>();
-        private static readonly Dictionary<string, Register<object>> SceneRegisters = new Dictionary<string, Register<object>>();
-        private static readonly Dictionary<string, Register<object>> TableRegisters = new Dictionary<string, Register<object>>();
-        private static readonly Dictionary<GameObject, Register<object>> GameObjectRegisters = new Dictionary<GameObject, Register<object>>();
+        public static readonly Register<object> GlobalRegister = new Register<object>();
+        public static readonly Dictionary<string, Register<object>> SceneRegisters = new Dictionary<string, Register<object>>();
+        public static readonly Dictionary<GameObject, Register<object>> GameObjectRegisters = new Dictionary<GameObject, Register<object>>();
+        public static readonly Dictionary<string, Register<object>> TableRegisters = new Dictionary<string, Register<object>>();
 
         public static Register<object> ForGlobal()
         {

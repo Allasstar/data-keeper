@@ -109,23 +109,13 @@ namespace DataKeeper.Editor
         private void DrawGlobalRegister()
         {
             EditorGUILayout.LabelField("Global Register", EditorStyles.boldLabel);
-            var register = ServiceLocator.ForGlobal();
+            var register = ServiceLocator.GlobalRegister;
             DrawRegisterTable(register);
         }
 
         private void DrawSceneRegisters()
         {
-            // Use reflection to access the SceneRegisters dictionary
-            var sceneRegistersField = typeof(ServiceLocator).GetField("SceneRegisters", 
-                BindingFlags.NonPublic | BindingFlags.Static);
-            
-            if (sceneRegistersField == null)
-            {
-                EditorGUILayout.HelpBox("Could not access SceneRegisters via reflection", MessageType.Error);
-                return;
-            }
-            
-            var sceneRegisters = sceneRegistersField.GetValue(null) as Dictionary<string, Register<object>>;
+            var sceneRegisters = ServiceLocator.SceneRegisters;
             
             if (sceneRegisters == null || sceneRegisters.Count == 0)
             {
@@ -175,17 +165,7 @@ namespace DataKeeper.Editor
         
         private void DrawGameObjectRegisters()
         {
-            // Use reflection to access the GameObjectRegisters dictionary
-            var gameObjectRegistersField = typeof(ServiceLocator).GetField("GameObjectRegisters", 
-                BindingFlags.NonPublic | BindingFlags.Static);
-            
-            if (gameObjectRegistersField == null)
-            {
-                EditorGUILayout.HelpBox("Could not access GameObjectRegisters via reflection", MessageType.Error);
-                return;
-            }
-            
-            var gameObjectRegisters = gameObjectRegistersField.GetValue(null) as Dictionary<GameObject, Register<object>>;
+            var gameObjectRegisters = ServiceLocator.GameObjectRegisters;
             
             if (gameObjectRegisters == null || gameObjectRegisters.Count == 0)
             {
@@ -266,17 +246,7 @@ namespace DataKeeper.Editor
 
         private void DrawTableRegisters()
         {
-            // Use reflection to access the TableRegisters dictionary
-            var tableRegistersField = typeof(ServiceLocator).GetField("TableRegisters", 
-                BindingFlags.NonPublic | BindingFlags.Static);
-            
-            if (tableRegistersField == null)
-            {
-                EditorGUILayout.HelpBox("Could not access TableRegisters via reflection", MessageType.Error);
-                return;
-            }
-            
-            var tableRegisters = tableRegistersField.GetValue(null) as Dictionary<string, Register<object>>;
+            var tableRegisters = ServiceLocator.TableRegisters;
             
             if (tableRegisters == null || tableRegisters.Count == 0)
             {
