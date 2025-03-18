@@ -72,7 +72,7 @@ namespace DataKeeper.Editor.Windows
 
             if (selectedType == null)
             {
-                EditorGUILayout.HelpBox("Select a static class to inspect its members.", MessageType.Info);
+                EditorGUILayout.HelpBox("How to use:\n• Apply \"StaticClassInspector\" attribute to a static class. \n• Select a static class to inspect its members.", MessageType.Info);
                 return;
             }
 
