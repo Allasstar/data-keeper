@@ -26,12 +26,7 @@ namespace DataKeeper.Editor.Windows
         private Dictionary<string, bool> _sceneFoldouts = new Dictionary<string, bool>();
         private Dictionary<GameObject, bool> _gameObjectFoldouts = new Dictionary<GameObject, bool>();
 
-        private GUIStyle _alternateStyle = new GUIStyle()
-        {
-            normal = new GUIStyleState() { background = Texture2D.grayTexture },
-        };
-
-        [MenuItem("Tools/Windows/Service Locator Inspector  (Beta)", priority = 3)]
+        [MenuItem("Tools/Windows/Service Locator Inspector (Beta)", priority = 3)]
         public static void ShowWindow()
         {
             Texture2D icon = EditorGUIUtility.FindTexture("d_UnityEditor.DebugInspectorWindow");
