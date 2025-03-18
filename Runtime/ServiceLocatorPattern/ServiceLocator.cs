@@ -14,7 +14,7 @@ namespace DataKeeper.ServiceLocatorPattern
         public static readonly Dictionary<GameObject, Register<object>> GameObjectRegisters = new Dictionary<GameObject, Register<object>>();
         public static readonly Dictionary<string, Register<object>> TableRegisters = new Dictionary<string, Register<object>>();
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void Reset()
         {
             GlobalRegister.Clear();
