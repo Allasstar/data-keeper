@@ -3,7 +3,9 @@ guid: 073e44d147df16e419454aa5f28bb121
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - m_ViewDataDictionary: {instanceID: 0}
+  - _deleteTextIcon: {fileID: 2800000, guid: 63b1d9758d8c43b4a8bbf8136f147df7, type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

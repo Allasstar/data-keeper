@@ -98,8 +98,6 @@ namespace DataKeeper.Editor.Windows
 
         private void DrawPlayerPrefsList()
         {
-            // GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(2));
-
             if (prefsDict.Count == 0)
             {
                 EditorGUILayout.HelpBox("No PlayerPrefs found for this application.", MessageType.Info);
@@ -108,8 +106,7 @@ namespace DataKeeper.Editor.Windows
 
             // Column headers
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            Rect headerRect = EditorGUILayout.BeginHorizontal();
-            EditorGUI.DrawRect(headerRect, new Color(0.1f, 0.1f, 0.1f, 0.3f));
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
             EditorGUILayout.LabelField("Key", EditorStyles.boldLabel, columnKey);
             EditorGUILayout.LabelField("Type", EditorStyles.boldLabel, columnType);
@@ -126,9 +123,19 @@ namespace DataKeeper.Editor.Windows
                 EditorGUILayout.HelpBox($"No results found for '{searchString}'", MessageType.Info);
             }
 
+            bool isAlternate = false;
             foreach (string key in filteredKeys)
             {
-                EditorGUILayout.BeginHorizontal();
+                if (isAlternate)
+                {
+                    Rect headerRect = EditorGUILayout.BeginHorizontal();
+                    EditorGUI.DrawRect(headerRect, new Color(0.1f, 0.1f, 0.1f, 0.3f));
+                }
+                else
+                {
+                    EditorGUILayout.BeginHorizontal();
+                }
+                isAlternate = !isAlternate;
 
                 // Key
                 EditorGUILayout.LabelField(key, columnKey);

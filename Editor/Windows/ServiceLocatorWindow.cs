@@ -15,7 +15,9 @@ namespace DataKeeper.Editor.Windows
             GameObject = 2,
             Table = 3,
         }
-
+        
+        [SerializeField] private Texture2D _deleteTextIcon;
+        
         private InspectionMode _currentMode = InspectionMode.Global;
         private Vector2 _scrollPosition;
         private string _searchFilter = "";
@@ -24,6 +26,10 @@ namespace DataKeeper.Editor.Windows
         private Dictionary<string, bool> _sceneFoldouts = new Dictionary<string, bool>();
         private Dictionary<GameObject, bool> _gameObjectFoldouts = new Dictionary<GameObject, bool>();
 
+        private GUIStyle _alternateStyle = new GUIStyle()
+        {
+            normal = new GUIStyleState() { background = Texture2D.grayTexture },
+        };
 
         [MenuItem("Tools/Windows/Service Locator Inspector", priority = 3)]
         public static void ShowWindow()
@@ -61,7 +67,6 @@ namespace DataKeeper.Editor.Windows
             }
 
             EditorGUILayout.EndScrollView();
-
             GUILayout.EndVertical();
         }
 
@@ -95,15 +100,30 @@ namespace DataKeeper.Editor.Windows
 
         private void DrawSearchBar()
         {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             EditorGUILayout.Space();
+
             _searchFilter = EditorGUILayout.TextField(_searchFilter, EditorStyles.toolbarSearchField);
+            if (GUILayout.Button(_deleteTextIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
+            {
+                _searchFilter = "";
+                GUI.FocusControl(null);
+            }
             EditorGUILayout.Space();
+            EditorGUILayout.EndHorizontal();
         }
 
         private void DrawGlobalRegister()
         {
-            EditorGUILayout.LabelField("Global Register", EditorStyles.boldLabel);
             var register = ServiceLocator.GlobalRegister;
+            
+            if (register == null || register.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No have global registered objects", MessageType.Info);
+                return;
+            }
+
+            EditorGUILayout.LabelField("Global Register", EditorStyles.boldLabel);
             DrawTableGUI(register);
         }
 
@@ -294,7 +314,7 @@ namespace DataKeeper.Editor.Windows
         {
             if (register == null || register.Count == 0)
             {
-                EditorGUILayout.LabelField("No objects registered");
+                EditorGUILayout.HelpBox("No objects registered", MessageType.Info);
                 return;
             }
 
@@ -320,13 +340,16 @@ namespace DataKeeper.Editor.Windows
                     !(entry.Value?.GetType().Name.Contains(_searchFilter) ?? false))
                     continue;
 
-                // Alternate row colors
                 if (isAlternate)
-                    GUI.backgroundColor = new Color(0.9f, 0.9f, 0.9f);
+                {
+                    Rect headerRect = EditorGUILayout.BeginHorizontal();
+                    EditorGUI.DrawRect(headerRect, new Color(0.1f, 0.1f, 0.1f, 0.3f));
+                }
                 else
-                    GUI.backgroundColor = Color.white;
-
-                EditorGUILayout.BeginHorizontal();
+                {
+                    EditorGUILayout.BeginHorizontal();
+                }
+                isAlternate = !isAlternate;
 
                 // Key
                 EditorGUILayout.LabelField(entry.Key, GUILayout.ExpandWidth(true));
@@ -355,8 +378,6 @@ namespace DataKeeper.Editor.Windows
                 EditorGUILayout.LabelField(typeName, GUILayout.ExpandWidth(true));
 
                 EditorGUILayout.EndHorizontal();
-
-                isAlternate = !isAlternate;
             }
 
             GUI.backgroundColor = Color.white;
