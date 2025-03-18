@@ -31,7 +31,7 @@ namespace DataKeeper.Editor.Windows
             normal = new GUIStyleState() { background = Texture2D.grayTexture },
         };
 
-        [MenuItem("Tools/Windows/Service Locator Inspector", priority = 3)]
+        [MenuItem("Tools/Windows/Service Locator Inspector  (Beta)", priority = 3)]
         public static void ShowWindow()
         {
             Texture2D icon = EditorGUIUtility.FindTexture("d_UnityEditor.DebugInspectorWindow");

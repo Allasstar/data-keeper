@@ -18,7 +18,7 @@ namespace DataKeeper.Editor.Windows
         private Dictionary<string, List<Type>> categoryToTypes = new Dictionary<string, List<Type>>();
         private Dictionary<string, bool> foldoutStates = new Dictionary<string, bool>();
 
-        [MenuItem("Tools/Windows/Static Class Inspector", priority = 2)]
+        [MenuItem("Tools/Windows/Static Class Inspector (Beta)", priority = 2)]
         public static void ShowWindow()
         {
             Texture2D icon = EditorGUIUtility.FindTexture("d_UnityEditor.DebugInspectorWindow");
