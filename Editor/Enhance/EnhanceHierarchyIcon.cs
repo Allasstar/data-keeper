@@ -13,47 +13,51 @@ namespace DataKeeper.Editor.Enhance
         Big = 1,
         Default = 2,
     }
-    
+
     [InitializeOnLoad]
     public class EnhanceHierarchyIcon
     {
+        private static Color _guiColor;
+
         // Dictionary to cache component icons
         private static Dictionary<System.Type, Texture> componentIconCache = new Dictionary<System.Type, Texture>();
 
         // Settings
         private static List<System.Type> priorityComponents = new List<System.Type>();
         private static bool isEnabled => DataKeeperEditorPref.EnhanceHierarchyIconPref.Value;
-        private static PrefabHierarchyIcon PrefabHierarchyIconType => DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
+
+        private static PrefabHierarchyIcon PrefabHierarchyIconType =>
+            DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
 
         // Colors
         private static readonly Color DefaultColorPro = new Color(0.219f, 0.219f, 0.219f);
         private static readonly Color DefaultColorLight = new Color(0.219f, 0.219f, 0.219f);
-        
+
         private static readonly Color HoveredColorPro = new Color(0.270f, 0.270f, 0.270f);
         private static readonly Color HoveredColorLight = new Color(0.698f, 0.698f, 0.698f);
-        
+
         private static readonly Color SelectedColorPro = new Color(0.172f, 0.364f, 0.529f);
         private static readonly Color SelectedColorLight = new Color(0.227f, 0.447f, 0.690f);
-        
+
         private static readonly Color SelectedUnfocusColorPro = new Color(0.3f, 0.3f, 0.3f);
         private static readonly Color SelectedUnfocusColorLight = new Color(0.68f, 0.68f, 0.68f);
-        
-        private static Color DefaultColor => EditorGUIUtility.isProSkin 
+
+        private static Color DefaultColor => EditorGUIUtility.isProSkin
             ? DefaultColorPro
             : DefaultColorLight;
 
-        private static Color HoveredColor => EditorGUIUtility.isProSkin 
+        private static Color HoveredColor => EditorGUIUtility.isProSkin
             ? HoveredColorPro
             : HoveredColorLight;
-        
-        private static Color SelectedColor => EditorGUIUtility.isProSkin 
+
+        private static Color SelectedColor => EditorGUIUtility.isProSkin
             ? SelectedColorPro
             : SelectedColorLight;
 
-        private static Color SelectedUnfocusColor => EditorGUIUtility.isProSkin 
+        private static Color SelectedUnfocusColor => EditorGUIUtility.isProSkin
             ? SelectedUnfocusColorPro
             : SelectedUnfocusColorLight;
-        
+
         // Constructor runs when Unity starts or scripts recompile
         static EnhanceHierarchyIcon()
         {
@@ -120,6 +124,7 @@ namespace DataKeeper.Editor.Enhance
             bool isHovered = selectionRect.Contains(e.mousePosition);
             bool isMouseHeld = e.type == EventType.MouseDown;
             bool isClicked = isHovered && isMouseHeld;
+            bool isGameObjectActive = gameObject.activeInHierarchy;
 
             Color backgroundColor = DefaultColor;
 
@@ -148,12 +153,20 @@ namespace DataKeeper.Editor.Enhance
                         break;
                     case PrefabHierarchyIcon.Default:
                         return;
-                        break;
                 }
             }
 
             EditorGUI.DrawRect(iconRect, backgroundColor);
+
+            _guiColor = GUI.color;
+            if (!isGameObjectActive)
+            {
+                GUI.color = new Color(0.7f, 0.7f, 0.7f, 0.6f);
+            }
+
             GUI.DrawTexture(iconRect, icon);
+
+            GUI.color = _guiColor;
         }
 
         // Gets the component to use for icon based on priority settings
