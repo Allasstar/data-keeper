@@ -17,6 +17,26 @@ namespace DataKeeper.Editor.Enhance
     public class EnhanceHierarchyIcon
     {
         private static Color _guiColor;
+        private static bool _isMouseDown = false;
+        
+        public static bool GetIsMouseDown()
+        {
+            if (Event.current == null)
+                return _isMouseDown;
+
+            var mouseEvent = Event.current.type;
+            
+            if (mouseEvent == EventType.DragExited)
+                _isMouseDown = false;
+
+            if (mouseEvent == EventType.MouseDown)
+                _isMouseDown = true;
+            
+            if (mouseEvent == EventType.MouseUp)
+                _isMouseDown = false;
+            
+            return _isMouseDown;
+        }
 
         // Dictionary to cache component icons
         private static Dictionary<System.Type, Texture> componentIconCache = new Dictionary<System.Type, Texture>();
@@ -117,21 +137,17 @@ namespace DataKeeper.Editor.Enhance
             iconRect.width = 16f;
             iconRect.height = 16f;
 
-            Event e = Event.current;
-
             bool isSelected = Selection.Contains(instanceID);
-            bool isHovered = selectionRect.Contains(e.mousePosition);
-            bool isMouseHeld = e.type == EventType.MouseDown;
-            bool isClicked = isHovered && isMouseHeld;
-            bool isGameObjectActive = gameObject.activeInHierarchy;
-
+            bool isHovered = selectionRect.Contains(Event.current.mousePosition);
+            bool isClicked = isHovered && GetIsMouseDown();
+            
             Color backgroundColor = DefaultColor;
 
             if (isSelected || isClicked)
             {
                 backgroundColor = SelectedColor;
             }
-            else if (isHovered && e.type == EventType.Repaint)
+            else if (isHovered)
             {
                 backgroundColor = HoveredColor;
             }
@@ -158,7 +174,7 @@ namespace DataKeeper.Editor.Enhance
             EditorGUI.DrawRect(iconRect, backgroundColor);
 
             _guiColor = GUI.color;
-            if (!isGameObjectActive)
+            if (!gameObject.activeInHierarchy)
             {
                 GUI.color = new Color(0.7f, 0.7f, 0.7f, 0.6f);
             }
