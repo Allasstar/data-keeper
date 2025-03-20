@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using DataKeeper.Attributes;
+using DataKeeper.Editor.Settings;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
@@ -11,7 +12,7 @@ namespace DataKeeper.Editor.Windows
 {
     public class StaticClassInspectorWindow : EditorWindow
     {
-        private Type selectedType;
+        // private Type selectedType;
         private bool showPrivate;
         private Vector2 scrollPosition;
         private AdvancedDropdown dropdown;
@@ -56,7 +57,7 @@ namespace DataKeeper.Editor.Windows
             EditorGUILayout.BeginVertical(EditorStyles.toolbar);
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button(selectedType != null ? selectedType.Name : "Select a class",
+            if (GUILayout.Button(DataKeeperEditorPref.SelectedStaticClassPref.Value != null ? DataKeeperEditorPref.SelectedStaticClassPref.Value.Name : "Select a class",
                     EditorStyles.toolbarPopup, GUILayout.Width(200)))
             {
                 new StaticClassDropdown(new AdvancedDropdownState(), categoryToTypes, OnStaticClassSelected)
@@ -70,7 +71,7 @@ namespace DataKeeper.Editor.Windows
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();
 
-            if (selectedType == null)
+            if (DataKeeperEditorPref.SelectedStaticClassPref.Value == null)
             {
                 EditorGUILayout.HelpBox("How to use:\n• Apply \"StaticClassInspector\" attribute to a static class. \n• Select a static class to inspect its members.", MessageType.Info);
                 return;
@@ -82,10 +83,10 @@ namespace DataKeeper.Editor.Windows
 
             // Get all fields and properties of the selected type
             var fields = showPrivate 
-                ? selectedType.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static) 
-                : selectedType.GetFields(BindingFlags.Public | BindingFlags.Static);
+                ? DataKeeperEditorPref.SelectedStaticClassPref.Value.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static) 
+                : DataKeeperEditorPref.SelectedStaticClassPref.Value.GetFields(BindingFlags.Public | BindingFlags.Static);
             
-            var properties = selectedType.GetProperties(BindingFlags.Public | BindingFlags.Static)
+            var properties = DataKeeperEditorPref.SelectedStaticClassPref.Value.GetProperties(BindingFlags.Public | BindingFlags.Static)
                 .Where(p => p.CanRead && p.GetIndexParameters().Length == 0); // Only properties that we can read and aren't indexers
 
             // Display fields
@@ -158,7 +159,11 @@ namespace DataKeeper.Editor.Windows
             string fullPath = string.IsNullOrEmpty(path) ? name : $"{path}.{name}";
 
             // Handle different property types
-            if (type == typeof(int))
+            if (value is Type)
+            {
+                EditorGUILayout.LabelField(name, value.ToString());
+                return value;
+            } else if (type == typeof(int))
             {
                 return EditorGUILayout.IntField(name, (int)value);
             }
@@ -372,17 +377,17 @@ namespace DataKeeper.Editor.Windows
 
                 return value;
             }
-            else
-            {
-                // For types we can't edit, at least display the value as string
-                EditorGUILayout.LabelField(name, value != null ? value.ToString() : "null");
-                return value;
-            }
+            
+            
+            // For types we can't edit, at least display the value as string
+            EditorGUILayout.LabelField(name, value != null ? value.ToString() : "null");
+
+            return value;
         }
 
         private void OnStaticClassSelected(Type selectedType)
         {
-            this.selectedType = selectedType;
+            DataKeeperEditorPref.SelectedStaticClassPref.Value = selectedType;
             Repaint();
         }
 
