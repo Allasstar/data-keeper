@@ -85,12 +85,14 @@ namespace DataKeeper.Editor.Enhance
             {
                 priorityComponents.Add(typeof(Camera));
                 priorityComponents.Add(typeof(Light));
-                priorityComponents.Add(typeof(AudioSource));
-                priorityComponents.Add(typeof(Animator));
+                priorityComponents.Add(typeof(CharacterController));
                 priorityComponents.Add(typeof(Rigidbody));
+                priorityComponents.Add(typeof(Animator));
                 priorityComponents.Add(typeof(Animation));
+                priorityComponents.Add(typeof(AudioSource));
                 priorityComponents.Add(typeof(Collider));
                 priorityComponents.Add(typeof(ParticleSystem));
+                priorityComponents.Add(typeof(MeshFilter));
                 priorityComponents.Add(typeof(DataKeeper.UI.ButtonUI));
                 priorityComponents.Add(typeof(DataKeeper.UI.ToggleUI));
                 priorityComponents.Add(typeof(UnityEngine.UI.Button));
@@ -102,7 +104,6 @@ namespace DataKeeper.Editor.Enhance
                 priorityComponents.Add(typeof(UnityEngine.UI.ScrollRect));
                 priorityComponents.Add(typeof(UnityEngine.UI.ToggleGroup));
                 priorityComponents.Add(typeof(DataKeeper.UI.ToggleUIGroup));
-                priorityComponents.Add(typeof(UnityEngine.UI.Image));
                 priorityComponents.Add(typeof(UnityEngine.UI.LayoutGroup));
                 priorityComponents.Add(typeof(UnityEngine.UI.LayoutElement));
                 priorityComponents.Add(typeof(UnityEngine.UI.ContentSizeFitter));
@@ -112,6 +113,7 @@ namespace DataKeeper.Editor.Enhance
                 priorityComponents.Add(typeof(UnityEngine.UI.VerticalLayoutGroup));
                 priorityComponents.Add(typeof(UnityEngine.UI.HorizontalOrVerticalLayoutGroup));
                 priorityComponents.Add(typeof(DataKeeper.UI.SafeAreaUI));
+                priorityComponents.Add(typeof(UnityEngine.UI.Image));
                 priorityComponents.Add(typeof(TextMeshProUGUI));
                 priorityComponents.Add(typeof(TMP_InputField));
             }
