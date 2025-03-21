@@ -60,6 +60,9 @@ namespace DataKeeper.Editor.Enhance
 
         private static readonly Color SelectedUnfocusColorPro = new Color(0.3f, 0.3f, 0.3f);
         private static readonly Color SelectedUnfocusColorLight = new Color(0.68f, 0.68f, 0.68f);
+        
+        private static readonly Color DisabledIconColor = new Color(0.7f, 0.7f, 0.7f, 0.6f);
+
 
         private static Color DefaultColor => EditorGUIUtility.isProSkin
             ? DefaultColorPro
@@ -178,7 +181,7 @@ namespace DataKeeper.Editor.Enhance
             _guiColor = GUI.color;
             if (!gameObject.activeInHierarchy)
             {
-                GUI.color = new Color(0.7f, 0.7f, 0.7f, 0.6f);
+                GUI.color = DisabledIconColor;
             }
 
             GUI.DrawTexture(iconRect, icon);
