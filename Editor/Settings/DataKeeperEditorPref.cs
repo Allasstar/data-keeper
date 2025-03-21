@@ -13,6 +13,6 @@ namespace DataKeeper.Editor.Settings
             new ReactiveEditorPref<PrefabHierarchyIcon>(PrefabHierarchyIcon.Small, "EnhanceHierarchyPrefabIcon_Enabled");
         
         public static ReactiveEditorPref<Type> SelectedStaticClassPref =
-            new ReactiveEditorPref<Type>(typeof(object), "selected_static_class");
+            new ReactiveEditorPref<Type>(default, "selected_static_class");
     }
 }
