@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using DataKeeper.Editor.Settings;
 using TMPro;
@@ -16,8 +17,13 @@ namespace DataKeeper.Editor.Enhance
     [InitializeOnLoad]
     public class EnhanceHierarchyIcon
     {
+        private const string SCENE_HIERARCHY_WINDOW = "SceneHierarchyWindow";
+        
         private static Color _guiColor;
+        private static EditorWindow _hierarchyWindow;
+        private static bool _hierarchyHasFocus;
         private static bool _isMouseDown = false;
+
         
         public static bool GetIsMouseDown()
         {
@@ -54,7 +60,10 @@ namespace DataKeeper.Editor.Enhance
 
         private static readonly Color HoveredColorPro = new Color(0.270f, 0.270f, 0.270f);
         private static readonly Color HoveredColorLight = new Color(0.698f, 0.698f, 0.698f);
-
+        
+        private static readonly Color HoveredUnfocusColorPro = new Color(0.3f, 0.3f, 0.3f);
+        private static readonly Color HoveredUnfocusColorLight = new Color(0.68f, 0.68f, 0.68f);
+        
         private static readonly Color SelectedColorPro = new Color(0.172f, 0.364f, 0.529f);
         private static readonly Color SelectedColorLight = new Color(0.227f, 0.447f, 0.690f);
 
@@ -70,6 +79,10 @@ namespace DataKeeper.Editor.Enhance
 
         private static Color HoveredColor => EditorGUIUtility.isProSkin
             ? HoveredColorPro
+            : HoveredUnfocusColorLight;
+        
+        private static Color HoveredUnfocusColor => EditorGUIUtility.isProSkin
+            ? HoveredUnfocusColorPro
             : HoveredColorLight;
 
         private static Color SelectedColor => EditorGUIUtility.isProSkin
@@ -121,8 +134,26 @@ namespace DataKeeper.Editor.Enhance
                 priorityComponents.Add(typeof(TMP_InputField));
             }
 
+            EditorApplication.update -= HandleEditorAppUpdate;
+            EditorApplication.update += HandleEditorAppUpdate;
             EditorApplication.hierarchyWindowItemOnGUI -= HandleHierarchyWindowItemOnGUI;
             EditorApplication.hierarchyWindowItemOnGUI += HandleHierarchyWindowItemOnGUI;
+        }
+        
+        private static void HandleEditorAppUpdate()
+        {
+            if (!_hierarchyWindow && IsHierarchyWindowFocused())
+            {
+                _hierarchyWindow = EditorWindow.GetWindow(Type.GetType($"{nameof(UnityEditor)}.{SCENE_HIERARCHY_WINDOW}, {nameof(UnityEditor)}"));
+            }
+
+            _hierarchyHasFocus = EditorWindow.focusedWindow && EditorWindow.focusedWindow == _hierarchyWindow;
+        }
+        
+        private static bool IsHierarchyWindowFocused()
+        {
+            EditorWindow window = EditorWindow.focusedWindow;
+            return window != null && window.GetType().Name == SCENE_HIERARCHY_WINDOW;
         }
 
         private static void HandleHierarchyWindowItemOnGUI(int instanceID, Rect selectionRect)
@@ -147,11 +178,11 @@ namespace DataKeeper.Editor.Enhance
             bool isClicked = isHovered && GetIsMouseDown();
             
             Color backgroundColor = DefaultColor;
-
+            
             if (isSelected || isClicked)
             {
-                backgroundColor = SelectedColor;
-            }
+                backgroundColor = _hierarchyHasFocus ? SelectedColor : HoveredUnfocusColor;
+            } 
             else if (isHovered)
             {
                 backgroundColor = HoveredColor;
