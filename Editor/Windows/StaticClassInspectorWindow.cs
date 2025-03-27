@@ -21,7 +21,7 @@ namespace DataKeeper.Editor.Windows
         private Dictionary<string, KeyValuePair<object, object>> dictionaryNewKeyValues =
             new Dictionary<string, KeyValuePair<object, object>>();
 
-        [MenuItem("Tools/Windows/Static Class Inspector (Beta)", priority = 2)]
+        [MenuItem("Tools/Windows/Static Class Inspector (Beta)", priority = 3)]
         public static void ShowWindow()
         {
             Texture2D icon = EditorGUIUtility.FindTexture("d_UnityEditor.DebugInspectorWindow");
