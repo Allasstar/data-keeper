@@ -327,7 +327,7 @@ namespace DataKeeper.Editor.Windows
             bool isAlternate = false;
             foreach (var entry in register.All)
             {
-                if (entry.Value == null && !_showNullValues)
+                if ((entry.Value == null || (entry.Value is Object && (entry.Value as Object) == null)) && !_showNullValues)
                     continue;
 
                 // Apply search filter
