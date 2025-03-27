@@ -102,6 +102,7 @@ namespace DataKeeper.Editor.Enhance
                 priorityComponents.Add(typeof(Camera));
                 priorityComponents.Add(typeof(Light));
                 priorityComponents.Add(typeof(CharacterController));
+                priorityComponents.Add(typeof(LODGroup));
                 priorityComponents.Add(typeof(Rigidbody));
                 priorityComponents.Add(typeof(Animator));
                 priorityComponents.Add(typeof(Animation));
