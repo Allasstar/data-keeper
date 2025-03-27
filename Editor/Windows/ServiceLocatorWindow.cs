@@ -17,6 +17,7 @@ namespace DataKeeper.Editor.Windows
         }
         
         [SerializeField] private Texture2D _deleteTextIcon;
+        [SerializeField] private Texture2D _refreshIcon;
         
         private InspectionMode _currentMode = InspectionMode.Global;
         private Vector2 _scrollPosition;
@@ -84,8 +85,8 @@ namespace DataKeeper.Editor.Windows
             GUILayout.FlexibleSpace();
 
             _showNullValues = GUILayout.Toggle(_showNullValues, "Show Nulls", EditorStyles.toolbarButton);
-
-            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton))
+            
+            if (GUILayout.Button(_refreshIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
             {
                 Repaint();
             }
