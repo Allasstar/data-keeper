@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using DataKeeper.Helpers;
 using UnityEngine;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 
-namespace DataKeeper.Between
+namespace DataKeeper.Between.Core
 {
     public static class TweenCore
     {
@@ -12,115 +13,28 @@ namespace DataKeeper.Between
 
         private static HashSet<Action> actions = new HashSet<Action>();
         private static List<Action> remove = new List<Action>();
-        private static bool isInitialized = false;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        public static void Initialize()
+        {
+            PlayerLoopSystem tweenSystem = new PlayerLoopSystem
+            {
+                type = typeof(TweenUpdateSystem),
+                updateDelegate = ExecuteActions
+            };
+
+            PlayerLoopHelper.RemoveSystemFromPlayerLoop(typeof(Update), typeof(TweenUpdateSystem));
+            PlayerLoopHelper.InsertSystemIntoPlayerLoop(typeof(Update), tweenSystem);
+        }
+        
         public static void AddToUpdate(Action action)
         {
-            if (!isInitialized)
-            {
-                Initialize();
-            }
-            
             actions.Add(action);
         }
         
         public static void RemoveFromUpdate(Action action)
         {
             remove.Add(action);
-        }
-
-        public static void Initialize()
-        {
-            if (isInitialized) return;
-            
-            PlayerLoopSystem playerLoop = PlayerLoop.GetCurrentPlayerLoop();
-            
-            PlayerLoopSystem tweenSystem = new PlayerLoopSystem
-            {
-                type = typeof(TweenUpdateSystem),
-                updateDelegate = ExecuteActions
-            };
-            
-            InsertSystemIntoPlayerLoop(ref playerLoop, typeof(Update), tweenSystem);
-            
-            PlayerLoop.SetPlayerLoop(playerLoop);
-            
-            isInitialized = true;
-
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.playModeStateChanged += PlayModeStateChanged;
-#endif
-        }
-        
-#if UNITY_EDITOR
-        private static void PlayModeStateChanged(UnityEditor.PlayModeStateChange state)
-        {
-            if (state != UnityEditor.PlayModeStateChange.ExitingPlayMode) return;
-            if (!isInitialized) return;
-            isInitialized = false;
-            actions.Clear();
-            RemoveSystemFromPlayerLoop();
-
-            UnityEditor.EditorApplication.playModeStateChanged -= PlayModeStateChanged;
-        }
-#endif
-
-        private static void RemoveSystemFromPlayerLoop()
-        {
-            PlayerLoopSystem playerLoop = PlayerLoop.GetCurrentPlayerLoop();
-            RemoveSystemFromUpdateLoop(ref playerLoop, typeof(Update), typeof(TweenUpdateSystem));
-            PlayerLoop.SetPlayerLoop(playerLoop);
-        }
-
-        private static void RemoveSystemFromUpdateLoop(ref PlayerLoopSystem playerLoop, Type targetLoopType, Type systemToRemove)
-        {
-            if (playerLoop.type == targetLoopType && playerLoop.subSystemList != null)
-            {
-                var subsystemsList = new List<PlayerLoopSystem>(playerLoop.subSystemList);
-                subsystemsList.RemoveAll(system => system.type == systemToRemove);
-                playerLoop.subSystemList = subsystemsList.ToArray();
-            }
-
-            if (playerLoop.subSystemList != null)
-            {
-                for (int i = 0; i < playerLoop.subSystemList.Length; i++)
-                {
-                    if (playerLoop.subSystemList[i].type == targetLoopType)
-                    {
-                        var subsystem = playerLoop.subSystemList[i];
-                        RemoveSystemFromUpdateLoop(ref subsystem, targetLoopType, systemToRemove);
-                        playerLoop.subSystemList[i] = subsystem;
-                    }
-                }
-            }
-        }
-        
-        private static void InsertSystemIntoPlayerLoop(ref PlayerLoopSystem playerLoop, Type targetSystemType, PlayerLoopSystem newSystem)
-        {
-            if (playerLoop.type == targetSystemType)
-            {
-                PlayerLoopSystem[] newSubSystems;
-                if (playerLoop.subSystemList != null)
-                {
-                    newSubSystems = new PlayerLoopSystem[playerLoop.subSystemList.Length + 1];
-                    Array.Copy(playerLoop.subSystemList, newSubSystems, playerLoop.subSystemList.Length);
-                    newSubSystems[newSubSystems.Length - 1] = newSystem;
-                }
-                else
-                {
-                    newSubSystems = new PlayerLoopSystem[] { newSystem };
-                }
-                playerLoop.subSystemList = newSubSystems;
-                return;
-            }
-
-            if (playerLoop.subSystemList != null)
-            {
-                for (int i = 0; i < playerLoop.subSystemList.Length; i++)
-                {
-                    InsertSystemIntoPlayerLoop(ref playerLoop.subSystemList[i], targetSystemType, newSystem);
-                }
-            }
         }
 
         private static void ExecuteActions()
