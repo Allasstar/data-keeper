@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using DataKeeper.Helpers;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
@@ -17,14 +18,29 @@ namespace DataKeeper.Between.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         public static void Initialize()
         {
+            actions.Clear();
+            remove.Clear();
+
             PlayerLoopSystem tweenSystem = new PlayerLoopSystem
             {
                 type = typeof(TweenUpdateSystem),
                 updateDelegate = ExecuteActions
             };
 
-            PlayerLoopHelper.RemoveSystemFromPlayerLoop(typeof(Update), typeof(TweenUpdateSystem));
             PlayerLoopHelper.InsertSystemIntoPlayerLoop(typeof(Update), tweenSystem);
+
+#if UNITY_EDITOR
+            EditorApplication.playModeStateChanged -= EditorApplicationOnplayModeStateChanged;
+            EditorApplication.playModeStateChanged += EditorApplicationOnplayModeStateChanged;
+            
+            void EditorApplicationOnplayModeStateChanged(PlayModeStateChange state)
+            {
+                if (state != PlayModeStateChange.ExitingPlayMode) return;
+                PlayerLoopHelper.RemoveSystemFromPlayerLoop(typeof(Update), typeof(TweenUpdateSystem));
+                actions.Clear();
+                remove.Clear();
+            }
+#endif
         }
         
         public static void AddToUpdate(Action action)
