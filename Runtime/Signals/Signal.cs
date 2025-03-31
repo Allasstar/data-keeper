@@ -6,7 +6,7 @@ namespace DataKeeper.Signals
     public abstract class SignalBase
     {
         [field: NonSerialized]
-        public List<Delegate> Listeners { get; private set; }= new List<Delegate>();
+        public List<Delegate> Listeners { get; private set; } = new List<Delegate>();
 
         public void RemoveAllListeners()
         {
