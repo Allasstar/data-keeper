@@ -31,7 +31,7 @@ namespace DataKeeper.Editor.Windows
         [SerializeField] private Texture2D refreshIcon;
 
 
-        [MenuItem("Tools/Windows/PlayerPrefs (Beta)", priority = 1)]
+        [MenuItem("Tools/Windows/PlayerPrefs", priority = 1)]
         public static void ShowWindow()
         {
             Texture2D icon = EditorGUIUtility.FindTexture("d_Preset.Context");
