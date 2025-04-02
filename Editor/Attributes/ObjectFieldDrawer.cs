@@ -12,11 +12,11 @@ namespace DataKeeper.Editor.Attributes
             if (property.propertyType == SerializedPropertyType.ObjectReference)
             {
                 ObjectFieldAttribute previewAttribute = (ObjectFieldAttribute)attribute;
-                property.objectReferenceValue = EditorGUILayout.ObjectField(label, property.objectReferenceValue, property?.GetPropertyInstance()?.GetType(), previewAttribute.AllowSceneObjects);
+                property.objectReferenceValue = EditorGUILayout.ObjectField(label, property.objectReferenceValue, fieldInfo.FieldType, previewAttribute.AllowSceneObjects);
             }
             else
             {
-                EditorGUI.PropertyField(position, property, label, true);
+                PropertyGUI.DrawGUI(position, property, label);
             }
         }
 
