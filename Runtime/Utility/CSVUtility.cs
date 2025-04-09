@@ -7,7 +7,7 @@ using System.Text;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace DataKeeper.Editor.Utility
+namespace DataKeeper.Utility
 {
     /// <summary>
     /// Utility class for converting Lists and Unity Objects to CSV format and back
