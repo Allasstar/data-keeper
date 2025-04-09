@@ -180,7 +180,6 @@ namespace DataKeeper.Editor.Windows
                 }
 
                 // Check if value changed
-                bool valueChanged = false;
                 if (newValue != null)
                 {
                     if (!editedValues.ContainsKey(key))
@@ -188,13 +187,11 @@ namespace DataKeeper.Editor.Windows
                         if (!prefsDict[key].Equals(newValue))
                         {
                             editedValues[key] = newValue;
-                            valueChanged = true;
                         }
                     }
                     else if (!editedValues[key].Equals(newValue))
                     {
                         editedValues[key] = newValue;
-                        valueChanged = true;
                     }
                 }
 
@@ -369,7 +366,7 @@ namespace DataKeeper.Editor.Windows
 
             if (GUILayout.Button("Save Changes", GUILayout.Width(120)))
             {
-                SaveChanges();
+                SaveAllChanges();
             }
 
             EditorGUILayout.EndHorizontal();
@@ -383,7 +380,7 @@ namespace DataKeeper.Editor.Windows
             }
         }
 
-        private void SaveChanges()
+        private void SaveAllChanges()
         {
             // Apply edits
             foreach (var kvp in editedValues)
