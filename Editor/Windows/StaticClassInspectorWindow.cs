@@ -153,14 +153,14 @@ namespace DataKeeper.Editor.Windows
                 var staticFields = selectedClassType.GetFields(BindingFlags.Public | BindingFlags.Static)
                     .Where(f => !f.IsInitOnly && !f.IsLiteral)
                     .ToList();
-                
+        
                 var staticProperties = selectedClassType.GetProperties(BindingFlags.Public | BindingFlags.Static)
                     .Where(p => p.CanRead && p.CanWrite)
                     .ToList();
 
                 // Create a dictionary to hold field/property values
                 var data = new Dictionary<string, object>();
-                
+        
                 // Populate fields
                 foreach (var field in staticFields)
                 {
@@ -173,7 +173,7 @@ namespace DataKeeper.Editor.Windows
                         Debug.LogError($"Error reading field {field.Name}: {ex.Message}");
                     }
                 }
-                
+        
                 // Populate properties
                 foreach (var property in staticProperties)
                 {
@@ -186,15 +186,21 @@ namespace DataKeeper.Editor.Windows
                         Debug.LogError($"Error reading property {property.Name}: {ex.Message}");
                     }
                 }
-                
-                // Convert to JSON
-                jsonContent = JsonConvert.SerializeObject(data, Formatting.Indented);
+        
+                // Configure JsonSerializer to ignore reference loops
+                var settings = new JsonSerializerSettings
+                {
+                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+                    Formatting = Formatting.Indented
+                };
+        
+                // Convert to JSON with custom settings
+                jsonContent = JsonConvert.SerializeObject(data, settings);
                 originalJsonContent = jsonContent;
                 hasChanges = false;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Error serializing static class: {ex.Message}");
                 jsonContent = $"Error: {ex.Message}";
                 originalJsonContent = jsonContent;
                 hasChanges = false;
@@ -232,7 +238,11 @@ namespace DataKeeper.Editor.Windows
             try
             {
                 // Deserialize JSON string to dictionary
-                var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonContent);
+                var settings = new JsonSerializerSettings
+                {
+                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                };
+                var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonContent, settings);
                 
                 // Get static fields and properties
                 var staticFields = selectedClassType.GetFields(BindingFlags.Public | BindingFlags.Static)
