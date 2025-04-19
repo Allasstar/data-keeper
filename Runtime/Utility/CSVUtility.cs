@@ -124,6 +124,12 @@ namespace DataKeeper.Utility
             return CSVToList<T>(csv);
         }
 
+        public static Type GetTypeFromHeader(string header)
+        {
+            var list = header.Split(":");
+            return list.Length == 2 ? GetTypeFromName(list[1], typeof(string)) : typeof(object);
+        }
+
         #endregion
 
         #region Private Methods
@@ -362,8 +368,7 @@ namespace DataKeeper.Utility
             }
         }
 
-        private static bool TrySetValueInTypeHierarchy<T>(T item, Type currentType, string propertyName, string typeName,
-            string value)
+        private static bool TrySetValueInTypeHierarchy<T>(T item, Type currentType, string propertyName, string typeName, string value)
         {
             // If we've reached the end of the inheritance chain without finding a match
             if (currentType == null || currentType == typeof(object))
@@ -629,10 +634,9 @@ namespace DataKeeper.Utility
                 return GetDefaultValue(targetType);
             }
         }
-
+        
         private static Type GetTypeFromName(string typeName, Type fallbackType)
         {
-            typeName = typeName.Replace("@", "");
             // Handle simple types
             switch (typeName)
             {
@@ -799,7 +803,7 @@ namespace DataKeeper.Utility
                 return "Color";
 
             if (typeof(Object).IsAssignableFrom(type))
-                return $"@{type.Name}";
+                return type.Name;
 
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
             {

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DataKeeper.Utility;
 using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace DataKeeper.Editor.Windows
 {
@@ -89,9 +91,8 @@ namespace DataKeeper.Editor.Windows
 
         private void OnGUI()
         {
-            GUILayout.Label("CSV Table Editor", EditorStyles.boldLabel);
-            
-            if (GUILayout.Button("Add Row"))
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            if (GUILayout.Button("Add Row", style: EditorStyles.toolbarButton, GUILayout.Width(80)))
             {
                 if (tableData.Count > 0)
                 {
@@ -104,13 +105,15 @@ namespace DataKeeper.Editor.Windows
                     tableData.Add(new List<string> { "" });
                 }
             }
-            
-            if (GUILayout.Button("Save"))
+
+            EditorGUILayout.Space(10, true);
+
+            if (GUILayout.Button("Save", style: EditorStyles.toolbarButton, GUILayout.Width(80)))
             {
                 csvData = GenerateCSV();
                 onSaveCallback?.Invoke(csvData);
             }
-            
+            EditorGUILayout.EndHorizontal();
             EditorGUILayout.Space();
             
             // Draw table
@@ -118,20 +121,44 @@ namespace DataKeeper.Editor.Windows
             
             if (tableData.Count > 0)
             {
-                for (int i = 0; i < tableData.Count; i++)
+                for (int row = 0; row < tableData.Count; row++)
                 {
                     EditorGUILayout.BeginHorizontal();
-                    
-                    if (GUILayout.Button("X", GUILayout.Width(20)))
+                    if (row == 0)
                     {
-                        tableData.RemoveAt(i);
-                        EditorGUILayout.EndHorizontal();
-                        break;
+                        GUILayout.Label("", GUILayout.Width(20));
+                    }
+                    else
+                    {
+                        if (GUILayout.Button("x", GUILayout.Width(20)))
+                        {
+                            tableData.RemoveAt(row);
+                            EditorGUILayout.EndHorizontal();
+                            break;
+                        }
                     }
                     
-                    for (int j = 0; j < tableData[i].Count; j++)
+                    for (int column = 0; column < tableData[row].Count; column++)
                     {
-                        tableData[i][j] = EditorGUILayout.TextField(tableData[i][j], GUILayout.MinWidth(100));
+                        if(row == 0)
+                        {
+                            tableData[row][column] = EditorGUILayout.TextField(tableData[row][column], GUILayout.MinWidth(100));
+                        }
+                        else
+                        {
+                            var headerString = tableData[0][column];
+                            
+                            var type = CSVUtility.GetTypeFromHeader(headerString);
+                            if (typeof(Object).IsAssignableFrom(type))
+                            {
+                                // TODO: Convert GUID to Object and back
+                                GUILayout.Label(tableData[row][column], GUILayout.MinWidth(100));
+                            }
+                            else
+                            {
+                                tableData[row][column] = EditorGUILayout.TextField(tableData[row][column], GUILayout.MinWidth(100));
+                            }
+                        }
                     }
                     
                     EditorGUILayout.EndHorizontal();
