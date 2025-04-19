@@ -175,12 +175,56 @@ namespace DataKeeper.Utility
             if (value == null)
                 return string.Empty;
 
+            // Handle special Unity types
+            if (type == typeof(Vector2))
+            {
+                Vector2 v = (Vector2)value;
+                return $"{v.x};{v.y}";
+            }
+            
+            if (type == typeof(Vector3))
+            {
+                Vector3 v = (Vector3)value;
+                return $"{v.x};{v.y};{v.z}";
+            }
+            
+            if (type == typeof(Vector4))
+            {
+                Vector4 v = (Vector4)value;
+                return $"{v.x};{v.y};{v.z};{v.w}";
+            }
+            
+            if (type == typeof(Quaternion))
+            {
+                Quaternion q = (Quaternion)value;
+                return $"{q.x};{q.y};{q.z};{q.w}";
+            }
+            
+            if (type == typeof(Rect))
+            {
+                Rect r = (Rect)value;
+                return $"{r.x};{r.y};{r.width};{r.height}";
+            }
+            
+            if (type == typeof(Color))
+            {
+                Color c = (Color)value;
+                return $"{c.r};{c.g};{c.b};{c.a}";
+            }
+
             // Handle Unity objects by storing reference ID
             if (typeof(Object).IsAssignableFrom(type))
             {
                 Object unityObj = value as Object;
                 if (unityObj == null)
                     return string.Empty;
+
+                // Special handling for Sprites to store both Texture path and sprite name
+                if (unityObj is Sprite sprite)
+                {
+                    string texturePath = GetUnityObjectPath(sprite.texture);
+                    return $"{texturePath}|{sprite.name}";
+                }
 
                 string path = GetUnityObjectPath(unityObj);
                 return path;
@@ -225,9 +269,12 @@ namespace DataKeeper.Utility
                 return "";
 
 #if UNITY_EDITOR
-            return UnityEditor.AssetDatabase.GUIDFromAssetPath(UnityEditor.AssetDatabase.GetAssetPath(unityObj)).ToString();
+            string assetPath = UnityEditor.AssetDatabase.GetAssetPath(unityObj);
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                return UnityEditor.AssetDatabase.GUIDFromAssetPath(assetPath).ToString();
+            }
 #endif
-
             return "";
         }
 
@@ -380,84 +427,25 @@ namespace DataKeeper.Utility
             if (string.IsNullOrEmpty(value))
                 return GetDefaultValue(targetType);
 
+            // Determine the actual type from typeName if needed
+            Type actualType = GetTypeFromName(typeName, targetType);
+            if (actualType != null)
+                targetType = actualType;
+
             // Handle Unity objects by resolving reference ID
             if (typeof(Object).IsAssignableFrom(targetType))
             {
+                // Special handling for Sprites from sprite sheets
+                if (targetType == typeof(Sprite) && value.Contains("|"))
+                {
+                    return ResolveSpriteReference(value);
+                }
+
                 return ResolveUnityObjectReference(value, targetType);
             }
 
-            // Handle lists
-            if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(List<>))
-            {
-                if (!value.StartsWith("[") || !value.EndsWith("]"))
-                    return GetDefaultValue(targetType);
-
-                string content = value.Substring(1, value.Length - 2);
-                string[] items = content.Split('|');
-
-                Type itemType = targetType.GetGenericArguments()[0];
-                var listType = typeof(List<>).MakeGenericType(itemType);
-                var list = Activator.CreateInstance(listType) as System.Collections.IList;
-
-                foreach (var item in items)
-                {
-                    if (!string.IsNullOrEmpty(item))
-                    {
-                        list.Add(ConvertValueFromString(item, itemType, typeName));
-                    }
-                }
-
-                return list;
-            }
-
-            // Handle arrays
-            if (targetType.IsArray)
-            {
-                if (!value.StartsWith("[") || !value.EndsWith("]"))
-                    return GetDefaultValue(targetType);
-
-                string content = value.Substring(1, value.Length - 2);
-                string[] items = content.Split('|');
-
-                Type elementType = targetType.GetElementType();
-                Array array = Array.CreateInstance(elementType, items.Length);
-
-                for (int i = 0; i < items.Length; i++)
-                {
-                    if (!string.IsNullOrEmpty(items[i]))
-                    {
-                        array.SetValue(ConvertValueFromString(items[i], elementType, typeName), i);
-                    }
-                }
-
-                return array;
-            }
-
-            // Handle basic types
-            if (targetType == typeof(string))
-                return value;
-
-            if (targetType == typeof(int) || targetType == typeof(int?))
-                return int.TryParse(value, out int intResult) ? intResult : 0;
-
-            if (targetType == typeof(float) || targetType == typeof(float?))
-                return float.TryParse(value, out float floatResult) ? floatResult : 0f;
-
-            if (targetType == typeof(double) || targetType == typeof(double?))
-                return double.TryParse(value, out double doubleResult) ? doubleResult : 0d;
-
-            if (targetType == typeof(bool) || targetType == typeof(bool?))
-                return bool.TryParse(value, out bool boolResult) && boolResult;
-
-            if (targetType == typeof(DateTime) || targetType == typeof(DateTime?))
-                return DateTime.TryParse(value, out DateTime dateResult) ? dateResult : DateTime.MinValue;
-
-            if (targetType.IsEnum)
-                return Enum.TryParse(targetType, value, true, out object enumResult)
-                    ? enumResult
-                    : Enum.GetValues(targetType).GetValue(0);
-
-            if (targetType == typeof(Vector2))
+            // Handle Vector2
+            if (targetType == typeof(Vector2) || typeName == "Vector2")
             {
                 string[] parts = value.Split(';');
                 if (parts.Length == 2 &&
@@ -467,7 +455,8 @@ namespace DataKeeper.Utility
                 return Vector2.zero;
             }
 
-            if (targetType == typeof(Vector3))
+            // Handle Vector3
+            if (targetType == typeof(Vector3) || typeName == "Vector3")
             {
                 string[] parts = value.Split(';');
                 if (parts.Length == 3 &&
@@ -478,7 +467,47 @@ namespace DataKeeper.Utility
                 return Vector3.zero;
             }
 
-            if (targetType == typeof(Color))
+            // Handle Vector4
+            if (targetType == typeof(Vector4) || typeName == "Vector4")
+            {
+                string[] parts = value.Split(';');
+                if (parts.Length == 4 &&
+                    float.TryParse(parts[0], out float x) &&
+                    float.TryParse(parts[1], out float y) &&
+                    float.TryParse(parts[2], out float z) &&
+                    float.TryParse(parts[3], out float w))
+                    return new Vector4(x, y, z, w);
+                return Vector4.zero;
+            }
+
+            // Handle Quaternion
+            if (targetType == typeof(Quaternion) || typeName == "Quaternion")
+            {
+                string[] parts = value.Split(';');
+                if (parts.Length == 4 &&
+                    float.TryParse(parts[0], out float x) &&
+                    float.TryParse(parts[1], out float y) &&
+                    float.TryParse(parts[2], out float z) &&
+                    float.TryParse(parts[3], out float w))
+                    return new Quaternion(x, y, z, w);
+                return Quaternion.identity;
+            }
+
+            // Handle Rect
+            if (targetType == typeof(Rect) || typeName == "Rect")
+            {
+                string[] parts = value.Split(';');
+                if (parts.Length == 4 &&
+                    float.TryParse(parts[0], out float x) &&
+                    float.TryParse(parts[1], out float y) &&
+                    float.TryParse(parts[2], out float width) &&
+                    float.TryParse(parts[3], out float height))
+                    return new Rect(x, y, width, height);
+                return new Rect(0, 0, 0, 0);
+            }
+
+            // Handle Color
+            if (targetType == typeof(Color) || typeName == "Color")
             {
                 string[] parts = value.Split(';');
                 if (parts.Length == 4 &&
@@ -489,6 +518,106 @@ namespace DataKeeper.Utility
                     return new Color(r, g, b, a);
                 return Color.white;
             }
+
+            // Handle lists
+            if ((targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(List<>)) || 
+                (typeName.StartsWith("List<") && typeName.EndsWith(">")))
+            {
+                if (!value.StartsWith("[") || !value.EndsWith("]"))
+                    return GetDefaultValue(targetType);
+
+                string content = value.Substring(1, value.Length - 2);
+                string[] items = content.Split('|');
+
+                // Try to get the item type from the type name if possible
+                Type itemType;
+                if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    itemType = targetType.GetGenericArguments()[0];
+                }
+                else
+                {
+                    // Extract item type from typeName (e.g., "List<Int>" -> "Int")
+                    string itemTypeName = typeName.Substring(5, typeName.Length - 6);
+                    itemType = GetTypeFromName(itemTypeName, typeof(object));
+                    if (itemType == null)
+                        return GetDefaultValue(targetType);
+                }
+
+                var listType = typeof(List<>).MakeGenericType(itemType);
+                var list = Activator.CreateInstance(listType) as System.Collections.IList;
+
+                foreach (var item in items)
+                {
+                    if (!string.IsNullOrEmpty(item))
+                    {
+                        list.Add(ConvertValueFromString(item, itemType, GetTypeNameForHeader(itemType)));
+                    }
+                }
+
+                return list;
+            }
+
+            // Handle arrays
+            if (targetType.IsArray || (typeName.EndsWith("[]")))
+            {
+                if (!value.StartsWith("[") || !value.EndsWith("]"))
+                    return GetDefaultValue(targetType);
+
+                string content = value.Substring(1, value.Length - 2);
+                string[] items = content.Split('|');
+
+                // Try to get the element type from the type name if possible
+                Type elementType;
+                if (targetType.IsArray)
+                {
+                    elementType = targetType.GetElementType();
+                }
+                else
+                {
+                    // Extract element type from typeName (e.g., "Int[]" -> "Int")
+                    string elementTypeName = typeName.Substring(0, typeName.Length - 2);
+                    elementType = GetTypeFromName(elementTypeName, typeof(object));
+                    if (elementType == null)
+                        return GetDefaultValue(targetType);
+                }
+
+                Array array = Array.CreateInstance(elementType, items.Length);
+
+                for (int i = 0; i < items.Length; i++)
+                {
+                    if (!string.IsNullOrEmpty(items[i]))
+                    {
+                        array.SetValue(ConvertValueFromString(items[i], elementType, GetTypeNameForHeader(elementType)), i);
+                    }
+                }
+
+                return array;
+            }
+
+            // Handle basic types
+            if (targetType == typeof(string) || typeName == "String")
+                return value;
+
+            if (targetType == typeof(int) || targetType == typeof(int?) || typeName == "Int")
+                return int.TryParse(value, out int intResult) ? intResult : 0;
+
+            if (targetType == typeof(float) || targetType == typeof(float?) || typeName == "Float")
+                return float.TryParse(value, out float floatResult) ? floatResult : 0f;
+
+            if (targetType == typeof(double) || targetType == typeof(double?) || typeName == "Double")
+                return double.TryParse(value, out double doubleResult) ? doubleResult : 0d;
+
+            if (targetType == typeof(bool) || targetType == typeof(bool?) || typeName == "Bool")
+                return bool.TryParse(value, out bool boolResult) && boolResult;
+
+            if (targetType == typeof(DateTime) || targetType == typeof(DateTime?) || typeName == "DateTime")
+                return DateTime.TryParse(value, out DateTime dateResult) ? dateResult : DateTime.MinValue;
+
+            if (targetType.IsEnum)
+                return Enum.TryParse(targetType, value, true, out object enumResult)
+                    ? enumResult
+                    : Enum.GetValues(targetType).GetValue(0);
 
             // For other types, try to use Convert
             try
@@ -501,20 +630,126 @@ namespace DataKeeper.Utility
             }
         }
 
+        private static Type GetTypeFromName(string typeName, Type fallbackType)
+        {
+            // Handle simple types
+            switch (typeName)
+            {
+                case "String": return typeof(string);
+                case "Int": return typeof(int);
+                case "Float": return typeof(float);
+                case "Double": return typeof(double);
+                case "Bool": return typeof(bool);
+                case "DateTime": return typeof(DateTime);
+                case "Vector2": return typeof(Vector2);
+                case "Vector3": return typeof(Vector3);
+                case "Vector4": return typeof(Vector4);
+                case "Quaternion": return typeof(Quaternion);
+                case "Rect": return typeof(Rect);
+                case "Color": return typeof(Color);
+                case "Sprite": return typeof(Sprite);
+                case "Texture2D": return typeof(Texture2D);
+            }
+
+            // Try to find the type by name in commonly used assemblies
+            string[] namespaces = { "", "UnityEngine", "System", "System.Collections.Generic" };
+            foreach (var ns in namespaces)
+            {
+                string fullTypeName = string.IsNullOrEmpty(ns) ? typeName : $"{ns}.{typeName}";
+                Type foundType = Type.GetType(fullTypeName);
+                if (foundType != null)
+                    return foundType;
+                
+                // Try looking in common assemblies
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                foreach (var assembly in assemblies)
+                {
+                    foundType = assembly.GetType(fullTypeName);
+                    if (foundType != null)
+                        return foundType;
+                }
+            }
+
+            // Handle generic lists
+            if (typeName.StartsWith("List<") && typeName.EndsWith(">"))
+            {
+                string elementTypeName = typeName.Substring(5, typeName.Length - 6);
+                Type elementType = GetTypeFromName(elementTypeName, null);
+                if (elementType != null)
+                {
+                    return typeof(List<>).MakeGenericType(elementType);
+                }
+            }
+
+            // Handle arrays
+            if (typeName.EndsWith("[]"))
+            {
+                string elementTypeName = typeName.Substring(0, typeName.Length - 2);
+                Type elementType = GetTypeFromName(elementTypeName, null);
+                if (elementType != null)
+                {
+                    return elementType.MakeArrayType();
+                }
+            }
+
+            return fallbackType;
+        }
+
         private static object ResolveUnityObjectReference(string guid, Type targetType)
         {
             if (string.IsNullOrEmpty(guid))
                 return null;
 
 #if UNITY_EDITOR
-            return UnityEditor.AssetDatabase.LoadAssetAtPath(UnityEditor.AssetDatabase.GUIDToAssetPath(guid), targetType);
+            string assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(assetPath))
+                return null;
+                
+            return UnityEditor.AssetDatabase.LoadAssetAtPath(assetPath, targetType);
 #endif
+            return null;
+        }
+
+        private static object ResolveSpriteReference(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return null;
+
+            // Check if it's a sprite from a sprite sheet (texture GUID|sprite name)
+            string[] parts = value.Split('|');
+            if (parts.Length == 2)
+            {
+                string textureGuid = parts[0];
+                string spriteName = parts[1];
+
+#if UNITY_EDITOR
+                // Load the texture first
+                string texturePath = UnityEditor.AssetDatabase.GUIDToAssetPath(textureGuid);
+                if (string.IsNullOrEmpty(texturePath))
+                    return null;
+
+                // Find the sprite with the matching name in this texture
+                var allSprites = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(texturePath)
+                    .Where(x => x is Sprite)
+                    .Cast<Sprite>();
+
+                return allSprites.FirstOrDefault(s => s.name == spriteName);
+#endif
+            }
+            else
+            {
+                // Regular asset reference
+                return ResolveUnityObjectReference(value, typeof(Sprite));
+            }
 
             return null;
         }
 
         private static object GetDefaultValue(Type type)
         {
+            if (type == null)
+                return null;
+                
             if (type.IsValueType)
                 return Activator.CreateInstance(type);
 
@@ -523,38 +758,47 @@ namespace DataKeeper.Utility
 
         private static string GetTypeNameForHeader(Type type)
         {
-            // if (type == typeof(string))
-            //     return "String";
-            //     
-            // if (type == typeof(int) || type == typeof(int?))
-            //     return "Int";
-            //     
-            // if (type == typeof(float) || type == typeof(float?))
-            //     return "Float";
-            //     
-            // if (type == typeof(double) || type == typeof(double?))
-            //     return "Double";
-            //     
-            // if (type == typeof(bool) || type == typeof(bool?))
-            //     return "Bool";
-            //     
-            // if (type == typeof(DateTime) || type == typeof(DateTime?))
-            //     return "DateTime";
-            //     
-            // if (type.IsEnum)
-            //     return type.Name;
-            //     
-            // if (type == typeof(Vector2))
-            //     return "Vector2";
-            //     
-            // if (type == typeof(Vector3))
-            //     return "Vector3";
-            //     
-            // if (type == typeof(Color))
-            //     return "Color";
+            if (type == typeof(string))
+                return "String";
+                
+            if (type == typeof(int) || type == typeof(int?))
+                return "Int";
+                
+            if (type == typeof(float) || type == typeof(float?))
+                return "Float";
+                
+            if (type == typeof(double) || type == typeof(double?))
+                return "Double";
+                
+            if (type == typeof(bool) || type == typeof(bool?))
+                return "Bool";
+                
+            if (type == typeof(DateTime) || type == typeof(DateTime?))
+                return "DateTime";
+                
+            if (type.IsEnum)
+                return type.Name;
+                
+            if (type == typeof(Vector2))
+                return "Vector2";
+                
+            if (type == typeof(Vector3))
+                return "Vector3";
+                
+            if (type == typeof(Vector4))
+                return "Vector4";
+                
+            if (type == typeof(Quaternion))
+                return "Quaternion";
+                
+            if (type == typeof(Rect))
+                return "Rect";
+                
+            if (type == typeof(Color))
+                return "Color";
 
-            // if (typeof(Object).IsAssignableFrom(type))
-            //     return type.Name;
+            if (typeof(Object).IsAssignableFrom(type))
+                return type.Name;
 
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
             {
