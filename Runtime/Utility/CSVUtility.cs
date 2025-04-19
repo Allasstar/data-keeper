@@ -632,6 +632,7 @@ namespace DataKeeper.Utility
 
         private static Type GetTypeFromName(string typeName, Type fallbackType)
         {
+            typeName = typeName.Replace("@", "");
             // Handle simple types
             switch (typeName)
             {
@@ -798,7 +799,7 @@ namespace DataKeeper.Utility
                 return "Color";
 
             if (typeof(Object).IsAssignableFrom(type))
-                return type.Name;
+                return $"@{type.Name}";
 
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
             {
