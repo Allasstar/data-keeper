@@ -14,6 +14,8 @@ namespace DataKeeper.Editor.Windows
         private List<List<string>> tableData = new List<List<string>>();
         private Vector2 scrollPosition;
         private Action<string> onSaveCallback;
+        
+        private int columnWeight = 150;
 
         public static void OpenWindow(string csv, Action<string> saveCallback)
         {
@@ -106,7 +108,12 @@ namespace DataKeeper.Editor.Windows
                 }
             }
 
-            EditorGUILayout.Space(10, true);
+            GUILayout.FlexibleSpace();
+            
+            GUILayout.Label("Column Width", EditorStyles.toolbarButton);
+            columnWeight = EditorGUILayout.IntSlider(columnWeight, 50, 300, GUILayout.Width(150));
+
+            GUILayout.FlexibleSpace();
 
             if (GUILayout.Button("Save", style: EditorStyles.toolbarButton, GUILayout.Width(80)))
             {
@@ -142,7 +149,7 @@ namespace DataKeeper.Editor.Windows
                     {
                         if(row == 0)
                         {
-                            tableData[row][column] = EditorGUILayout.TextField(tableData[row][column], GUILayout.MinWidth(100));
+                            tableData[row][column] = EditorGUILayout.TextField(tableData[row][column], GUILayout.Width(columnWeight));
                         }
                         else
                         {
@@ -156,7 +163,7 @@ namespace DataKeeper.Editor.Windows
                             }
                             else
                             {
-                                tableData[row][column] = EditorGUILayout.TextField(tableData[row][column], GUILayout.MinWidth(100));
+                                tableData[row][column] = EditorGUILayout.TextField(tableData[row][column], GUILayout.Width(columnWeight));
                             }
                         }
                     }

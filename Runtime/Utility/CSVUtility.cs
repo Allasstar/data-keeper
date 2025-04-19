@@ -21,6 +21,85 @@ namespace DataKeeper.Utility
         #region Public Methods
 
         /// <summary>
+        /// Converts a Unity Object to its GUID
+        /// </summary>
+        /// <param name="unityObject">Unity Object to convert</param>
+        /// <returns>GUID as string, or empty string if the object has no GUID</returns>
+        public static string UnityObjectToGUID(Object unityObject)
+        {
+            if (unityObject == null)
+                return string.Empty;
+
+#if UNITY_EDITOR
+            string assetPath = UnityEditor.AssetDatabase.GetAssetPath(unityObject);
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                return UnityEditor.AssetDatabase.GUIDFromAssetPath(assetPath).ToString();
+            }
+#endif
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Converts a GUID to a Unity Object of the specified type
+        /// </summary>
+        /// <param name="guid">GUID as string</param>
+        /// <param name="type">Type of Unity Object to convert to</param>
+        /// <returns>Unity Object, or null if the GUID is invalid</returns>
+        public static Object GUIDToUnityObject(string guid, Type type)
+        {
+            if (string.IsNullOrEmpty(guid))
+                return null;
+
+#if UNITY_EDITOR
+            string assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(assetPath))
+                return null;
+                
+            return UnityEditor.AssetDatabase.LoadAssetAtPath(assetPath, type);
+#endif
+            return null;
+        }
+
+        /// <summary>
+        /// Converts a GUID to a Unity Object of the specified type
+        /// </summary>
+        /// <typeparam name="T">Type of Unity Object to convert to</typeparam>
+        /// <param name="guid">GUID as string</param>
+        /// <returns>Unity Object of type T, or null if the GUID is invalid</returns>
+        public static T GUIDToUnityObject<T>(string guid) where T : Object
+        {
+            return GUIDToUnityObject(guid, typeof(T)) as T;
+        }
+
+        /// <summary>
+        /// Resolves a Sprite from a texture GUID and sprite name
+        /// </summary>
+        /// <param name="textureGUID">GUID of the texture asset</param>
+        /// <param name="spriteName">Name of the sprite in the texture</param>
+        /// <returns>Sprite object, or null if not found</returns>
+        public static Sprite ResolveSprite(string textureGUID, string spriteName)
+        {
+            if (string.IsNullOrEmpty(textureGUID) || string.IsNullOrEmpty(spriteName))
+                return null;
+
+#if UNITY_EDITOR
+            // Load the texture first
+            string texturePath = UnityEditor.AssetDatabase.GUIDToAssetPath(textureGUID);
+            if (string.IsNullOrEmpty(texturePath))
+                return null;
+
+            // Find the sprite with the matching name in this texture
+            var allSprites = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(texturePath)
+                .Where(x => x is Sprite)
+                .Cast<Sprite>();
+
+            return allSprites.FirstOrDefault(s => s.name == spriteName);
+#endif
+            return null;
+        }
+
+        /// <summary>
         /// Converts a list of objects to CSV format
         /// </summary>
         /// <typeparam name="T">Type of objects in the list</typeparam>
@@ -228,12 +307,11 @@ namespace DataKeeper.Utility
                 // Special handling for Sprites to store both Texture path and sprite name
                 if (unityObj is Sprite sprite)
                 {
-                    string texturePath = GetUnityObjectPath(sprite.texture);
+                    string texturePath = UnityObjectToGUID(sprite.texture);
                     return $"{texturePath}|{sprite.name}";
                 }
 
-                string path = GetUnityObjectPath(unityObj);
-                return path;
+                return UnityObjectToGUID(unityObj);
             }
 
             // Handle lists and arrays
@@ -267,21 +345,6 @@ namespace DataKeeper.Utility
 
             // Handle other types by using ToString()
             return value.ToString();
-        }
-
-        private static string GetUnityObjectPath(Object unityObj)
-        {
-            if (unityObj == null)
-                return "";
-
-#if UNITY_EDITOR
-            string assetPath = UnityEditor.AssetDatabase.GetAssetPath(unityObj);
-            if (!string.IsNullOrEmpty(assetPath))
-            {
-                return UnityEditor.AssetDatabase.GUIDFromAssetPath(assetPath).ToString();
-            }
-#endif
-            return "";
         }
 
         private static string EscapeCSVCell(string cell)
@@ -443,10 +506,15 @@ namespace DataKeeper.Utility
                 // Special handling for Sprites from sprite sheets
                 if (targetType == typeof(Sprite) && value.Contains("|"))
                 {
-                    return ResolveSpriteReference(value);
+                    string[] parts = value.Split('|');
+                    if (parts.Length == 2)
+                    {
+                        return ResolveSprite(parts[0], parts[1]);
+                    }
+                    return null;
                 }
 
-                return ResolveUnityObjectReference(value, targetType);
+                return GUIDToUnityObject(value, targetType);
             }
 
             // Handle Vector2
@@ -698,56 +766,6 @@ namespace DataKeeper.Utility
             }
 
             return fallbackType;
-        }
-
-        private static object ResolveUnityObjectReference(string guid, Type targetType)
-        {
-            if (string.IsNullOrEmpty(guid))
-                return null;
-
-#if UNITY_EDITOR
-            string assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
-            if (string.IsNullOrEmpty(assetPath))
-                return null;
-                
-            return UnityEditor.AssetDatabase.LoadAssetAtPath(assetPath, targetType);
-#endif
-            return null;
-        }
-
-        private static object ResolveSpriteReference(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-                return null;
-
-            // Check if it's a sprite from a sprite sheet (texture GUID|sprite name)
-            string[] parts = value.Split('|');
-            if (parts.Length == 2)
-            {
-                string textureGuid = parts[0];
-                string spriteName = parts[1];
-
-#if UNITY_EDITOR
-                // Load the texture first
-                string texturePath = UnityEditor.AssetDatabase.GUIDToAssetPath(textureGuid);
-                if (string.IsNullOrEmpty(texturePath))
-                    return null;
-
-                // Find the sprite with the matching name in this texture
-                var allSprites = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(texturePath)
-                    .Where(x => x is Sprite)
-                    .Cast<Sprite>();
-
-                return allSprites.FirstOrDefault(s => s.name == spriteName);
-#endif
-            }
-            else
-            {
-                // Regular asset reference
-                return ResolveUnityObjectReference(value, typeof(Sprite));
-            }
-
-            return null;
         }
 
         private static object GetDefaultValue(Type type)
