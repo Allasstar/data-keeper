@@ -135,14 +135,14 @@ namespace DataKeeper.Editor.Windows
             }
             else if (obj is int i)
             {
-                var intField = new IntegerField { label = " ", value = i };
+                var intField = new IntegerField { label = "x", value = i };
                 intField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 intField.style.width = 10;
                 field = intField;
             }
             else if (obj is float f)
             {
-                var floatField = new FloatField { value = f };
+                var floatField = new FloatField { label = "x", value = f };
                 floatField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 field = floatField;
             }
@@ -203,7 +203,11 @@ namespace DataKeeper.Editor.Windows
             else if (obj is Rect r)
             {
                 var qField = new Vector4Field { value = new Vector4(r.x, r.y, r.width, r.height) };
-                qField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
+                qField.Q<FloatField>("unity-x-input").label = "x";
+                qField.Q<FloatField>("unity-y-input").label = "y"; 
+                qField.Q<FloatField>("unity-z-input").label = "w";
+                qField.Q<FloatField>("unity-w-input").label = "h";
+                qField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(new Rect(evt.newValue.x, evt.newValue.y,evt.newValue.z,evt.newValue.w)));
                 field = qField;
             }
             else
