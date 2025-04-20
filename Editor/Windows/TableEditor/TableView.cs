@@ -9,9 +9,60 @@ namespace DataKeeper.Editor.Windows
 {
     public class TableView : VisualElement
     {
+        private readonly List<VisualElement> headers = new List<VisualElement>();
         private readonly List<List<VisualElement>> cells = new List<List<VisualElement>>();
         private readonly List<string> columnNames = new List<string>();
         private readonly List<Type> columnTypes = new List<Type>();
+        
+        private int rowHeight = 20;
+        private int columnWidth = 200;
+        private int spacing = 5;
+        
+        public void SetTableParameters(int rowHeight, int columnWidth, int spacing)
+        {
+            this.rowHeight = rowHeight;
+            this.columnWidth = columnWidth;
+            this.spacing = spacing;
+            UpdateTableLayout();
+        }
+        
+        public void SetSpacing(int spacing)
+        {
+            this.spacing = spacing;
+            UpdateTableLayout();
+        }
+        
+        public void SetRowHeight(int rowHeight)
+        {
+            this.rowHeight = rowHeight;
+            UpdateTableLayout();
+        }
+        
+        public void SetColumnWidth(int columnWidth)
+        {
+            this.columnWidth = columnWidth;
+            UpdateTableLayout();
+        }
+
+        public void UpdateTableLayout()
+        {
+            foreach (var c in cells)
+            {
+                foreach (var v in c)
+                {
+                    v.style.width = columnWidth;
+                    v.style.height = rowHeight;
+                    v.style.marginLeft = spacing;
+                }
+            }
+
+            foreach (var v in headers)
+            {
+                v.style.width = columnWidth;
+                v.style.height = rowHeight;
+                v.style.marginLeft = spacing;
+            }
+        }
 
         public TableView()
         {
@@ -22,6 +73,7 @@ namespace DataKeeper.Editor.Windows
         {
             Clear();
             cells.Clear();
+            headers.Clear();
             columnNames.Clear();
             columnTypes.Clear();
         }
@@ -45,11 +97,14 @@ namespace DataKeeper.Editor.Windows
 
             // Add column header
             var headerElement = new Label(columnName);
-            headerElement.style.minWidth = 100;
-            headerElement.style.paddingLeft = 5;
-            headerElement.style.paddingRight = 5;
+            headerElement.style.width = columnWidth;
+            headerElement.style.height = rowHeight;
+            headerElement.style.marginLeft = spacing;
+            headerElement.style.marginBottom = spacing;
+            headerElement.style.marginTop = spacing;
             headerElement.style.borderBottomWidth = 1;
-            headerElement.style.borderBottomColor = Color.gray;
+            headerElement.style.borderBottomColor = Color.black;
+            headers.Add(headerElement);
 
             headerRow = this[0] as VisualElement;
             if (headerRow.childCount <= columnIndex)
@@ -89,6 +144,10 @@ namespace DataKeeper.Editor.Windows
 
             rowElement = this[rowIndex + 1] as VisualElement;
             VisualElement field = CreateFieldForType(columnTypes[columnIndex], value, onValueChanged);
+            
+            field.style.width = columnWidth;
+            field.style.height = rowHeight;
+            field.style.marginLeft = spacing;
             
             if (row[columnIndex] == null)
             {
@@ -135,14 +194,14 @@ namespace DataKeeper.Editor.Windows
             }
             else if (obj is int i)
             {
-                var intField = new IntegerField { label = "x", value = i };
+                var intField = new IntegerField { value = i };
                 intField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 intField.style.width = 10;
                 field = intField;
             }
             else if (obj is float f)
             {
-                var floatField = new FloatField { label = "x", value = f };
+                var floatField = new FloatField { value = f };
                 floatField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 field = floatField;
             }
@@ -155,6 +214,7 @@ namespace DataKeeper.Editor.Windows
             else if (obj is string str)
             {
                 var textField = new TextField { value = str };
+                textField.multiline = true;
                 textField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 field = textField;
             }

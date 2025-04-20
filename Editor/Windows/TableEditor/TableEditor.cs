@@ -26,6 +26,9 @@ namespace DataKeeper.Editor.Windows
         private TableView _tableView;
         private ObjectField _objectField;
         private DropdownField _dropdownField;
+        private ScrollView _scrollView;
+        private SliderInt _columnWidth;
+        private SliderInt _rowHeight;
 
 
         [MenuItem("Tools/Windows/Table Editor")]
@@ -43,19 +46,35 @@ namespace DataKeeper.Editor.Windows
             
             // Root
             root.Add(labelFromUXML);
+            
+            _scrollView = new ScrollView();
+            _scrollView.style.paddingBottom = 5;
+            _scrollView.style.paddingTop = 5;
+            _scrollView.style.paddingLeft = 5;
+            _scrollView.style.paddingRight = 5;
+            _scrollView.style.flexGrow = 1;
+            root.Add(_scrollView);
+
             _tableView = new TableView();
-            root.Add(_tableView);
+            _scrollView.Add(_tableView);
             
             // Get elements
             _objectField = root.Q<ObjectField>("SelectSO");
             _dropdownField = root.Q<DropdownField>("DropDown");
             _label = root.Q<Label>("SelectedName");
+            _columnWidth = root.Q<SliderInt>("ColumnWidth");
+            _rowHeight = root.Q<SliderInt>("RowHeight");
             
             // Setup
             _dropdownField.visible = false;
             
             _objectField.objectType = typeof(ScriptableObject);
             _objectField.RegisterValueChangedCallback(OnSOChanged);
+            
+            _tableView.SetColumnWidth(150);
+            _columnWidth.value = 150;
+            _columnWidth.RegisterValueChangedCallback(c => _tableView.SetColumnWidth(c.newValue));
+            _rowHeight.RegisterValueChangedCallback(r => _tableView.SetRowHeight(r.newValue));
         }
 
         private void OnSOChanged(ChangeEvent<Object> evt)
