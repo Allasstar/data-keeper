@@ -2,10 +2,13 @@
     <Style src="project://database/Assets/data-keeper/Editor/Windows/TableEditor/TableEditor.uss?fileID=7433441132597879392&amp;guid=5e3f6659cb704b143976289b9ed0920c&amp;type=3#TableEditor" />
     <ui:VisualElement name="VisualElement" style="flex-grow: 1; width: 100%; height: 100%; background-color: rgb(56, 56, 56);">
         <uie:Toolbar>
-            <uie:ObjectField name="SelectSO" />
-            <ui:DropdownField name="DropDown" />
+            <uie:ToolbarSpacer style="flex-basis: 10px;" />
+            <uie:ObjectField name="SelectSO" style="flex-basis: auto;" />
+            <uie:ToolbarSpacer style="flex-basis: 10px;" />
+            <ui:DropdownField name="DropDown" style="flex-basis: 180px;" />
             <uie:ToolbarSpacer style="flex-basis: 100%;" />
             <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectedName" />
+            <uie:ToolbarSpacer style="flex-basis: 5px;" />
         </uie:Toolbar>
     </ui:VisualElement>
 </ui:UXML>

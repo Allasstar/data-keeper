@@ -63,7 +63,8 @@ namespace DataKeeper.Editor.Windows
             _selectedSO = evt.newValue as ScriptableObject;
             _dropdownField.visible = _selectedSO != null;
 
-            _label.text = _selectedSO == null ? "Empty" : _selectedSO.name + " " + _selectedSO.GetType().Name;
+            _label.text = _selectedSO == null ? "" :  AssetDatabase.GetAssetPath(_selectedSO);
+            
             _tableView.ClearTable();
 
             if (_selectedSO == null)
@@ -85,8 +86,6 @@ namespace DataKeeper.Editor.Windows
 
         private void DropFieldChanged(ChangeEvent<string> evt)
         {
-            _label.text = $"Selected > string: {evt.newValue}";
-
             if (string.IsNullOrEmpty(evt.newValue))
             {
                 return;
@@ -98,8 +97,6 @@ namespace DataKeeper.Editor.Windows
             {
                 return;
             }
-            
-            _label.text = $"Selected: {_selectedObject.GetType()}";
             
             if (_selectedObject is IList list)
             {

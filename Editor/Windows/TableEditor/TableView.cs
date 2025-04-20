@@ -133,36 +133,78 @@ namespace DataKeeper.Editor.Windows
                 objField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 field = objField;
             }
-            else if (type == typeof(int))
+            else if (obj is int i)
             {
-                var intField = new IntegerField { label = "int", value = (int)obj };
+                var intField = new IntegerField { label = " ", value = i };
                 intField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 intField.style.width = 10;
                 field = intField;
             }
-            else if (type == typeof(float))
+            else if (obj is float f)
             {
-                var floatField = new FloatField { value = (float)obj };
+                var floatField = new FloatField { value = f };
                 floatField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 field = floatField;
             }
-            else if (type == typeof(bool))
+            else if (obj is bool b)
             {
-                var toggle = new Toggle { value = (bool)obj };
+                var toggle = new Toggle { value = b };
                 toggle.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 field = toggle;
             }
-            else if (type == typeof(string))
+            else if (obj is string str)
             {
-                var textField = new TextField { value = (string)obj };
+                var textField = new TextField { value = str };
                 textField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 field = textField;
             }
-            else if (type == typeof(Color))
+            else if (obj is Color col)
             {
-                var colorField = new ColorField { value = (Color)obj };
+                var colorField = new ColorField { value = col };
                 colorField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
                 field = colorField;
+            }
+            else if (obj is Gradient gr)
+            {
+                var gradField = new GradientField { value = gr };
+                gradField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
+                field = gradField;
+            }
+            else if (obj is AnimationCurve ac)
+            {
+                var curveField = new CurveField { value = ac };
+                curveField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
+                field = curveField;
+            }
+            else if (obj is Vector2 v2)
+            {
+                var vec2Field = new Vector2Field { value = v2 };
+                vec2Field.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
+                field = vec2Field;
+            }
+            else if (obj is Vector3 v3)
+            {
+                var vec3Field = new Vector3Field { value = v3 };
+                vec3Field.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
+                field = vec3Field;
+            }
+            else if (obj is Vector4 v4)
+            {
+                var vec4Field = new Vector4Field { value = v4 };
+                vec4Field.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
+                field = vec4Field;
+            }
+            else if (obj is Quaternion q)
+            {
+                var qField = new Vector4Field { value = new Vector4(q.x, q.y, q.z, q.w) };
+                qField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
+                field = qField;
+            }
+            else if (obj is Rect r)
+            {
+                var qField = new Vector4Field { value = new Vector4(r.x, r.y, r.width, r.height) };
+                qField.RegisterValueChangedCallback(evt => onValueChanged?.Invoke(evt.newValue));
+                field = qField;
             }
             else
             {
