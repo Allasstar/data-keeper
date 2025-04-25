@@ -236,6 +236,18 @@ namespace DataKeeper.UIToolkit
         #endregion
 
         #region Utility
+        
+        public static T SetSafeArea<T>(this T element, bool isApply = true) where T : VisualElement
+        {
+            Rect safeArea = isApply ? Screen.safeArea : new Rect(0, 0, Screen.width, Screen.height);
+            
+            element.style.borderLeftWidth = safeArea.x;
+            element.style.borderBottomWidth = safeArea.y;
+            element.style.borderRightWidth = Screen.width - safeArea.x;
+            element.style.borderTopWidth = Screen.height - safeArea.y;
+            
+            return element;
+        }
 
         public static T SetParent<T>(this T element, T parent) where T : VisualElement
         {
