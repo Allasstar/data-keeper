@@ -235,10 +235,26 @@ namespace DataKeeper.UIToolkit
         #endregion
 
         #region Utility
+
+        public static T SetParent<T>(this T element, T parent) where T : VisualElement
+        {
+            parent.Add(element);
+            return element;
+        }
+        
+        public static T AddChild<T>(this T element, params T[] child) where T : VisualElement
+        {
+            foreach (var c in child)
+                element.Add(c);
+            
+            return element;
+        }
+        
         public static T AddClasses<T>(this T element, params string[] classNames) where T : VisualElement
         {
             foreach (var c in classNames)
                 element.AddToClassList(c);
+            
             return element;
         }
         #endregion
