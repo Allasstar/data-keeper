@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -257,6 +258,29 @@ namespace DataKeeper.UIToolkit
             
             return element;
         }
+        
+        public static T RemoveAllUnityClasses<T>(this T element) where T : VisualElement
+        {
+            foreach (string className in element.GetClasses().Where(className => className.StartsWith("unity")))
+                element.RemoveFromClassList(className);
+
+            foreach (VisualElement child in element.hierarchy.Children()) 
+                child.RemoveAllUnityClasses();
+            
+            return element;
+        }
+        
+        public static T DebugLogAllUnityClasses<T>(this T element) where T : VisualElement
+        {
+            foreach (string className in element.GetClasses().Where(className => className.StartsWith("unity")))
+                Debug.Log($"{element.name}<{element.GetType().Name}> :: class: {className}");
+
+            foreach (VisualElement child in element.hierarchy.Children()) 
+                child.DebugLogAllUnityClasses();
+            
+            return element;
+        }
+        
         #endregion
     }
 }
