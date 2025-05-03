@@ -146,10 +146,10 @@ namespace DataKeeper.Editor.Windows
                     for (int colIndex = 0; colIndex < members.Count; colIndex++)
                     {
                         var value = members[colIndex].GetValue(element);
+                        var capturedMember = members[colIndex];
                         _tableView.AddValue(colIndex, rowIndex, value, (newValue) =>
                         {
-                            // Handle value changes if needed
-                            members[colIndex].SetValue(element, newValue);
+                            capturedMember.SetValue(element, newValue);
                         });
                     }
                 }
