@@ -6,15 +6,20 @@
             <uie:ObjectField name="SelectSO" style="flex-basis: auto;" />
             <uie:ToolbarSpacer style="flex-basis: 10px;" />
             <ui:DropdownField name="DropDown" style="flex-basis: 180px;" />
-            <uie:ToolbarSpacer style="flex-basis: 100%;" />
-            <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectedName" />
+            <uie:ToolbarSpacer style="flex-basis: 5%; flex-grow: 1;" />
+            <uie:ToolbarMenu tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" text="Export " name="Export" />
+            <uie:ToolbarSpacer style="flex-basis: 5px;" />
+            <uie:ToolbarMenu tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" text="Import " name="Import" />
             <uie:ToolbarSpacer style="flex-basis: 5px;" />
         </uie:Toolbar>
-        <ui:VisualElement style="flex-grow: 0; flex-direction: row; flex-basis: auto; flex-shrink: 0; margin-top: 5px; margin-right: 5px; margin-bottom: 5px; margin-left: 5px; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px;">
+        <ui:VisualElement style="flex-grow: 0; flex-direction: row; flex-basis: auto; flex-shrink: 0; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;">
             <ui:SliderInt label="Column Width" high-value="500" name="ColumnWidth" low-value="100" style="flex-grow: 1;" />
             <uie:ToolbarSpacer />
             <ui:SliderInt label="Row Height" high-value="100" name="RowHeight" low-value="20" style="flex-grow: 1;" />
+            <uie:ToolbarSpacer style="flex-grow: 0;" />
+            <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectedName" />
+            <uie:ToolbarSpacer style="flex-grow: 0;" />
         </ui:VisualElement>
-        <ui:VisualElement name="Div" style="flex-grow: 0; width: 100%; height: 2px; background-color: rgba(0, 0, 0, 0.3); margin-top: 5px; margin-bottom: 10px;" />
+        <ui:VisualElement name="Div" style="flex-grow: 0; width: 100%; height: 2px; background-color: rgba(0, 0, 0, 0.3); margin-top: 0; margin-bottom: 15px;" />
     </ui:VisualElement>
 </ui:UXML>

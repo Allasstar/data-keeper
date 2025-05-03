@@ -7,6 +7,8 @@ using System.Linq;
 using System.Reflection;
 using DataKeeper.Attributes;
 using DataKeeper.UIToolkit;
+using DataKeeper.Utility;
+using UnityEditor.UIElements;
 using ObjectField = UnityEditor.UIElements.ObjectField;
 
 namespace DataKeeper.Editor.Windows
@@ -29,6 +31,9 @@ namespace DataKeeper.Editor.Windows
         private ScrollView _scrollView;
         private SliderInt _columnWidth;
         private SliderInt _rowHeight;
+        
+        private ToolbarMenu _exportToolbarMenu;
+        private ToolbarMenu _importToolbarMenu;
 
 
         [MenuItem("Tools/Windows/Table Editor")]
@@ -63,6 +68,9 @@ namespace DataKeeper.Editor.Windows
             _columnWidth = root.Q<SliderInt>("ColumnWidth");
             _rowHeight = root.Q<SliderInt>("RowHeight");
             
+            _exportToolbarMenu = root.Q<ToolbarMenu>("Export");
+            _importToolbarMenu = root.Q<ToolbarMenu>("Import");
+            
             // Setup
             _dropdownField.visible = false;
             
@@ -77,6 +85,100 @@ namespace DataKeeper.Editor.Windows
                 _scrollView.ForceUpdate();
             });
             _rowHeight.RegisterValueChangedCallback(r => _tableView.SetRowHeight(r.newValue));
+
+            _exportToolbarMenu.menu.AppendAction("CSV (clipboard)", ExportCSVClipboard);
+            _exportToolbarMenu.menu.AppendAction("TSV (clipboard)", ExportTSVClipboard);
+            
+            _importToolbarMenu.menu.AppendAction("CSV (clipboard)", ImportCSVClipboard);
+            _importToolbarMenu.menu.AppendAction("TSV (clipboard)", ImportTSVClipboard);
+        }
+
+        private void ImportTSVClipboard(DropdownMenuAction obj)
+        {
+            string clipboardContent = GUIUtility.systemCopyBuffer;
+            if (string.IsNullOrEmpty(clipboardContent))
+                return;
+
+            // Handle the import based on type
+            var list = _selectedObject as IList;
+            if (list == null || list.Count == 0)
+                return;
+
+            var elementType = list[0].GetType();
+            var importedList = CSVUtility.CSVToList<object>(clipboardContent, DelimiterType.Tab);
+            
+            if (importedList.Count > 0 && importedList[0].GetType() == elementType)
+            {
+                list.Clear();
+                foreach (var item in importedList)
+                {
+                    list.Add(item);
+                }
+                
+                // Refresh the table view
+                // DropFieldChanged(new ChangeEvent<string> { newValue = _dropdownField.value });
+            }
+        }
+
+        private void ImportCSVClipboard(DropdownMenuAction obj)
+        {
+            string clipboardContent = GUIUtility.systemCopyBuffer;
+            if (string.IsNullOrEmpty(clipboardContent))
+                return;
+
+            // Handle the import based on type
+            var list = _selectedObject as IList;
+            if (list == null || list.Count == 0)
+                return;
+
+            var elementType = list[0].GetType();
+            var importedList = CSVUtility.CSVToList<object>(clipboardContent, DelimiterType.Comma);
+            
+            if (importedList.Count > 0 && importedList[0].GetType() == elementType)
+            {
+                list.Clear();
+                foreach (var item in importedList)
+                {
+                    list.Add(item);
+                }
+                
+                // Refresh the table view
+                // DropFieldChanged(new ChangeEvent<string> { newValue = _dropdownField.value });
+            }
+        }
+
+        private void ExportTSVClipboard(DropdownMenuAction obj)
+        {
+            if (_selectedObject is IList list)
+            {
+                if (list.Count == 0)
+                    return;
+
+                // Get the type of the first element to determine its type
+                var elementType = list[0].GetType();
+                var genericList = list.Cast<object>().ToList();
+                
+                // Convert to TSV and copy to clipboard
+                string tsv = CSVUtility.ListToCSV(genericList, DelimiterType.Tab);
+                GUIUtility.systemCopyBuffer = tsv;
+            }
+        }
+
+        private void ExportCSVClipboard(DropdownMenuAction obj)
+        {
+            if (_selectedObject is IList list)
+            {
+                if (list.Count == 0)
+                    return;
+
+                // Get the type of the first element to determine its type
+                var elementType = list[0].GetType();
+                var genericList = list.Cast<object>().ToList();
+                
+                // Convert to CSV and copy to clipboard
+                string csv = CSVUtility.ListToCSV(genericList, DelimiterType.Comma);
+                GUIUtility.systemCopyBuffer = csv;
+            }
         }
 
         private void OnSOChanged(ChangeEvent<Object> evt)
