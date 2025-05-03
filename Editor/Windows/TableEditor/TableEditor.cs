@@ -99,15 +99,16 @@ namespace DataKeeper.Editor.Windows
             if (string.IsNullOrEmpty(clipboardContent))
                 return;
 
-            // Handle the import based on type
             var list = _selectedObject as IList;
             if (list == null || list.Count == 0)
                 return;
 
             var elementType = list[0].GetType();
-            var importedList = CSVUtility.CSVToList<object>(clipboardContent, DelimiterType.Tab);
+            // Use the specific type instead of object
+            var method = typeof(CSVUtility).GetMethod("CSVToList").MakeGenericMethod(elementType);
+            var importedList = (IList)method.Invoke(null, new object[] { clipboardContent, DelimiterType.Tab });
             
-            if (importedList.Count > 0 && importedList[0].GetType() == elementType)
+            if (importedList.Count > 0)
             {
                 list.Clear();
                 foreach (var item in importedList)
@@ -115,7 +116,8 @@ namespace DataKeeper.Editor.Windows
                     list.Add(item);
                 }
                 
-                // Refresh the table view
+                // Refresh the view
+                _tableView.ClearTable();
                 // DropFieldChanged(new ChangeEvent<string> { newValue = _dropdownField.value });
             }
         }
@@ -126,15 +128,16 @@ namespace DataKeeper.Editor.Windows
             if (string.IsNullOrEmpty(clipboardContent))
                 return;
 
-            // Handle the import based on type
             var list = _selectedObject as IList;
             if (list == null || list.Count == 0)
                 return;
 
             var elementType = list[0].GetType();
-            var importedList = CSVUtility.CSVToList<object>(clipboardContent, DelimiterType.Comma);
+            // Use the specific type instead of object
+            var method = typeof(CSVUtility).GetMethod("CSVToList").MakeGenericMethod(elementType);
+            var importedList = (IList)method.Invoke(null, new object[] { clipboardContent, DelimiterType.Comma });
             
-            if (importedList.Count > 0 && importedList[0].GetType() == elementType)
+            if (importedList.Count > 0)
             {
                 list.Clear();
                 foreach (var item in importedList)
@@ -142,7 +145,8 @@ namespace DataKeeper.Editor.Windows
                     list.Add(item);
                 }
                 
-                // Refresh the table view
+                // Refresh the view
+                _tableView.ClearTable();
                 // DropFieldChanged(new ChangeEvent<string> { newValue = _dropdownField.value });
             }
         }
@@ -154,12 +158,10 @@ namespace DataKeeper.Editor.Windows
                 if (list.Count == 0)
                     return;
 
-                // Get the type of the first element to determine its type
                 var elementType = list[0].GetType();
-                var genericList = list.Cast<object>().ToList();
-                
-                // Convert to TSV and copy to clipboard
-                string tsv = CSVUtility.ListToCSV(genericList, DelimiterType.Tab);
+                // Use reflection to call the generic method with the correct type
+                var method = typeof(CSVUtility).GetMethod("ListToCSV").MakeGenericMethod(elementType);
+                string tsv = (string)method.Invoke(null, new object[] { list, DelimiterType.Tab });
                 GUIUtility.systemCopyBuffer = tsv;
             }
         }
@@ -171,12 +173,10 @@ namespace DataKeeper.Editor.Windows
                 if (list.Count == 0)
                     return;
 
-                // Get the type of the first element to determine its type
                 var elementType = list[0].GetType();
-                var genericList = list.Cast<object>().ToList();
-                
-                // Convert to CSV and copy to clipboard
-                string csv = CSVUtility.ListToCSV(genericList, DelimiterType.Comma);
+                // Use reflection to call the generic method with the correct type
+                var method = typeof(CSVUtility).GetMethod("ListToCSV").MakeGenericMethod(elementType);
+                string csv = (string)method.Invoke(null, new object[] { list, DelimiterType.Comma });
                 GUIUtility.systemCopyBuffer = csv;
             }
         }
