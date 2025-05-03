@@ -14,7 +14,8 @@ namespace DataKeeper.Utility
     /// </summary>
     public static class CSVUtility
     {
-        private const char Delimiter = ',';
+        private const char DelimiterComma = ',';
+        private const char DelimiterTab = '\t';
         private const char EscapeChar = '"';
         private const string TypeSeparator = ":";
 
@@ -105,7 +106,7 @@ namespace DataKeeper.Utility
         /// <typeparam name="T">Type of objects in the list</typeparam>
         /// <param name="list">List to convert</param>
         /// <returns>CSV string representation</returns>
-        public static string ListToCSV<T>(List<T> list) where T : class
+        public static string ListToCSV<T>(List<T> list, DelimiterType delimiterType = DelimiterType.Comma) where T : class
         {
             if (list == null || list.Count == 0)
                 return string.Empty;
@@ -115,13 +116,15 @@ namespace DataKeeper.Utility
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
+            var delimiter = delimiterType == DelimiterType.Comma ? DelimiterComma : DelimiterTab;
+
             // Write header with property/field names and types
-            WriteHeaderRow(sb, properties, fields);
+            WriteHeaderRow(sb, properties, fields, delimiter);
 
             // Write data rows
             foreach (var item in list)
             {
-                WriteDataRow(sb, item, properties, fields);
+                WriteDataRow(sb, item, properties, fields, delimiter);
             }
 
             return sb.ToString();
@@ -133,7 +136,7 @@ namespace DataKeeper.Utility
         /// <typeparam name="T">Type of objects to create</typeparam>
         /// <param name="csv">CSV string</param>
         /// <returns>List of objects</returns>
-        public static List<T> CSVToList<T>(string csv) where T : class, new()
+        public static List<T> CSVToList<T>(string csv, DelimiterType delimiterType = DelimiterType.Comma) where T : class, new()
         {
             if (string.IsNullOrEmpty(csv))
                 return new List<T>();
@@ -144,8 +147,10 @@ namespace DataKeeper.Utility
             if (lines.Length < 2)
                 return result;
 
+            var delimiter = delimiterType == DelimiterType.Comma ? DelimiterComma : DelimiterTab;
+
             // Parse header to get property/field names and types
-            string[] headerParts = ParseCSVLine(lines[0]);
+            string[] headerParts = ParseCSVLine(lines[0], delimiter);
             var headerInfo = ParseHeaderInfo(headerParts);
 
             // Parse data rows
@@ -155,7 +160,7 @@ namespace DataKeeper.Utility
                     continue;
 
                 T item = new T();
-                string[] values = ParseCSVLine(lines[i]);
+                string[] values = ParseCSVLine(lines[i], delimiter);
 
                 for (int j = 0; j < Math.Min(headerInfo.Count, values.Length); j++)
                 {
@@ -213,7 +218,7 @@ namespace DataKeeper.Utility
 
         #region Private Methods
 
-        private static void WriteHeaderRow(StringBuilder sb, PropertyInfo[] properties, FieldInfo[] fields)
+        private static void WriteHeaderRow(StringBuilder sb, PropertyInfo[] properties, FieldInfo[] fields, char delimiter)
         {
             List<string> headerCells = new List<string>();
 
@@ -231,10 +236,10 @@ namespace DataKeeper.Utility
                 headerCells.Add($"{field.Name}{TypeSeparator}{typeName}");
             }
 
-            sb.AppendLine(string.Join(Delimiter.ToString(), headerCells.Select(EscapeCSVCell)));
+            sb.AppendLine(string.Join(delimiter.ToString(), headerCells.Select(s => EscapeCSVCell(s, delimiter))));
         }
 
-        private static void WriteDataRow<T>(StringBuilder sb, T item, PropertyInfo[] properties, FieldInfo[] fields)
+        private static void WriteDataRow<T>(StringBuilder sb, T item, PropertyInfo[] properties, FieldInfo[] fields, char delimiter)
         {
             List<string> cells = new List<string>();
 
@@ -252,7 +257,7 @@ namespace DataKeeper.Utility
                 cells.Add(cellValue);
             }
 
-            sb.AppendLine(string.Join(Delimiter.ToString(), cells.Select(EscapeCSVCell)));
+            sb.AppendLine(string.Join(delimiter.ToString(), cells.Select(s => EscapeCSVCell(s, delimiter))));
         }
 
         private static string GetValueAsString(object value, Type type)
@@ -347,12 +352,12 @@ namespace DataKeeper.Utility
             return value.ToString();
         }
 
-        private static string EscapeCSVCell(string cell)
+        private static string EscapeCSVCell(string cell, char delimiter)
         {
             if (string.IsNullOrEmpty(cell))
                 return string.Empty;
 
-            bool needsEscaping = cell.Contains(Delimiter) || cell.Contains(EscapeChar) || cell.Contains("\n");
+            bool needsEscaping = cell.Contains(delimiter) || cell.Contains(EscapeChar) || cell.Contains("\n");
 
             if (needsEscaping)
                 return
@@ -361,7 +366,7 @@ namespace DataKeeper.Utility
             return cell;
         }
 
-        private static string[] ParseCSVLine(string line)
+        private static string[] ParseCSVLine(string line, char delimiter)
         {
             List<string> cells = new List<string>();
             StringBuilder currentCell = new StringBuilder();
@@ -384,7 +389,7 @@ namespace DataKeeper.Utility
                         insideQuotes = !insideQuotes;
                     }
                 }
-                else if (c == Delimiter && !insideQuotes)
+                else if (c == delimiter && !insideQuotes)
                 {
                     cells.Add(currentCell.ToString());
                     currentCell.Clear();
@@ -839,5 +844,11 @@ namespace DataKeeper.Utility
         }
 
         #endregion
+    }
+
+    public enum DelimiterType
+    {
+        Comma = 0,
+        Tab = 1,
     }
 }
