@@ -249,7 +249,7 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetParent<T>(this T element, T parent) where T : VisualElement
+        public static T SetChildOf<T>(this T element, T parent) where T : VisualElement
         {
             parent.Add(element);
             return element;
@@ -289,6 +289,21 @@ namespace DataKeeper.UIToolkit
 
             foreach (VisualElement child in element.hierarchy.Children()) 
                 child.DebugLogAllUnityClasses();
+            
+            return element;
+        }
+        
+        public static T ForceUpdate<T>(this T element) where T : VisualElement
+        {
+            element.schedule.Execute(() =>
+            {
+                var fakeOldRect = Rect.zero;
+                var fakeNewRect = element.layout;
+     
+                using var evt = GeometryChangedEvent.GetPooled(fakeOldRect, fakeNewRect);
+                evt.target = element.contentContainer;
+                element.contentContainer.SendEvent(evt);
+            });
             
             return element;
         }

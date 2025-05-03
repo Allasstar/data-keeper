@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 using System.Linq;
 using System.Reflection;
 using DataKeeper.Attributes;
-using UnityEditor.Search;
+using DataKeeper.UIToolkit;
 using ObjectField = UnityEditor.UIElements.ObjectField;
 
 namespace DataKeeper.Editor.Windows
@@ -47,12 +47,10 @@ namespace DataKeeper.Editor.Windows
             // Root
             root.Add(labelFromUXML);
             
-            _scrollView = new ScrollView();
-            _scrollView.style.paddingBottom = 5;
-            _scrollView.style.paddingTop = 5;
-            _scrollView.style.paddingLeft = 5;
-            _scrollView.style.paddingRight = 5;
-            _scrollView.style.flexGrow = 1;
+            _scrollView = new ScrollView()
+                .SetPadding(5)
+                .SetFlexGrow(1);
+            
             root.Add(_scrollView);
 
             _tableView = new TableView();
@@ -73,7 +71,11 @@ namespace DataKeeper.Editor.Windows
             
             _tableView.SetColumnWidth(150);
             _columnWidth.value = 150;
-            _columnWidth.RegisterValueChangedCallback(c => _tableView.SetColumnWidth(c.newValue));
+            _columnWidth.RegisterValueChangedCallback(c =>
+            {
+                _tableView.SetColumnWidth(c.newValue);
+                _scrollView.ForceUpdate();
+            });
             _rowHeight.RegisterValueChangedCallback(r => _tableView.SetRowHeight(r.newValue));
         }
 

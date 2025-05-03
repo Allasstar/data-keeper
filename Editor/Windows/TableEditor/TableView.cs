@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DataKeeper.UIToolkit;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -59,7 +60,6 @@ namespace DataKeeper.Editor.Windows
             foreach (var v in headers)
             {
                 v.style.width = columnWidth;
-                v.style.height = rowHeight;
                 v.style.marginLeft = spacing;
             }
         }
@@ -99,7 +99,7 @@ namespace DataKeeper.Editor.Windows
             var headerElement = new Label(columnName);
             headerElement.style.width = columnWidth;
             headerElement.style.height = rowHeight;
-            headerElement.style.marginLeft = spacing;
+            headerElement.style.marginLeft = spacing * 2;
             headerElement.style.marginBottom = spacing;
             headerElement.style.marginTop = spacing;
             headerElement.style.borderBottomWidth = 1;
