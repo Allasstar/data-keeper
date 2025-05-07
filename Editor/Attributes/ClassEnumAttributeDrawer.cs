@@ -31,7 +31,7 @@ namespace DataKeeper.Editor.Attributes
             EditorGUI.PropertyField(propertyRect, property, label, true);
 
             // Draw the dropdown button
-            if (GUI.Button(buttonRect, "▼", EditorStyles.miniButton))
+            if (GUI.Button(buttonRect, "⌵", EditorStyles.miniButton))
             {
                 var fieldType = fieldInfo.FieldType;
                 ShowDropdown(buttonRect, fieldType, property);
