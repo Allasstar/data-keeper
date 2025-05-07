@@ -13,7 +13,8 @@ namespace DataKeeper.Editor.Attributes
     public class ClassEnumAttributeDrawer : PropertyDrawer
     {
         private static AdvancedDropdownState dropdownState = new AdvancedDropdownState();
-        private const float ButtonWidth = 20f;
+        private const float _buttonWidth = 18f;
+        private const float _space = 3f;
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
@@ -21,17 +22,18 @@ namespace DataKeeper.Editor.Attributes
 
             // Calculate rects
             var propertyRect = position;
-            propertyRect.width -= ButtonWidth;
-            
+            propertyRect.width -= (_buttonWidth + _space);
+
             var buttonRect = position;
-            buttonRect.x = propertyRect.xMax;
-            buttonRect.width = ButtonWidth;
+            buttonRect.x = propertyRect.xMax + _space;
+            buttonRect.width = _buttonWidth;
+            buttonRect.height = _buttonWidth;
 
             // Draw the default property field
             EditorGUI.PropertyField(propertyRect, property, label, true);
 
             // Draw the dropdown button
-            if (GUI.Button(buttonRect, "⌵", EditorStyles.miniButton))
+            if (GUI.Button(buttonRect, "⌵"))
             {
                 var fieldType = fieldInfo.FieldType;
                 ShowDropdown(buttonRect, fieldType, property);
