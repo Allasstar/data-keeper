@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace DataKeeper.Attributes
 {
-    public class ClassEnumAttribute : PropertyAttribute
+    public class StaticPickerAttribute : PropertyAttribute
     {
 
     }

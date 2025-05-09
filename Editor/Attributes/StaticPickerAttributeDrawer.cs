@@ -9,8 +9,8 @@ using DataKeeper.Attributes;
 
 namespace DataKeeper.Editor.Attributes
 {
-    [CustomPropertyDrawer(typeof(ClassEnumAttribute))]
-    public class ClassEnumAttributeDrawer : PropertyDrawer
+    [CustomPropertyDrawer(typeof(StaticPickerAttribute))]
+    public class StaticPickerAttributeDrawer : PropertyDrawer
     {
         private static AdvancedDropdownState dropdownState = new AdvancedDropdownState();
         private const float _buttonWidth = 18f;
