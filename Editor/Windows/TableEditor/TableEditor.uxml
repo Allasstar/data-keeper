@@ -17,8 +17,6 @@
             <uie:ToolbarSpacer />
             <ui:SliderInt label="Row Height" high-value="100" name="RowHeight" low-value="20" style="flex-grow: 1;" />
             <uie:ToolbarSpacer style="flex-grow: 0;" />
-            <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectedName" />
-            <uie:ToolbarSpacer style="flex-grow: 0;" />
         </ui:VisualElement>
         <ui:VisualElement name="Div" style="flex-grow: 0; width: 100%; height: 2px; background-color: rgba(0, 0, 0, 0.3); margin-top: 0; margin-bottom: 15px;" />
     </ui:VisualElement>

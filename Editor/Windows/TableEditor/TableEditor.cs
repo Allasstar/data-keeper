@@ -24,7 +24,6 @@ namespace DataKeeper.Editor.Windows
         private List<FieldInfo> _selectedFields;
         
         // Elements
-        private Label _label;
         private TableView _tableView;
         private ObjectField _objectField;
         private DropdownField _dropdownField;
@@ -36,11 +35,14 @@ namespace DataKeeper.Editor.Windows
         private ToolbarMenu _importToolbarMenu;
 
 
-        [MenuItem("Tools/Windows/Table Editor")]
+        [MenuItem("Tools/Windows/Table Editor (Beta)", priority = 4)]
         public static void ShowExample()
         {
-            TableEditor wnd = GetWindow<TableEditor>();
-            wnd.titleContent = new GUIContent("Table Editor");
+            Texture2D icon = EditorGUIUtility.FindTexture("d_winbtn_win_max@2x");
+
+            var window = GetWindow<TableEditor>();
+            window.minSize = new Vector2(400, 300);
+            window.titleContent = new GUIContent("Table Editor", icon);
         }
 
         public void CreateGUI()
@@ -64,7 +66,6 @@ namespace DataKeeper.Editor.Windows
             // Get elements
             _objectField = root.Q<ObjectField>("SelectSO");
             _dropdownField = root.Q<DropdownField>("DropDown");
-            _label = root.Q<Label>("SelectedName");
             _columnWidth = root.Q<SliderInt>("ColumnWidth");
             _rowHeight = root.Q<SliderInt>("RowHeight");
             
@@ -186,8 +187,6 @@ namespace DataKeeper.Editor.Windows
             _selectedSO = evt.newValue as ScriptableObject;
             _dropdownField.visible = _selectedSO != null;
 
-            _label.text = _selectedSO == null ? "" :  AssetDatabase.GetAssetPath(_selectedSO);
-            
             _tableView.ClearTable();
 
             if (_selectedSO == null)
