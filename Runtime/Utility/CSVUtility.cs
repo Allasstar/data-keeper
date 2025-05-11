@@ -303,6 +303,39 @@ namespace DataKeeper.Utility
                 return $"{c.r};{c.g};{c.b};{c.a}";
             }
 
+            if (type == typeof(Gradient))
+            {
+                Gradient gradient = (Gradient)value;
+                // Store color keys
+                List<string> colorKeys = new List<string>();
+                foreach (GradientColorKey key in gradient.colorKeys)
+                {
+                    colorKeys.Add($"{key.color.r};{key.color.g};{key.color.b};{key.color.a};{key.time}");
+                }
+                
+                // Store alpha keys
+                List<string> alphaKeys = new List<string>();
+                foreach (GradientAlphaKey key in gradient.alphaKeys)
+                {
+                    alphaKeys.Add($"{key.alpha};{key.time}");
+                }
+                
+                return $"{string.Join(ARRAY_SEPARATOR, colorKeys)}{TYPE_SEPARATOR}{string.Join(ARRAY_SEPARATOR, alphaKeys)}{TYPE_SEPARATOR}{(int)gradient.mode}";
+            }
+            
+            if (type == typeof(AnimationCurve))
+            {
+                AnimationCurve curve = (AnimationCurve)value;
+                // Store keys (time, value, inTangent, outTangent)
+                List<string> keys = new List<string>();
+                foreach (Keyframe key in curve.keys)
+                {
+                    keys.Add($"{key.time};{key.value};{key.inTangent};{key.outTangent};{key.inWeight};{key.outWeight};{(int)key.weightedMode}");
+                }
+                
+                return $"{string.Join(ARRAY_SEPARATOR, keys)}{TYPE_SEPARATOR}{curve.preWrapMode}{TYPE_SEPARATOR}{curve.postWrapMode}";
+            }
+            
             // Handle Unity objects by storing reference ID
             if (typeof(Object).IsAssignableFrom(type))
             {
@@ -598,6 +631,116 @@ namespace DataKeeper.Utility
                 return Color.white;
             }
 
+            // Handle Gradient
+            if (targetType == typeof(Gradient) || typeName == "Gradient")
+            {
+                Gradient gradient = new Gradient();
+                string[] sections = value.Split(TYPE_SEPARATOR);
+                
+                if (sections.Length >= 3)
+                {
+                    // Parse color keys
+                    string[] colorKeysStr = sections[0].Split(ARRAY_SEPARATOR);
+                    List<GradientColorKey> colorKeys = new List<GradientColorKey>();
+                    
+                    foreach (string keyStr in colorKeysStr)
+                    {
+                        string[] keyParts = keyStr.Split(';');
+                        if (keyParts.Length == 5 &&
+                            float.TryParse(keyParts[0], out float r) &&
+                            float.TryParse(keyParts[1], out float g) &&
+                            float.TryParse(keyParts[2], out float b) &&
+                            float.TryParse(keyParts[3], out float a) &&
+                            float.TryParse(keyParts[4], out float time))
+                        {
+                            colorKeys.Add(new GradientColorKey(new Color(r, g, b, a), time));
+                        }
+                    }
+                    
+                    // Parse alpha keys
+                    string[] alphaKeysStr = sections[1].Split(ARRAY_SEPARATOR);
+                    List<GradientAlphaKey> alphaKeys = new List<GradientAlphaKey>();
+                    
+                    foreach (string keyStr in alphaKeysStr)
+                    {
+                        string[] keyParts = keyStr.Split(';');
+                        if (keyParts.Length == 2 &&
+                            float.TryParse(keyParts[0], out float alpha) &&
+                            float.TryParse(keyParts[1], out float time))
+                        {
+                            alphaKeys.Add(new GradientAlphaKey(alpha, time));
+                        }
+                    }
+                    
+                    // Parse mode
+                    if (int.TryParse(sections[2], out int modeInt) && 
+                        Enum.IsDefined(typeof(GradientMode), modeInt))
+                    {
+                        gradient.mode = (GradientMode)modeInt;
+                    }
+                    
+                    gradient.SetKeys(colorKeys.ToArray(), alphaKeys.ToArray());
+                }
+                
+                return gradient;
+            }
+            
+            // Handle AnimationCurve
+            if (targetType == typeof(AnimationCurve) || typeName == "AnimationCurve")
+            {
+                AnimationCurve curve = new AnimationCurve();
+                string[] sections = value.Split(TYPE_SEPARATOR);
+                
+                if (sections.Length >= 3)
+                {
+                    // Parse keys
+                    string[] keysStr = sections[0].Split(ARRAY_SEPARATOR);
+                    List<Keyframe> keyframes = new List<Keyframe>();
+                    
+                    foreach (string keyStr in keysStr)
+                    {
+                        string[] keyParts = keyStr.Split(';');
+                        if (keyParts.Length >= 4 &&
+                            float.TryParse(keyParts[0], out float time) &&
+                            float.TryParse(keyParts[1], out float keyValue) &&
+                            float.TryParse(keyParts[2], out float inTangent) &&
+                            float.TryParse(keyParts[3], out float outTangent))
+                        {
+                            Keyframe keyframe = new Keyframe(time, keyValue, inTangent, outTangent);
+                            
+                            if (keyParts.Length >= 7 &&
+                                float.TryParse(keyParts[4], out float inWeight) &&
+                                float.TryParse(keyParts[5], out float outWeight) &&
+                                int.TryParse(keyParts[6], out int weightedModeInt) &&
+                                Enum.IsDefined(typeof(WeightedMode), weightedModeInt))
+                            {
+                                keyframe.inWeight = inWeight;
+                                keyframe.outWeight = outWeight;
+                                keyframe.weightedMode = (WeightedMode)weightedModeInt;
+                            }
+                            
+                            keyframes.Add(keyframe);
+                        }
+                    }
+                    
+                    // Set keys to curve
+                    curve = new AnimationCurve(keyframes.ToArray());
+                    
+                    // Parse wrap modes
+                    if (Enum.TryParse(sections[1], out WrapMode preWrapMode))
+                    {
+                        curve.preWrapMode = preWrapMode;
+                    }
+                    
+                    if (Enum.TryParse(sections[2], out WrapMode postWrapMode))
+                    {
+                        curve.postWrapMode = postWrapMode;
+                    }
+                }
+                
+                return curve;
+            }
+            
             // Handle lists
             if ((targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(List<>)) || 
                 (typeName.StartsWith("List<") && typeName.EndsWith(">")))
@@ -726,6 +869,8 @@ namespace DataKeeper.Utility
                 case "Quaternion": return typeof(Quaternion);
                 case "Rect": return typeof(Rect);
                 case "Color": return typeof(Color);
+                case "Gradient": return typeof(Gradient);
+                case "AnimationCurve": return typeof(AnimationCurve);
                 case "Sprite": return typeof(Sprite);
                 case "Texture2D": return typeof(Texture2D);
             }
@@ -826,6 +971,12 @@ namespace DataKeeper.Utility
             if (type == typeof(Color))
                 return "Color";
 
+            if (type == typeof(Gradient))
+                return "Gradient";
+                
+            if (type == typeof(AnimationCurve))
+                return "AnimationCurve";
+            
             if (typeof(Object).IsAssignableFrom(type))
                 return type.Name;
 
