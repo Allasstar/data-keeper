@@ -119,7 +119,7 @@ namespace DataKeeper.Editor.Windows
                 
                 // Refresh the view
                 _tableView.ClearTable();
-                // DropFieldChanged(new ChangeEvent<string> { newValue = _dropdownField.value });
+                DropFieldChanged(_dropdownField.value);
             }
         }
 
@@ -148,7 +148,7 @@ namespace DataKeeper.Editor.Windows
                 
                 // Refresh the view
                 _tableView.ClearTable();
-                // DropFieldChanged(new ChangeEvent<string> { newValue = _dropdownField.value });
+                DropFieldChanged(_dropdownField.value);
             }
         }
 
@@ -208,12 +208,17 @@ namespace DataKeeper.Editor.Windows
 
         private void DropFieldChanged(ChangeEvent<string> evt)
         {
-            if (string.IsNullOrEmpty(evt.newValue))
+            DropFieldChanged(evt.newValue);
+        }
+
+        private void DropFieldChanged(string newValue)
+        {
+            if (string.IsNullOrEmpty(newValue))
             {
                 return;
             }
             
-            _selectedObject = ReflectionUtility.GetMemberField(_selectedSO, evt.newValue);
+            _selectedObject = ReflectionUtility.GetMemberField(_selectedSO, newValue);
 
             if (_selectedObject == null)
             {
