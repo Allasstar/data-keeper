@@ -7,6 +7,8 @@
             <uie:ToolbarSpacer style="flex-basis: 10px;" />
             <ui:DropdownField name="DropDown" style="flex-basis: 180px;" />
             <uie:ToolbarSpacer style="flex-basis: 5%; flex-grow: 1;" />
+            <uie:ToolbarButton text="Help" display-tooltip-when-elided="true" name="Help" />
+            <uie:ToolbarSpacer style="flex-basis: 5px;" />
             <uie:ToolbarMenu tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" text="Import " name="Import" />
             <uie:ToolbarSpacer style="flex-basis: 5px;" />
             <uie:ToolbarMenu tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" text="Export " name="Export" />
@@ -19,6 +21,5 @@
             <uie:ToolbarSpacer style="flex-grow: 0;" />
         </ui:VisualElement>
         <ui:VisualElement name="Div" style="flex-grow: 0; width: 100%; height: 2px; background-color: rgba(0, 0, 0, 0.3); margin-top: 0; margin-bottom: 15px;" />
-        <ui:Label display-tooltip-when-elided="true" name="Tutorial" text="&lt;b&gt;1. Select a ScriptableObject:&lt;/b&gt;&#10;    - Use the Object Field at the top to select a ScriptableObject&#10;    - Only fields marked with `[Table]` attribute will be available for editing&#10;&#10;&lt;b&gt;2. Adjust View Settings:&lt;/b&gt;&#10;    - Use the Column Width slider to adjust column sizes&#10;    - Use the Row Height slider to customize row heights&#10;&#10;&lt;b&gt;3. Data Operations:&lt;/b&gt;&#10;    - Edit values directly in the table cells&#10;    - Values are automatically saved when modified&#10;    - Supported field types include:&#10;        - Basic types (int, float, bool, string)&#10;        - Unity types (Vector2, Vector3, Vector4, Color)&#10;        - Object references&#10;&#10;&lt;b&gt;4. Import/Export:&lt;/b&gt;&#10;    - Export data using the Export menu:&#10;        - CSV (to clipboard)&#10;        - TSV (to clipboard)&#10;&#10;    - Import data using the Import menu:&#10;        - CSV (from clipboard)&#10;        - TSV (from clipboard)&#10;" style="padding-left: 10px; padding-right: 10px; padding-top: 10px; padding-bottom: 10px;" />
     </ui:VisualElement>
 </ui:UXML>

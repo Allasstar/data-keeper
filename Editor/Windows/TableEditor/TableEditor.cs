@@ -30,7 +30,7 @@ namespace DataKeeper.Editor.Windows
         private ScrollView _scrollView;
         private SliderInt _columnWidth;
         private SliderInt _rowHeight;
-        private Label _tutorialLabel;
+        private ToolbarButton _helpToolbarButton;
         
         private ToolbarMenu _exportToolbarMenu;
         private ToolbarMenu _importToolbarMenu;
@@ -69,7 +69,7 @@ namespace DataKeeper.Editor.Windows
             _dropdownField = root.Q<DropdownField>("DropDown");
             _columnWidth = root.Q<SliderInt>("ColumnWidth");
             _rowHeight = root.Q<SliderInt>("RowHeight");
-            _tutorialLabel = root.Q<Label>("Tutorial");
+            _helpToolbarButton = root.Q<ToolbarButton>("Help");
             
             _exportToolbarMenu = root.Q<ToolbarMenu>("Export");
             _importToolbarMenu = root.Q<ToolbarMenu>("Import");
@@ -94,6 +94,20 @@ namespace DataKeeper.Editor.Windows
             
             _importToolbarMenu.menu.AppendAction("CSV (clipboard)", ImportCSVClipboard);
             _importToolbarMenu.menu.AppendAction("TSV (clipboard)", ImportTSVClipboard);
+            
+            _helpToolbarButton.RegisterCallback<ClickEvent>(evt =>
+            {
+                EditorUtility.DisplayDialog(
+                    "Table Editor Help",
+                    "This window allows you to edit data in a table format.\n\n" +
+                    "1. Select a ScriptableObject using the Object Field\n" +
+                    "2. Choose a list field from the dropdown.\n" +
+                    "   Only list field marked with `[Table]` attribute will be available for editing.\n" +
+                    "3. Edit values directly in the table\n\n" +
+                    "You can also import/export data using CSV/TSV format via clipboard.",
+                    "OK"
+                );
+            });
         }
 
         private void ImportTSVClipboard(DropdownMenuAction obj)
@@ -188,7 +202,6 @@ namespace DataKeeper.Editor.Windows
         {
             _selectedSO = evt.newValue as ScriptableObject;
             _dropdownField.visible = _selectedSO != null;
-            _tutorialLabel.visible = _selectedSO == null;
             
             _tableView.ClearTable();
 
