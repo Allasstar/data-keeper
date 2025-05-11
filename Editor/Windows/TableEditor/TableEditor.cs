@@ -30,6 +30,7 @@ namespace DataKeeper.Editor.Windows
         private ScrollView _scrollView;
         private SliderInt _columnWidth;
         private SliderInt _rowHeight;
+        private Label _tutorialLabel;
         
         private ToolbarMenu _exportToolbarMenu;
         private ToolbarMenu _importToolbarMenu;
@@ -68,6 +69,7 @@ namespace DataKeeper.Editor.Windows
             _dropdownField = root.Q<DropdownField>("DropDown");
             _columnWidth = root.Q<SliderInt>("ColumnWidth");
             _rowHeight = root.Q<SliderInt>("RowHeight");
+            _tutorialLabel = root.Q<Label>("Tutorial");
             
             _exportToolbarMenu = root.Q<ToolbarMenu>("Export");
             _importToolbarMenu = root.Q<ToolbarMenu>("Import");
@@ -186,7 +188,8 @@ namespace DataKeeper.Editor.Windows
         {
             _selectedSO = evt.newValue as ScriptableObject;
             _dropdownField.visible = _selectedSO != null;
-
+            _tutorialLabel.visible = _selectedSO == null;
+            
             _tableView.ClearTable();
 
             if (_selectedSO == null)
