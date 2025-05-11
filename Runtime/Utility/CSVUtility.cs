@@ -14,10 +14,11 @@ namespace DataKeeper.Utility
     /// </summary>
     public static class CSVUtility
     {
-        private const char DelimiterComma = ',';
-        private const char DelimiterTab = '\t';
-        private const char EscapeChar = '"';
-        private const string TypeSeparator = ":";
+        private const char DELIMITER_COMMA = ',';
+        private const char DELIMITER_TAB = '\t';
+        private const char ESCAPE_CHAR = '"';
+        private const string TYPE_SEPARATOR = ":";
+        private const string ARRAY_SEPARATOR = "|";
 
         #region Public Methods
 
@@ -116,7 +117,7 @@ namespace DataKeeper.Utility
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
-            var delimiter = delimiterType == DelimiterType.Comma ? DelimiterComma : DelimiterTab;
+            var delimiter = delimiterType == DelimiterType.Comma ? DELIMITER_COMMA : DELIMITER_TAB;
 
             // Write header with property/field names and types
             WriteHeaderRow(sb, properties, fields, delimiter);
@@ -147,7 +148,7 @@ namespace DataKeeper.Utility
             if (lines.Length < 2)
                 return result;
 
-            var delimiter = delimiterType == DelimiterType.Comma ? DelimiterComma : DelimiterTab;
+            var delimiter = delimiterType == DelimiterType.Comma ? DELIMITER_COMMA : DELIMITER_TAB;
 
             // Parse header to get property/field names and types
             string[] headerParts = ParseCSVLine(lines[0], delimiter);
@@ -226,14 +227,14 @@ namespace DataKeeper.Utility
             foreach (var prop in properties)
             {
                 string typeName = GetTypeNameForHeader(prop.PropertyType);
-                headerCells.Add($"{prop.Name}{TypeSeparator}{typeName}");
+                headerCells.Add($"{prop.Name}{TYPE_SEPARATOR}{typeName}");
             }
 
             // Add fields to header
             foreach (var field in fields)
             {
                 string typeName = GetTypeNameForHeader(field.FieldType);
-                headerCells.Add($"{field.Name}{TypeSeparator}{typeName}");
+                headerCells.Add($"{field.Name}{TYPE_SEPARATOR}{typeName}");
             }
 
             sb.AppendLine(string.Join(delimiter.ToString(), headerCells.Select(s => EscapeCSVCell(s, delimiter))));
@@ -313,7 +314,7 @@ namespace DataKeeper.Utility
                 if (unityObj is Sprite sprite)
                 {
                     string texturePath = UnityObjectToGUID(sprite.texture);
-                    return $"{texturePath}|{sprite.name}";
+                    return $"{texturePath}{ARRAY_SEPARATOR}{sprite.name}";
                 }
 
                 return UnityObjectToGUID(unityObj);
@@ -331,7 +332,7 @@ namespace DataKeeper.Utility
                     items.Add(GetValueAsString(item, itemType));
                 }
 
-                return "[" + string.Join("|", items) + "]";
+                return "[" + string.Join(ARRAY_SEPARATOR, items) + "]";
             }
 
             if (type.IsArray)
@@ -345,7 +346,7 @@ namespace DataKeeper.Utility
                     items.Add(GetValueAsString(item, itemType));
                 }
 
-                return "[" + string.Join("|", items) + "]";
+                return "[" + string.Join(ARRAY_SEPARATOR, items) + "]";
             }
 
             // Handle other types by using ToString()
@@ -357,11 +358,11 @@ namespace DataKeeper.Utility
             if (string.IsNullOrEmpty(cell))
                 return string.Empty;
 
-            bool needsEscaping = cell.Contains(delimiter) || cell.Contains(EscapeChar) || cell.Contains("\n");
+            bool needsEscaping = cell.Contains(delimiter) || cell.Contains(ESCAPE_CHAR) || cell.Contains("\n");
 
             if (needsEscaping)
                 return
-                    $"{EscapeChar}{cell.Replace(EscapeChar.ToString(), EscapeChar.ToString() + EscapeChar.ToString())}{EscapeChar}";
+                    $"{ESCAPE_CHAR}{cell.Replace(ESCAPE_CHAR.ToString(), ESCAPE_CHAR.ToString() + ESCAPE_CHAR.ToString())}{ESCAPE_CHAR}";
 
             return cell;
         }
@@ -376,12 +377,12 @@ namespace DataKeeper.Utility
             {
                 char c = line[i];
 
-                if (c == EscapeChar)
+                if (c == ESCAPE_CHAR)
                 {
                     // Check if escaped quote (double quote)
-                    if (i + 1 < line.Length && line[i + 1] == EscapeChar)
+                    if (i + 1 < line.Length && line[i + 1] == ESCAPE_CHAR)
                     {
-                        currentCell.Append(EscapeChar);
+                        currentCell.Append(ESCAPE_CHAR);
                         i++; // Skip next quote
                     }
                     else
@@ -410,7 +411,7 @@ namespace DataKeeper.Utility
 
             foreach (var part in headerParts)
             {
-                string[] nameTypePair = part.Split(new[] { TypeSeparator }, StringSplitOptions.None);
+                string[] nameTypePair = part.Split(new[] { TYPE_SEPARATOR }, StringSplitOptions.None);
                 if (nameTypePair.Length == 2)
                 {
                     result.Add((nameTypePair[0], nameTypePair[1]));
@@ -509,9 +510,9 @@ namespace DataKeeper.Utility
             if (typeof(Object).IsAssignableFrom(targetType))
             {
                 // Special handling for Sprites from sprite sheets
-                if (targetType == typeof(Sprite) && value.Contains("|"))
+                if (targetType == typeof(Sprite) && value.Contains(ARRAY_SEPARATOR))
                 {
-                    string[] parts = value.Split('|');
+                    string[] parts = value.Split(ARRAY_SEPARATOR);
                     if (parts.Length == 2)
                     {
                         return ResolveSprite(parts[0], parts[1]);
@@ -605,7 +606,7 @@ namespace DataKeeper.Utility
                     return GetDefaultValue(targetType);
 
                 string content = value.Substring(1, value.Length - 2);
-                string[] items = content.Split('|');
+                string[] items = content.Split(ARRAY_SEPARATOR);
 
                 // Try to get the item type from the type name if possible
                 Type itemType;
@@ -643,7 +644,7 @@ namespace DataKeeper.Utility
                     return GetDefaultValue(targetType);
 
                 string content = value.Substring(1, value.Length - 2);
-                string[] items = content.Split('|');
+                string[] items = content.Split(ARRAY_SEPARATOR);
 
                 // Try to get the element type from the type name if possible
                 Type elementType;
