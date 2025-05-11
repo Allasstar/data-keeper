@@ -96,14 +96,15 @@ namespace DataKeeper.Editor.Windows
             }
 
             // Add column header
-            var headerElement = new Label(columnName);
+            var headerElement = new TextField();
+            headerElement.value = columnName;
             headerElement.style.width = columnWidth;
             headerElement.style.height = rowHeight;
-            headerElement.style.marginLeft = spacing * 2;
-            headerElement.style.marginBottom = spacing;
-            headerElement.style.marginTop = spacing;
-            headerElement.style.borderBottomWidth = 1;
-            headerElement.style.borderBottomColor = Color.black;
+            headerElement.style.marginLeft = spacing;
+            headerElement.style.paddingLeft = 5;
+            headerElement.style.paddingRight = 5;
+            headerElement.style.minWidth = 100;
+            headerElement.SetEnabled(false);
             headers.Add(headerElement);
 
             headerRow = this[0] as VisualElement;
