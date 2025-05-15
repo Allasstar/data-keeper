@@ -98,7 +98,9 @@ namespace DataKeeper.Editor.Windows
             _importToolbarMenu.menu.AppendAction("CSV (clipboard)", ImportCSVClipboard);
             _importToolbarMenu.menu.AppendAction("TSV (clipboard)", ImportTSVClipboard);
             
-            _refreshToolbarButton.RegisterCallback<ClickEvent>(evt => DropFieldChanged(_selectedField));
+            Undo.undoRedoPerformed -= Refresh;
+            Undo.undoRedoPerformed += Refresh;
+            _refreshToolbarButton.RegisterCallback<ClickEvent>(evt => Refresh());
             _helpToolbarButton.RegisterCallback<ClickEvent>(evt =>
             {
                 EditorUtility.DisplayDialog(
@@ -112,6 +114,11 @@ namespace DataKeeper.Editor.Windows
                     "OK"
                 );
             });
+        }
+
+        private void Refresh()
+        {
+            DropFieldChanged(_selectedField);
         }
 
         private void ImportTSVClipboard(DropdownMenuAction obj)
@@ -131,6 +138,8 @@ namespace DataKeeper.Editor.Windows
             
             if (importedList.Count > 0)
             {
+                Undo.RecordObject(_selectedSO, "Table Import TSV");
+
                 list.Clear();
                 foreach (var item in importedList)
                 {
@@ -140,6 +149,7 @@ namespace DataKeeper.Editor.Windows
                 // Refresh the view
                 _tableView.ClearTable();
                 DropFieldChanged(_dropdownField.value);
+                EditorUtility.SetDirty(_selectedSO);
             }
         }
 
@@ -160,6 +170,8 @@ namespace DataKeeper.Editor.Windows
             
             if (importedList.Count > 0)
             {
+                Undo.RecordObject(_selectedSO, "Table Import CSV");
+
                 list.Clear();
                 foreach (var item in importedList)
                 {
@@ -169,6 +181,7 @@ namespace DataKeeper.Editor.Windows
                 // Refresh the view
                 _tableView.ClearTable();
                 DropFieldChanged(_dropdownField.value);
+                EditorUtility.SetDirty(_selectedSO);
             }
         }
 
@@ -277,7 +290,9 @@ namespace DataKeeper.Editor.Windows
                         var capturedMember = members[colIndex];
                         _tableView.AddValue(colIndex, rowIndex, value, (newValue) =>
                         {
+                            Undo.RecordObject(_selectedSO, "Table Value Changed");
                             capturedMember.SetValue(element, newValue);
+                            EditorUtility.SetDirty(_selectedSO);
                         });
                     }
                 }
