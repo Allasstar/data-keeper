@@ -274,6 +274,7 @@ namespace DataKeeper.Editor.Windows
             }
             else
             {
+                _addElementButton.visible = false;
             }
         }
 
