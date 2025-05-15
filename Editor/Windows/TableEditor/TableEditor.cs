@@ -31,6 +31,7 @@ namespace DataKeeper.Editor.Windows
         private ScrollView _scrollView;
         private SliderInt _columnWidth;
         private SliderInt _rowHeight;
+        private ToolbarButton _addElementButton;
         private ToolbarButton _helpToolbarButton;
         private ToolbarButton _refreshToolbarButton;
         
@@ -76,6 +77,11 @@ namespace DataKeeper.Editor.Windows
             
             _exportToolbarMenu = root.Q<ToolbarMenu>("Export");
             _importToolbarMenu = root.Q<ToolbarMenu>("Import");
+            _addElementButton = root.Q<ToolbarButton>("AddElement");
+            
+            // Setup the add button
+            _addElementButton.clicked += OnAddElementClicked;
+            _addElementButton.visible = false;
             
             // Setup
             _dropdownField.visible = false;
@@ -116,6 +122,22 @@ namespace DataKeeper.Editor.Windows
             });
         }
 
+        private void OnAddElementClicked()
+        {
+            if (_selectedObject is IList list && list.Count > 0)
+            {
+                var lastElement = list[list.Count - 1];
+                var newElement = ReflectionUtility.DeepCloneObject(lastElement);
+                
+                Undo.RecordObject(_selectedSO, "Add Element To Table");
+                
+                list.Add(newElement);
+                Refresh();
+                
+                EditorUtility.SetDirty(_selectedSO);
+            }
+        }
+
         private void Refresh()
         {
             DropFieldChanged(_selectedField);
@@ -146,9 +168,7 @@ namespace DataKeeper.Editor.Windows
                     list.Add(item);
                 }
                 
-                // Refresh the view
-                _tableView.ClearTable();
-                DropFieldChanged(_dropdownField.value);
+                Refresh();
                 EditorUtility.SetDirty(_selectedSO);
             }
         }
@@ -178,9 +198,7 @@ namespace DataKeeper.Editor.Windows
                     list.Add(item);
                 }
                 
-                // Refresh the view
-                _tableView.ClearTable();
-                DropFieldChanged(_dropdownField.value);
+                Refresh();
                 EditorUtility.SetDirty(_selectedSO);
             }
         }
@@ -221,8 +239,6 @@ namespace DataKeeper.Editor.Windows
             _selectedSO = evt.newValue as ScriptableObject;
             _dropdownField.visible = _selectedSO != null;
             
-            _tableView.ClearTable();
-
             if (_selectedSO == null)
             {
                 return;
@@ -252,6 +268,8 @@ namespace DataKeeper.Editor.Windows
                 return;
             }
 
+            _tableView.ClearTable();
+
             _selectedField = newValue;
             _selectedObject = ReflectionUtility.GetMemberField(_selectedSO, newValue);
 
@@ -262,9 +280,15 @@ namespace DataKeeper.Editor.Windows
             
             if (_selectedObject is IList list)
             {
+                // Show add button when we have a valid list
+                _addElementButton.visible = true;
+                
                 if (list.Count == 0)
+                {
+                    _addElementButton.visible = false;
                     return;
-        
+                }
+                
                 // Get the type of the first element to determine its members
                 var firstElement = list[0];
                 if (firstElement == null)
@@ -296,6 +320,10 @@ namespace DataKeeper.Editor.Windows
                         });
                     }
                 }
+            }
+            else
+            {
+                _addElementButton.visible = false;
             }
         }
     }

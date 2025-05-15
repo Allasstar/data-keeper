@@ -6,6 +6,8 @@
             <uie:ObjectField name="SelectSO" style="flex-basis: auto;" />
             <uie:ToolbarSpacer style="flex-basis: 10px;" />
             <ui:DropdownField name="DropDown" style="flex-basis: 180px;" />
+            <uie:ToolbarSpacer style="flex-basis: 10px;" />
+            <uie:ToolbarButton text="+" display-tooltip-when-elided="true" name="AddElement" tooltip="Add new element" />
             <uie:ToolbarSpacer style="flex-basis: 5%; flex-grow: 1;" />
             <uie:ToolbarButton text="Refresh" display-tooltip-when-elided="true" name="Refresh" />
             <uie:ToolbarSpacer style="flex-basis: 5px;" />

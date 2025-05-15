@@ -102,4 +102,22 @@ public static class ReflectionUtility
         var property = objectType.GetProperty(memberName);
         return property?.GetValue(source);
     }
+    
+    public static object DeepCloneObject(object source)
+    {
+        if (source == null) return null;
+        
+        var newObject = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(source.GetType());
+        var fields = source.GetType().GetFields(System.Reflection.BindingFlags.Public | 
+                                                System.Reflection.BindingFlags.NonPublic | 
+                                                System.Reflection.BindingFlags.Instance);
+        
+        foreach (var field in fields)
+        {
+            field.SetValue(newObject, field.GetValue(source));
+        }
+        
+        return newObject;
+    }
+
 }
