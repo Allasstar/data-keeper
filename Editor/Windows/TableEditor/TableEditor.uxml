@@ -7,11 +7,13 @@
             <uie:ToolbarSpacer style="flex-basis: 10px;" />
             <ui:DropdownField name="DropDown" style="flex-basis: 180px;" />
             <uie:ToolbarSpacer style="flex-basis: 5%; flex-grow: 1;" />
-            <uie:ToolbarButton text="Help" display-tooltip-when-elided="true" name="Help" />
+            <uie:ToolbarButton text="Refresh" display-tooltip-when-elided="true" name="Refresh" />
             <uie:ToolbarSpacer style="flex-basis: 5px;" />
             <uie:ToolbarMenu tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" text="Import " name="Import" />
             <uie:ToolbarSpacer style="flex-basis: 5px;" />
             <uie:ToolbarMenu tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" text="Export " name="Export" />
+            <uie:ToolbarSpacer style="flex-basis: 5px;" />
+            <uie:ToolbarButton text="Help" display-tooltip-when-elided="true" name="Help" />
             <uie:ToolbarSpacer style="flex-basis: 5px;" />
         </uie:Toolbar>
         <ui:VisualElement style="flex-grow: 0; flex-direction: row; flex-basis: auto; flex-shrink: 0; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;">

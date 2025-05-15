@@ -20,6 +20,7 @@ namespace DataKeeper.Editor.Windows
         
         // Data
         private ScriptableObject _selectedSO;
+        private string _selectedField;
         private object _selectedObject;
         private List<FieldInfo> _selectedFields;
         
@@ -31,6 +32,7 @@ namespace DataKeeper.Editor.Windows
         private SliderInt _columnWidth;
         private SliderInt _rowHeight;
         private ToolbarButton _helpToolbarButton;
+        private ToolbarButton _refreshToolbarButton;
         
         private ToolbarMenu _exportToolbarMenu;
         private ToolbarMenu _importToolbarMenu;
@@ -70,6 +72,7 @@ namespace DataKeeper.Editor.Windows
             _columnWidth = root.Q<SliderInt>("ColumnWidth");
             _rowHeight = root.Q<SliderInt>("RowHeight");
             _helpToolbarButton = root.Q<ToolbarButton>("Help");
+            _refreshToolbarButton = root.Q<ToolbarButton>("Refresh");
             
             _exportToolbarMenu = root.Q<ToolbarMenu>("Export");
             _importToolbarMenu = root.Q<ToolbarMenu>("Import");
@@ -95,6 +98,7 @@ namespace DataKeeper.Editor.Windows
             _importToolbarMenu.menu.AppendAction("CSV (clipboard)", ImportCSVClipboard);
             _importToolbarMenu.menu.AppendAction("TSV (clipboard)", ImportTSVClipboard);
             
+            _refreshToolbarButton.RegisterCallback<ClickEvent>(evt => DropFieldChanged(_selectedField));
             _helpToolbarButton.RegisterCallback<ClickEvent>(evt =>
             {
                 EditorUtility.DisplayDialog(
@@ -200,6 +204,7 @@ namespace DataKeeper.Editor.Windows
 
         private void OnSOChanged(ChangeEvent<Object> evt)
         {
+            _selectedField = null;
             _selectedSO = evt.newValue as ScriptableObject;
             _dropdownField.visible = _selectedSO != null;
             
@@ -233,7 +238,8 @@ namespace DataKeeper.Editor.Windows
             {
                 return;
             }
-            
+
+            _selectedField = newValue;
             _selectedObject = ReflectionUtility.GetMemberField(_selectedSO, newValue);
 
             if (_selectedObject == null)
