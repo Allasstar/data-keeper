@@ -263,68 +263,90 @@ namespace DataKeeper.Editor.Windows
 
         private void DropFieldChanged(string newValue)
         {
-            if (string.IsNullOrEmpty(newValue))
+            if (string.IsNullOrEmpty(newValue) || !TryUpdateSelectedField(newValue))
             {
                 return;
             }
 
-            _tableView.ClearTable();
-
-            _selectedField = newValue;
-            _selectedObject = ReflectionUtility.GetMemberField(_selectedSO, newValue);
-
-            if (_selectedObject == null)
-            {
-                return;
-            }
-            
             if (_selectedObject is IList list)
             {
-                // Show add button when we have a valid list
-                _addElementButton.visible = true;
-                
-                if (list.Count == 0)
-                {
-                    _addElementButton.visible = false;
-                    return;
-                }
-                
-                // Get the type of the first element to determine its members
-                var firstElement = list[0];
-                if (firstElement == null)
-                    return;
-        
-                var elementType = firstElement.GetType();
-                var members = ReflectionUtility.GetAllFields(firstElement);
-    
-                // Add columns for each member
-                for (int i = 0; i < members.Count; i++)
-                {
-                    var name = $"{ReflectionUtility.ExtractFieldName(members[i])}::{members[i].FieldType.Name}";
-                    _tableView.AddColumn(i, name, members[i].FieldType);
-                }
-    
-                // Add rows for each list element
-                for (int rowIndex = 0; rowIndex < list.Count; rowIndex++)
-                {
-                    var element = list[rowIndex];
-                    for (int colIndex = 0; colIndex < members.Count; colIndex++)
-                    {
-                        var value = members[colIndex].GetValue(element);
-                        var capturedMember = members[colIndex];
-                        _tableView.AddValue(colIndex, rowIndex, value, (newValue) =>
-                        {
-                            Undo.RecordObject(_selectedSO, "Table Value Changed");
-                            capturedMember.SetValue(element, newValue);
-                            EditorUtility.SetDirty(_selectedSO);
-                        });
-                    }
-                }
+                HandleListObject(list);
             }
             else
             {
-                _addElementButton.visible = false;
             }
+        }
+
+        private bool TryUpdateSelectedField(string newValue)
+        {
+            _tableView.ClearTable();
+            _selectedField = newValue;
+            _selectedObject = ReflectionUtility.GetMemberField(_selectedSO, newValue);
+            return _selectedObject != null;
+        }
+
+        private void HandleListObject(IList list)
+        {
+            _addElementButton.visible = true;
+
+            if (list.Count == 0 || !TryGetListMembers(list[0], out var members))
+            {
+                _addElementButton.visible = false;
+                return;
+            }
+
+            CreateTableColumns(members);
+            PopulateTableRows(list, members);
+        }
+
+        private bool TryGetListMembers(object firstElement, out List<FieldInfo> members)
+        {
+            members = null;
+            if (firstElement == null)
+            {
+                return false;
+            }
+
+            members = ReflectionUtility.GetAllFields(firstElement);
+            return true;
+        }
+
+        private void CreateTableColumns(List<FieldInfo> members)
+        {
+            for (int i = 0; i < members.Count; i++)
+            {
+                var name = $"{ReflectionUtility.ExtractFieldName(members[i])}::{members[i].FieldType.Name}";
+                _tableView.AddColumn(i, name, members[i].FieldType);
+            }
+        }
+
+        private void PopulateTableRows(IList list, List<FieldInfo> members)
+        {
+            for (int rowIndex = 0; rowIndex < list.Count; rowIndex++)
+            {
+                var element = list[rowIndex];
+                PopulateRowCells(element, members, rowIndex);
+            }
+        }
+
+        private void PopulateRowCells(object element, List<FieldInfo> members, int rowIndex)
+        {
+            for (int colIndex = 0; colIndex < members.Count; colIndex++)
+            {
+                var member = members[colIndex];
+                var value = member.GetValue(element);
+                _tableView.AddValue(colIndex, rowIndex, value, newValue =>
+                {
+                    UpdateCellValue(element, member, newValue);
+                });
+            }
+        }
+
+        private void UpdateCellValue(object element, FieldInfo member, object newValue)
+        {
+            Undo.RecordObject(_selectedSO, "Table Value Changed");
+            member.SetValue(element, newValue);
+            EditorUtility.SetDirty(_selectedSO);
         }
     }
 }
