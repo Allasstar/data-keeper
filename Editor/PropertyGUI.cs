@@ -58,8 +58,10 @@ namespace DataKeeper.Editor
             var enabledProperty = property.FindPropertyRelative("enabled");
 
             EditorGUI.BeginProperty(position, label, property);
+            
+            bool hasChildren = valueProperty.hasVisibleChildren;
 
-            position.x = 50;
+            position.x = hasChildren ? 50 : 40;
             position.width -= 30;
             EditorGUI.BeginDisabledGroup(!enabledProperty.boolValue);
             EditorGUI.PropertyField(position, valueProperty, label, true);
