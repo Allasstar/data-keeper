@@ -59,33 +59,6 @@ namespace DataKeeper.Editor
 
             EditorGUI.BeginProperty(position, label, property);
 
-            // Define checkbox size
-            float checkboxSize = EditorGUIUtility.singleLineHeight;
-            position.x -= checkboxSize - 5;
-
-            Rect checkboxRect = new Rect(position.x, position.y, checkboxSize, checkboxSize);
-
-            // Draw checkbox at the top-left corner
-            enabledProperty.boolValue = EditorGUI.Toggle(checkboxRect, enabledProperty.boolValue);
-
-            // Adjust position for the main field
-            Rect valueRect = new Rect(position.x + checkboxSize + 15, position.y, position.width - checkboxSize - 3, position.height);
-
-            EditorGUI.BeginDisabledGroup(!enabledProperty.boolValue);
-            EditorGUI.PropertyField(valueRect, valueProperty, label, true);
-            EditorGUI.EndDisabledGroup();
-
-            EditorGUI.EndProperty();
-        }
-
-        
-        private static void DrawGUIOptionalOld(Rect position, SerializedProperty property, GUIContent label)
-        {
-            var valueProperty = property.FindPropertyRelative("value");
-            var enabledProperty = property.FindPropertyRelative("enabled");
-
-            EditorGUI.BeginProperty(position, label, property);
-
             position.x = 50;
             position.width -= 30;
             EditorGUI.BeginDisabledGroup(!enabledProperty.boolValue);
