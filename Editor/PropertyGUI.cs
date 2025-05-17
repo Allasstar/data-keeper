@@ -56,24 +56,16 @@ namespace DataKeeper.Editor
         {
             var valueProperty = property.FindPropertyRelative("value");
             var enabledProperty = property.FindPropertyRelative("enabled");
-
+            
             EditorGUI.BeginProperty(position, label, property);
             
-            bool hasChildren = valueProperty.hasVisibleChildren;
-
-            position.x = hasChildren ? 50 : 40;
-            position.width -= 30;
-            EditorGUI.BeginDisabledGroup(!enabledProperty.boolValue);
-            EditorGUI.PropertyField(position, valueProperty, label, true);
-            EditorGUI.EndDisabledGroup();
-
-            int indent = EditorGUI.indentLevel;
-            EditorGUI.indentLevel = 0;
-            position.x = 20;
-            position.width = position.height = EditorGUI.GetPropertyHeight(enabledProperty);
             EditorGUI.PropertyField(position, enabledProperty, GUIContent.none);
-            EditorGUI.indentLevel = indent;
             
+            int indent = EditorGUI.indentLevel;
+            EditorGUI.indentLevel += valueProperty.hasVisibleChildren ? 2 : 1;
+            EditorGUI.PropertyField(position, valueProperty, label, true);
+            EditorGUI.indentLevel = indent;
+
             EditorGUI.EndProperty();
         }
 
