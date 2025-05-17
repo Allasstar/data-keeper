@@ -10,6 +10,7 @@ namespace DataKeeper.PoolSystem
     public class Pool<T> where T : Component
     {
         [SerializeField] private T _poolPrefab;
+        [SerializeField] private Optional<Transform> _container = new Optional<Transform>();
         [SerializeField] private Optional<int> _prewarm = new Optional<int>();
         [SerializeField] private Optional<int> _maxActive = new Optional<int>();
         
@@ -19,6 +20,7 @@ namespace DataKeeper.PoolSystem
         private List<T> _poolActive  = new List<T>();
 
         public T GetPoolPrefab() => _poolPrefab;
+        public Transform GetPoolContainer() => PoolContainer;
         public int GetPoolPrefabID() => _poolPrefab.GetHashCode();
         public string GetPoolPrefabName() => _poolPrefab.name;
         public bool IsInitialized() => _isInitialized;
@@ -29,6 +31,8 @@ namespace DataKeeper.PoolSystem
         {
             get
             {
+                if(_container.Enabled) return _container.Value;
+                
                 if(_poolContainer == null) 
                 {
                     _poolContainer = new GameObject($":: [{typeof(T).Name}] > {GetPoolPrefabName()}").transform;
