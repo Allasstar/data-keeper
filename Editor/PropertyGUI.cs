@@ -59,13 +59,22 @@ namespace DataKeeper.Editor
             
             EditorGUI.BeginProperty(position, label, property);
             
-            EditorGUI.PropertyField(position, enabledProperty, GUIContent.none);
+            var toggleRect = new Rect(position.x, position.y, 16f, EditorGUIUtility.singleLineHeight);
+            
+            var valueRect = new Rect(
+                position.x + 5f, 
+                position.y,
+                position.width - 5f,
+                position.height
+            );
+            
+            EditorGUI.PropertyField(toggleRect, enabledProperty, GUIContent.none);
             
             int indent = EditorGUI.indentLevel;
             EditorGUI.indentLevel += valueProperty.hasVisibleChildren ? 2 : 1;
-            EditorGUI.PropertyField(position, valueProperty, label, true);
+            EditorGUI.PropertyField(valueRect, valueProperty, label, true);
             EditorGUI.indentLevel = indent;
-
+            
             EditorGUI.EndProperty();
         }
 
