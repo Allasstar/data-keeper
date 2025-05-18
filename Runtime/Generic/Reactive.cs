@@ -76,7 +76,7 @@ namespace DataKeeper.Generic
         {
             OnValueChanged.AddListener(call);
             
-            if(callOnAddListener) OnValueChanged.Invoke(value);
+            if(callOnAddListener) call.Invoke(value);
         }
     
         public void RemoveListener(Action<T> call)
