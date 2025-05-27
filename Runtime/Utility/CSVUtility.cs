@@ -88,22 +88,28 @@ namespace DataKeeper.Utility
         /// <summary>
         /// Resolves a Sprite from a texture GUID and sprite name
         /// </summary>
-        /// <param name="textureGUID">GUID of the texture asset</param>
+        /// <param name="texturePath">GUID Or Path of the texture asset</param>
         /// <param name="spriteName">Name of the sprite in the texture</param>
+        /// <param name="assetReferenceType"></param>
         /// <returns>Sprite object, or null if not found</returns>
-        public static Sprite ResolveSprite(string textureGUID, string spriteName)
+        public static Sprite ResolveSprite(string texturePath, string spriteName, CSVAssetReferenceType assetReferenceType)
         {
-            if (string.IsNullOrEmpty(textureGUID) || string.IsNullOrEmpty(spriteName))
+            if (string.IsNullOrEmpty(texturePath) || string.IsNullOrEmpty(spriteName))
                 return null;
 
 #if UNITY_EDITOR
             // Load the texture first
-            string texturePath = UnityEditor.AssetDatabase.GUIDToAssetPath(textureGUID);
-            if (string.IsNullOrEmpty(texturePath))
+            string path = texturePath;
+            if (assetReferenceType == CSVAssetReferenceType.GUID)
+            {
+                path = UnityEditor.AssetDatabase.GUIDToAssetPath(texturePath);
+            }
+            
+            if (string.IsNullOrEmpty(path))
                 return null;
 
             // Find the sprite with the matching name in this texture
-            var allSprites = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(texturePath)
+            var allSprites = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(path)
                 .Where(x => x is Sprite)
                 .Cast<Sprite>();
 
@@ -559,7 +565,7 @@ namespace DataKeeper.Utility
                     string[] parts = value.Split(ARRAY_SEPARATOR);
                     if (parts.Length == 2)
                     {
-                        return ResolveSprite(parts[0], parts[1]);
+                        return ResolveSprite(parts[0], parts[1], assetReferenceType);
                     }
                     return null;
                 }
