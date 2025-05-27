@@ -27,13 +27,19 @@ namespace DataKeeper.Utility
         /// </summary>
         /// <param name="unityObject">Unity Object to convert</param>
         /// <returns>GUID as string, or empty string if the object has no GUID</returns>
-        public static string UnityObjectToGUID(Object unityObject)
+        public static string UnityObjectToAssetIdentifier(Object unityObject, CSVAssetReferenceType assetReferenceType)
         {
             if (unityObject == null)
                 return string.Empty;
 
 #if UNITY_EDITOR
             string assetPath = UnityEditor.AssetDatabase.GetAssetPath(unityObject);
+
+            if (assetReferenceType == CSVAssetReferenceType.AssetPath)
+            {
+                return assetPath;
+            }
+            
             if (!string.IsNullOrEmpty(assetPath))
             {
                 return UnityEditor.AssetDatabase.GUIDFromAssetPath(assetPath).ToString();
@@ -45,19 +51,24 @@ namespace DataKeeper.Utility
         /// <summary>
         /// Converts a GUID to a Unity Object of the specified type
         /// </summary>
-        /// <param name="guid">GUID as string</param>
+        /// <param name="assetIdentifier">GUID as string</param>
         /// <param name="type">Type of Unity Object to convert to</param>
         /// <returns>Unity Object, or null if the GUID is invalid</returns>
-        public static Object GUIDToUnityObject(string guid, Type type)
+        public static Object AssetIdentifierToUnityObject(string assetIdentifier, Type type, CSVAssetReferenceType assetReferenceType)
         {
-            if (string.IsNullOrEmpty(guid))
+            if (string.IsNullOrEmpty(assetIdentifier))
                 return null;
 
 #if UNITY_EDITOR
-            string assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
-            if (string.IsNullOrEmpty(assetPath))
-                return null;
+            string assetPath = assetIdentifier;
+            if (assetReferenceType == CSVAssetReferenceType.GUID)
+            {
+                assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(assetIdentifier);
                 
+                if (string.IsNullOrEmpty(assetPath))
+                    return null;
+            }
+
             return UnityEditor.AssetDatabase.LoadAssetAtPath(assetPath, type);
 #endif
             return null;
@@ -67,11 +78,11 @@ namespace DataKeeper.Utility
         /// Converts a GUID to a Unity Object of the specified type
         /// </summary>
         /// <typeparam name="T">Type of Unity Object to convert to</typeparam>
-        /// <param name="guid">GUID as string</param>
+        /// <param name="assetIdentifier">GUID as string</param>
         /// <returns>Unity Object of type T, or null if the GUID is invalid</returns>
-        public static T GUIDToUnityObject<T>(string guid) where T : Object
+        public static T AssetIdentifierToUnityObject<T>(string assetIdentifier, CSVAssetReferenceType assetReferenceType) where T : Object
         {
-            return GUIDToUnityObject(guid, typeof(T)) as T;
+            return AssetIdentifierToUnityObject(assetIdentifier, typeof(T), assetReferenceType) as T;
         }
 
         /// <summary>
@@ -107,7 +118,7 @@ namespace DataKeeper.Utility
         /// <typeparam name="T">Type of objects in the list</typeparam>
         /// <param name="list">List to convert</param>
         /// <returns>CSV string representation</returns>
-        public static string ListToCSV<T>(List<T> list, CSVDelimiterType delimiterType = CSVDelimiterType.Comma) where T : class
+        public static string ListToCSV<T>(List<T> list, CSVDelimiterType delimiterType = CSVDelimiterType.Comma, CSVAssetReferenceType assetReferenceType = CSVAssetReferenceType.GUID) where T : class
         {
             if (list == null || list.Count == 0)
                 return string.Empty;
@@ -125,7 +136,7 @@ namespace DataKeeper.Utility
             // Write data rows
             foreach (var item in list)
             {
-                WriteDataRow(sb, item, properties, fields, delimiter);
+                WriteDataRow(sb, item, properties, fields, delimiter, assetReferenceType);
             }
 
             return sb.ToString();
@@ -137,7 +148,7 @@ namespace DataKeeper.Utility
         /// <typeparam name="T">Type of objects to create</typeparam>
         /// <param name="csv">CSV string</param>
         /// <returns>List of objects</returns>
-        public static List<T> CSVToList<T>(string csv, CSVDelimiterType delimiterType = CSVDelimiterType.Comma) where T : class, new()
+        public static List<T> CSVToList<T>(string csv, CSVDelimiterType delimiterType = CSVDelimiterType.Comma, CSVAssetReferenceType assetReferenceType = CSVAssetReferenceType.GUID) where T : class, new()
         {
             if (string.IsNullOrEmpty(csv))
                 return new List<T>();
@@ -166,7 +177,7 @@ namespace DataKeeper.Utility
                 for (int j = 0; j < Math.Min(headerInfo.Count, values.Length); j++)
                 {
                     var (name, type) = headerInfo[j];
-                    SetValue(item, name, type, values[j]);
+                    SetValue(item, name, type, values[j], assetReferenceType);
                 }
 
                 result.Add(item);
@@ -211,7 +222,7 @@ namespace DataKeeper.Utility
 
         public static Type GetTypeFromHeader(string header)
         {
-            var list = header.Split(":");
+            var list = header.Split(TYPE_SEPARATOR);
             return list.Length == 2 ? GetTypeFromName(list[1], typeof(string)) : typeof(object);
         }
 
@@ -240,28 +251,28 @@ namespace DataKeeper.Utility
             sb.AppendLine(string.Join(delimiter.ToString(), headerCells.Select(s => EscapeCSVCell(s, delimiter))));
         }
 
-        private static void WriteDataRow<T>(StringBuilder sb, T item, PropertyInfo[] properties, FieldInfo[] fields, char delimiter)
+        private static void WriteDataRow<T>(StringBuilder sb, T item, PropertyInfo[] properties, FieldInfo[] fields, char delimiter, CSVAssetReferenceType assetReferenceType)
         {
             List<string> cells = new List<string>();
 
             // Add property values
             foreach (var prop in properties)
             {
-                string cellValue = GetValueAsString(prop.GetValue(item), prop.PropertyType);
+                string cellValue = GetValueAsString(prop.GetValue(item), prop.PropertyType, assetReferenceType);
                 cells.Add(cellValue);
             }
 
             // Add field values
             foreach (var field in fields)
             {
-                string cellValue = GetValueAsString(field.GetValue(item), field.FieldType);
+                string cellValue = GetValueAsString(field.GetValue(item), field.FieldType, assetReferenceType);
                 cells.Add(cellValue);
             }
 
             sb.AppendLine(string.Join(delimiter.ToString(), cells.Select(s => EscapeCSVCell(s, delimiter))));
         }
 
-        private static string GetValueAsString(object value, Type type)
+        private static string GetValueAsString(object value, Type type, CSVAssetReferenceType assetReferenceType)
         {
             if (value == null)
                 return string.Empty;
@@ -346,11 +357,11 @@ namespace DataKeeper.Utility
                 // Special handling for Sprites to store both Texture path and sprite name
                 if (unityObj is Sprite sprite)
                 {
-                    string texturePath = UnityObjectToGUID(sprite.texture);
+                    string texturePath = UnityObjectToAssetIdentifier(sprite.texture, assetReferenceType);
                     return $"{texturePath}{ARRAY_SEPARATOR}{sprite.name}";
                 }
 
-                return UnityObjectToGUID(unityObj);
+                return UnityObjectToAssetIdentifier(unityObj, assetReferenceType);
             }
 
             // Handle lists and arrays
@@ -362,7 +373,7 @@ namespace DataKeeper.Utility
 
                 foreach (var item in list)
                 {
-                    items.Add(GetValueAsString(item, itemType));
+                    items.Add(GetValueAsString(item, itemType, assetReferenceType));
                 }
 
                 return "[" + string.Join(ARRAY_SEPARATOR, items) + "]";
@@ -376,7 +387,7 @@ namespace DataKeeper.Utility
 
                 foreach (var item in array)
                 {
-                    items.Add(GetValueAsString(item, itemType));
+                    items.Add(GetValueAsString(item, itemType, assetReferenceType));
                 }
 
                 return "[" + string.Join(ARRAY_SEPARATOR, items) + "]";
@@ -459,18 +470,18 @@ namespace DataKeeper.Utility
             return result;
         }
 
-        private static void SetValue<T>(T item, string propertyName, string typeName, string value)
+        private static void SetValue<T>(T item, string propertyName, string typeName, string value, CSVAssetReferenceType assetReferenceType)
         {
             Type itemType = typeof(T);
 
             // Try to find and set the property/field through the inheritance chain
-            if (!TrySetValueInTypeHierarchy(item, itemType, propertyName, typeName, value))
+            if (!TrySetValueInTypeHierarchy(item, itemType, propertyName, typeName, value, assetReferenceType))
             {
                 Debug.LogWarning($"Property or field {propertyName} not found on {itemType.Name} or any base class");
             }
         }
 
-        private static bool TrySetValueInTypeHierarchy<T>(T item, Type currentType, string propertyName, string typeName, string value)
+        private static bool TrySetValueInTypeHierarchy<T>(T item, Type currentType, string propertyName, string typeName, string value, CSVAssetReferenceType assetReferenceType)
         {
             // If we've reached the end of the inheritance chain without finding a match
             if (currentType == null || currentType == typeof(object))
@@ -487,7 +498,7 @@ namespace DataKeeper.Utility
                 // Check if we can write directly with public setter
                 if (property.CanWrite && property.GetSetMethod(false) != null)
                 {
-                    object convertedValue = ConvertValueFromString(value, property.PropertyType, typeName);
+                    object convertedValue = ConvertValueFromString(value, property.PropertyType, typeName, assetReferenceType);
                     property.SetValue(item, convertedValue);
                     return true;
                 }
@@ -499,7 +510,7 @@ namespace DataKeeper.Utility
 
                 if (backingField != null)
                 {
-                    object convertedValue = ConvertValueFromString(value, property.PropertyType, typeName);
+                    object convertedValue = ConvertValueFromString(value, property.PropertyType, typeName, assetReferenceType);
                     backingField.SetValue(item, convertedValue);
                     return true;
                 }
@@ -508,7 +519,7 @@ namespace DataKeeper.Utility
                 MethodInfo setMethod = property.GetSetMethod(true); // Include non-public methods
                 if (setMethod != null)
                 {
-                    object convertedValue = ConvertValueFromString(value, property.PropertyType, typeName);
+                    object convertedValue = ConvertValueFromString(value, property.PropertyType, typeName, assetReferenceType);
                     setMethod.Invoke(item, new[] { convertedValue });
                     return true;
                 }
@@ -520,16 +531,16 @@ namespace DataKeeper.Utility
 
             if (field != null)
             {
-                object convertedValue = ConvertValueFromString(value, field.FieldType, typeName);
+                object convertedValue = ConvertValueFromString(value, field.FieldType, typeName, assetReferenceType);
                 field.SetValue(item, convertedValue);
                 return true;
             }
 
             // Try in the base class
-            return TrySetValueInTypeHierarchy(item, currentType.BaseType, propertyName, typeName, value);
+            return TrySetValueInTypeHierarchy(item, currentType.BaseType, propertyName, typeName, value, assetReferenceType);
         }
 
-        private static object ConvertValueFromString(string value, Type targetType, string typeName)
+        private static object ConvertValueFromString(string value, Type targetType, string typeName, CSVAssetReferenceType assetReferenceType)
         {
             if (string.IsNullOrEmpty(value))
                 return GetDefaultValue(targetType);
@@ -553,7 +564,7 @@ namespace DataKeeper.Utility
                     return null;
                 }
 
-                return GUIDToUnityObject(value, targetType);
+                return AssetIdentifierToUnityObject(value, targetType, assetReferenceType);
             }
 
             // Handle Vector2
@@ -773,7 +784,7 @@ namespace DataKeeper.Utility
                 {
                     if (!string.IsNullOrEmpty(item))
                     {
-                        list.Add(ConvertValueFromString(item, itemType, GetTypeNameForHeader(itemType)));
+                        list.Add(ConvertValueFromString(item, itemType, GetTypeNameForHeader(itemType), assetReferenceType));
                     }
                 }
 
@@ -810,7 +821,7 @@ namespace DataKeeper.Utility
                 {
                     if (!string.IsNullOrEmpty(items[i]))
                     {
-                        array.SetValue(ConvertValueFromString(items[i], elementType, GetTypeNameForHeader(elementType)), i);
+                        array.SetValue(ConvertValueFromString(items[i], elementType, GetTypeNameForHeader(elementType), assetReferenceType), i);
                     }
                 }
 
