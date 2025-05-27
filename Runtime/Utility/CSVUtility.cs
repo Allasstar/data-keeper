@@ -107,7 +107,7 @@ namespace DataKeeper.Utility
         /// <typeparam name="T">Type of objects in the list</typeparam>
         /// <param name="list">List to convert</param>
         /// <returns>CSV string representation</returns>
-        public static string ListToCSV<T>(List<T> list, DelimiterType delimiterType = DelimiterType.Comma) where T : class
+        public static string ListToCSV<T>(List<T> list, CSVDelimiterType delimiterType = CSVDelimiterType.Comma) where T : class
         {
             if (list == null || list.Count == 0)
                 return string.Empty;
@@ -117,7 +117,7 @@ namespace DataKeeper.Utility
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
-            var delimiter = delimiterType == DelimiterType.Comma ? DELIMITER_COMMA : DELIMITER_TAB;
+            var delimiter = delimiterType == CSVDelimiterType.Comma ? DELIMITER_COMMA : DELIMITER_TAB;
 
             // Write header with property/field names and types
             WriteHeaderRow(sb, properties, fields, delimiter);
@@ -137,7 +137,7 @@ namespace DataKeeper.Utility
         /// <typeparam name="T">Type of objects to create</typeparam>
         /// <param name="csv">CSV string</param>
         /// <returns>List of objects</returns>
-        public static List<T> CSVToList<T>(string csv, DelimiterType delimiterType = DelimiterType.Comma) where T : class, new()
+        public static List<T> CSVToList<T>(string csv, CSVDelimiterType delimiterType = CSVDelimiterType.Comma) where T : class, new()
         {
             if (string.IsNullOrEmpty(csv))
                 return new List<T>();
@@ -148,7 +148,7 @@ namespace DataKeeper.Utility
             if (lines.Length < 2)
                 return result;
 
-            var delimiter = delimiterType == DelimiterType.Comma ? DELIMITER_COMMA : DELIMITER_TAB;
+            var delimiter = delimiterType == CSVDelimiterType.Comma ? DELIMITER_COMMA : DELIMITER_TAB;
 
             // Parse header to get property/field names and types
             string[] headerParts = ParseCSVLine(lines[0], delimiter);
@@ -998,9 +998,15 @@ namespace DataKeeper.Utility
         #endregion
     }
 
-    public enum DelimiterType
+    public enum CSVDelimiterType
     {
         Comma = 0,
         Tab = 1,
+    }
+    
+    public enum CSVAssetReferenceType
+    {
+        AssetPath = 0,
+        GUID = 1,
     }
 }

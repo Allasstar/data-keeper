@@ -156,7 +156,7 @@ namespace DataKeeper.Editor.Windows
             var elementType = list[0].GetType();
             // Use the specific type instead of object
             var method = typeof(CSVUtility).GetMethod("CSVToList").MakeGenericMethod(elementType);
-            var importedList = (IList)method.Invoke(null, new object[] { clipboardContent, DelimiterType.Tab });
+            var importedList = (IList)method.Invoke(null, new object[] { clipboardContent, CSVDelimiterType.Tab });
             
             if (importedList.Count > 0)
             {
@@ -186,7 +186,7 @@ namespace DataKeeper.Editor.Windows
             var elementType = list[0].GetType();
             // Use the specific type instead of object
             var method = typeof(CSVUtility).GetMethod("CSVToList").MakeGenericMethod(elementType);
-            var importedList = (IList)method.Invoke(null, new object[] { clipboardContent, DelimiterType.Comma });
+            var importedList = (IList)method.Invoke(null, new object[] { clipboardContent, CSVDelimiterType.Comma });
             
             if (importedList.Count > 0)
             {
@@ -213,7 +213,7 @@ namespace DataKeeper.Editor.Windows
                 var elementType = list[0].GetType();
                 // Use reflection to call the generic method with the correct type
                 var method = typeof(CSVUtility).GetMethod("ListToCSV").MakeGenericMethod(elementType);
-                string tsv = (string)method.Invoke(null, new object[] { list, DelimiterType.Tab });
+                string tsv = (string)method.Invoke(null, new object[] { list, CSVDelimiterType.Tab });
                 GUIUtility.systemCopyBuffer = tsv;
             }
         }
@@ -228,7 +228,7 @@ namespace DataKeeper.Editor.Windows
                 var elementType = list[0].GetType();
                 // Use reflection to call the generic method with the correct type
                 var method = typeof(CSVUtility).GetMethod("ListToCSV").MakeGenericMethod(elementType);
-                string csv = (string)method.Invoke(null, new object[] { list, DelimiterType.Comma });
+                string csv = (string)method.Invoke(null, new object[] { list, CSVDelimiterType.Comma });
                 GUIUtility.systemCopyBuffer = csv;
             }
         }
