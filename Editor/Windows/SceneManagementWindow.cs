@@ -9,6 +9,7 @@ namespace DataKeeper.Editor.Windows
     public class SceneManagementWindow : EditorWindow
     {
         private Vector2 scrollPosition;
+        private float timeScale = 1f;
 
         [MenuItem("Tools/Windows/Scenes", priority = 0)]
         public static void ShowWindow()
@@ -22,7 +23,45 @@ namespace DataKeeper.Editor.Windows
 
         private void OnGUI()
         {
+            RenderTimeScaleControls();
             EditorGUILayout.Space();
+            RenderSceneList();
+        }
+
+        private void RenderTimeScaleControls()
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+    
+            GUILayout.Label("TimeScale", GUILayout.Width(65));
+            
+            timeScale = EditorGUILayout.Slider(timeScale, 0f, 10f, GUILayout.ExpandWidth(true));
+    
+            if (GUILayout.Button("Apply", EditorStyles.toolbarButton, GUILayout.Width(45)))
+            {
+                Time.timeScale = timeScale;
+            }
+    
+            if (GUILayout.Button("Reset", EditorStyles.toolbarButton, GUILayout.Width(45)))
+            {
+                GUI.FocusControl(null);
+                timeScale = 1f;
+                Time.timeScale = 1f;
+                Repaint();
+            }
+    
+            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(55)))
+            {
+                GUI.FocusControl(null);
+                timeScale = Time.timeScale;
+                Repaint();
+            }
+    
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void RenderSceneList()
+        {
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
             // Get scenes from build settings
@@ -87,7 +126,7 @@ namespace DataKeeper.Editor.Windows
 
             EditorGUILayout.EndScrollView();
         }
-        
+
         private void DrawHorizontalLine(float height = 1f)
         {
             EditorGUI.DrawRect(EditorGUILayout.GetControlRect(false, height), Color.gray);
