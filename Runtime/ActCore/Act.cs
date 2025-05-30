@@ -46,8 +46,26 @@ namespace DataKeeper.ActCore
             Object.DontDestroyOnLoad(gameObject);
         }
         
-        public static Coroutine StartCoroutine(IEnumerator coroutine) => Engine.StartCoroutine(coroutine);
-        public static void StopCoroutine(Coroutine coroutine) { if (coroutine != null) Engine.StopCoroutine(coroutine); }
+        public static Coroutine StartCoroutine(IEnumerator coroutine)
+        {
+            if (!IsEngineExist()) return null;
+            return Engine.StartCoroutine(coroutine);
+        }
+
+        public static void StopCoroutine(Coroutine coroutine)
+        {
+            if (!IsEngineExist()) return;
+
+            if (coroutine != null)
+            {
+                Engine.StopCoroutine(coroutine);
+            }
+        }
+
+        public static bool IsEngineExist()
+        {
+            return IsInitialized && Engine != null && Engine.gameObject != null && Engine.gameObject.activeInHierarchy;
+        }
 
         public static Coroutine OneSecondUpdate(Action callback) => StartCoroutine(ActEnumerator.OneSecondUpdate(callback));
 
