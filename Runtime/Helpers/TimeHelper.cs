@@ -1,6 +1,6 @@
 using System;
 
-namespace DataKeeper.Extra
+namespace DataKeeper.Helpers
 {
     public static class TimeHelper
     {

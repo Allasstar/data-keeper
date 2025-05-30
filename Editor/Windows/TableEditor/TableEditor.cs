@@ -1,13 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
-using System.Linq;
 using System.Reflection;
 using DataKeeper.Attributes;
 using DataKeeper.UIToolkit;
 using DataKeeper.Utility;
+using DataKeeper.Helpers;
 using UnityEditor.UIElements;
 using ObjectField = UnityEditor.UIElements.ObjectField;
 
@@ -127,7 +128,7 @@ namespace DataKeeper.Editor.Windows
             if (_selectedObject is IList list && list.Count > 0)
             {
                 var lastElement = list[list.Count - 1];
-                var newElement = ReflectionUtility.DeepCloneObject(lastElement);
+                var newElement = ReflectionHelper.DeepCloneObject(lastElement);
                 
                 Undo.RecordObject(_selectedSO, "Add Element To Table");
                 
@@ -244,8 +245,8 @@ namespace DataKeeper.Editor.Windows
                 return;
             }
             
-            var fields = ReflectionUtility.GetFieldsWithAttribute(_selectedSO, typeof(TableAttribute));
-            var choices = fields.Select(f => ReflectionUtility.ExtractFieldName(f)).ToList();
+            var fields = ReflectionHelper.GetFieldsWithAttribute(_selectedSO, typeof(TableAttribute));
+            var choices = fields.Select(f => ReflectionHelper.ExtractFieldName(f)).ToList();
             
             _dropdownField.choices = choices;
             if (choices.Any())
@@ -282,7 +283,7 @@ namespace DataKeeper.Editor.Windows
         {
             _tableView.ClearTable();
             _selectedField = newValue;
-            _selectedObject = ReflectionUtility.GetMemberField(_selectedSO, newValue);
+            _selectedObject = ReflectionHelper.GetMemberField(_selectedSO, newValue);
             return _selectedObject != null;
         }
 
@@ -308,7 +309,7 @@ namespace DataKeeper.Editor.Windows
                 return false;
             }
 
-            members = ReflectionUtility.GetAllFields(firstElement);
+            members = ReflectionHelper.GetAllFields(firstElement);
             return true;
         }
 
@@ -316,7 +317,7 @@ namespace DataKeeper.Editor.Windows
         {
             for (int i = 0; i < members.Count; i++)
             {
-                var name = $"{ReflectionUtility.ExtractFieldName(members[i])}::{members[i].FieldType.Name}";
+                var name = $"{ReflectionHelper.ExtractFieldName(members[i])}::{members[i].FieldType.Name}";
                 _tableView.AddColumn(i, name, members[i].FieldType);
             }
         }
