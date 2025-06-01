@@ -453,7 +453,7 @@ namespace DataKeeper.UIToolkit
     }
 }
 
-#if UNITY_2022
+#if !UNITY_6000_0_OR_NEWER
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
 public class UxmlAttributeAttribute : Attribute
 {
