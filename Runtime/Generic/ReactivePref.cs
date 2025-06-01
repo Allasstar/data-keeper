@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using DataKeeper.Extensions;
 using DataKeeper.Signals;
 using Newtonsoft.Json;
+using Unity.Properties;
 using UnityEngine;
 
 namespace DataKeeper.Generic
@@ -10,7 +11,7 @@ namespace DataKeeper.Generic
     [Serializable]
     public class ReactivePref<T> : IReactivePref
     {
-        [SerializeField]
+        [SerializeField, DontCreateProperty]
         private T value;
     
         public T DefaultValue { get; private set; }
@@ -71,6 +72,7 @@ namespace DataKeeper.Generic
             }
         }
 
+        [CreateProperty]
         public T Value
         {
             get

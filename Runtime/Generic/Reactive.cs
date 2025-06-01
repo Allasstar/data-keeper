@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using DataKeeper.Signals;
 using Newtonsoft.Json;
+using Unity.Properties;
 using UnityEngine;
 
 namespace DataKeeper.Generic
@@ -9,7 +10,7 @@ namespace DataKeeper.Generic
     [Serializable]
     public class Reactive<T> : IReactive
     {
-        [SerializeField]
+        [SerializeField, DontCreateProperty]
         private T value;
     
         [NonSerialized]
@@ -30,6 +31,7 @@ namespace DataKeeper.Generic
             this.value = value;
         }
 
+        [CreateProperty]
         public T Value
         {
             get => this.value;
