@@ -38,6 +38,12 @@ namespace DataKeeper.Extensions
             return list.Count == 0 ? default : list[UnityEngine.Random.Range(0, list.Count)];
         }
 
+        public static T RandomSystem<T>(this List<T> list, int seed)
+        {
+            System.Random systemRandom = new System.Random(seed);
+            return list.Count == 0 ? default : list[systemRandom.Next(0, list.Count)];
+        }
+
         public static T RandomSystem<T>(this List<T> list)
         {
             return list.Count == 0 ? default : list[_systemRandom.Next(0, list.Count)];
