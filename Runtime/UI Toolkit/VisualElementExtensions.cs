@@ -411,10 +411,22 @@ namespace DataKeeper.UIToolkit
 
             return element;
         }
+        
+        public static T RemoveClasses<T>(this T element, params string[] classNames) where T : VisualElement
+        {
+            foreach (var c in classNames)
+                element.RemoveFromClassList(c);
+
+            return element;
+        }
 
         public static T RemoveAllUnityClasses<T>(this T element) where T : VisualElement
         {
-            foreach (string className in element.GetClasses().Where(className => className.StartsWith("unity")))
+            var list = element.GetClasses()
+                .Where(className => className.StartsWith("unity"))
+                .ToList();
+            
+            foreach (string className in list)
                 element.RemoveFromClassList(className);
 
             foreach (VisualElement child in element.hierarchy.Children())
