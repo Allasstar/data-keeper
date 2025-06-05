@@ -18,7 +18,7 @@ namespace DataKeeper.Editor
                 if (attributes.Length > 0)
                 {
                     ButtonAttribute buttonAttribute = attributes[0] as ButtonAttribute;
-                    string buttonLabel = buttonAttribute.ButtonLabel ?? method.Name;
+                    string buttonLabel = buttonAttribute.ButtonLabel ?? ObjectNames.NicifyVariableName(method.Name);
 
                     EditorGUILayout.Space(buttonAttribute.Space);
                     if (GUILayout.Button(buttonLabel))
