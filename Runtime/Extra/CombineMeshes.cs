@@ -2,17 +2,26 @@ using System.Collections;
 using UnityEngine;
 using System.Collections.Generic;
 using DataKeeper.Attributes;
+using DataKeeper.Generic;
 
 namespace DataKeeper.Extra
 {
     [AddComponentMenu("DataKeeper/Extra/Combine Meshes")]
     public class CombineMeshes : MonoBehaviour
     {
+        [SerializeField] private Optional<CombineMeshesSettingsSO> OverrideSettings = new Optional<CombineMeshesSettingsSO>();
+        
         [SerializeField] private bool _combineOnStart = true;
         [SerializeField] private bool _waitOneFrame = true;
         [SerializeField] private bool _includeInactive = false;
         [SerializeField] private bool _combineSubmeshes = true;
         [SerializeField] private bool _mergeSubmeshes = false;
+        
+        private bool CombineOnStart => OverrideSettings.Enabled ? OverrideSettings.Value.CombineOnStart : _combineOnStart;
+        private bool WaitOneFrame => OverrideSettings.Enabled ? OverrideSettings.Value.WaitOneFrame : _waitOneFrame;
+        private bool IncludeInactive => OverrideSettings.Enabled ? OverrideSettings.Value.IncludeInactive : _includeInactive;
+        private bool CombineSubmeshes => OverrideSettings.Enabled ? OverrideSettings.Value.CombineSubmeshes : _combineSubmeshes;
+        private bool MergeSubmeshes => OverrideSettings.Enabled ? OverrideSettings.Value.MergeSubmeshes : _mergeSubmeshes;
 
         private bool IsCombined => _combinedMeshObject != null;
         private MeshFilter[] _originalMeshFilters;
@@ -20,9 +29,9 @@ namespace DataKeeper.Extra
 
         private IEnumerable Start()
         {
-            if (_combineOnStart && !IsCombined)
+            if (CombineOnStart && !IsCombined)
             {
-                if (_waitOneFrame)
+                if (WaitOneFrame)
                 {
                     yield return null;
                     CombineAllMeshes();
@@ -39,7 +48,7 @@ namespace DataKeeper.Extra
         private void CombineAllMeshes()
         {
             // Get all MeshFilter components from children
-            _originalMeshFilters = GetComponentsInChildren<MeshFilter>(_includeInactive);
+            _originalMeshFilters = GetComponentsInChildren<MeshFilter>(IncludeInactive);
             
             if (_originalMeshFilters.Length == 0)
             {
@@ -63,7 +72,7 @@ namespace DataKeeper.Extra
                 Matrix4x4 matrix = transform.worldToLocalMatrix * meshTransform.localToWorldMatrix;
 
                 // Handle submeshes
-                if (_combineSubmeshes && meshFilter.sharedMesh.subMeshCount > 1)
+                if (CombineSubmeshes && meshFilter.sharedMesh.subMeshCount > 1)
                 {
                     for (int i = 0; i < meshFilter.sharedMesh.subMeshCount; i++)
                     {
@@ -74,7 +83,7 @@ namespace DataKeeper.Extra
                             transform = matrix
                         };
 
-                        if (_mergeSubmeshes)
+                        if (MergeSubmeshes)
                         {
                             allCombineInstances.Add(combine);
                         }
@@ -99,7 +108,7 @@ namespace DataKeeper.Extra
                         transform = matrix
                     };
 
-                    if (_mergeSubmeshes)
+                    if (MergeSubmeshes)
                     {
                         allCombineInstances.Add(combine);
                     }
@@ -129,7 +138,7 @@ namespace DataKeeper.Extra
             Mesh combinedMesh = new Mesh();
             combinedMesh.name = "Combined Mesh";
 
-            if (_mergeSubmeshes)
+            if (MergeSubmeshes)
             {
                 // Combine all into single submesh
                 combinedMesh.CombineMeshes(allCombineInstances.ToArray(), true);
