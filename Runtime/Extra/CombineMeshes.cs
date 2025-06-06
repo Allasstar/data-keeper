@@ -1,5 +1,5 @@
+using System.Collections;
 using UnityEngine;
-using System.Linq;
 using System.Collections.Generic;
 using DataKeeper.Attributes;
 
@@ -8,7 +8,8 @@ namespace DataKeeper.Extra
     [AddComponentMenu("DataKeeper/Extra/Combine Meshes")]
     public class CombineMeshes : MonoBehaviour
     {
-        [SerializeField] private bool _combineOnAwake = true;
+        [SerializeField] private bool _combineOnStart = true;
+        [SerializeField] private bool _waitOneFrame = true;
         [SerializeField] private bool _includeInactive = false;
         [SerializeField] private bool _combineSubmeshes = true;
         [SerializeField] private bool _mergeSubmeshes = false;
@@ -17,12 +18,22 @@ namespace DataKeeper.Extra
         private MeshFilter[] _originalMeshFilters;
         private GameObject _combinedMeshObject;
 
-        private void Awake()
+        private IEnumerable Start()
         {
-            if (_combineOnAwake && !IsCombined)
+            if (_combineOnStart && !IsCombined)
             {
-                CombineAllMeshes();
+                if (_waitOneFrame)
+                {
+                    yield return null;
+                    CombineAllMeshes();
+                }
+                else
+                {
+                    CombineAllMeshes();
+                }
             }
+            
+            yield return null;
         }
 
         private void CombineAllMeshes()
@@ -186,8 +197,6 @@ namespace DataKeeper.Extra
                         renderer.enabled = false;
                 }
             }
-
-            Debug.Log($"Successfully combined {_originalMeshFilters.Length} meshes into one.");
         }
 
         [ContextMenu("Separate Meshes")]
@@ -219,8 +228,6 @@ namespace DataKeeper.Extra
                 
                 _combinedMeshObject = null;
             }
-
-            Debug.Log("Meshes separated successfully.");
         }
 
         [ContextMenu("Force Combine")]
