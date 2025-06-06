@@ -9,6 +9,9 @@ namespace DataKeeper.Extra
     public class CombineMeshes : MonoBehaviour
     {
         [SerializeField] private bool _combineOnAwake = true;
+        [SerializeField] private bool _includeInactive = false;
+        [SerializeField] private bool _combineSubmeshes = true;
+        [SerializeField] private bool _mergeSubmeshes = false;
 
         private bool IsCombined => _combinedMeshObject != null;
         private MeshFilter[] _originalMeshFilters;
@@ -24,43 +27,81 @@ namespace DataKeeper.Extra
 
         private void CombineAllMeshes()
         {
-            // Get all mesh filters in children, excluding self
-            _originalMeshFilters = GetComponentsInChildren<MeshFilter>()
-                .Where(mf => mf.gameObject != gameObject)
-                .ToArray();
-
+            // Get all MeshFilter components from children
+            _originalMeshFilters = GetComponentsInChildren<MeshFilter>(_includeInactive);
+            
             if (_originalMeshFilters.Length == 0)
             {
-                Debug.LogWarning("No meshes found to combine!");
+                Debug.LogWarning("No MeshFilter components found in children.");
                 return;
             }
 
-            // Get all unique materials
-            Dictionary<Material, List<CombineInstance>> materialToCombines =
-                new Dictionary<Material, List<CombineInstance>>();
+            // Group meshes by material if not merging submeshes
+            Dictionary<Material, List<CombineInstance>> materialGroups = new Dictionary<Material, List<CombineInstance>>();
+            List<CombineInstance> allCombineInstances = new List<CombineInstance>();
 
-            // Group meshes by material
-            foreach (var mf in _originalMeshFilters)
+            foreach (MeshFilter meshFilter in _originalMeshFilters)
             {
-                MeshRenderer mr = mf.GetComponent<MeshRenderer>();
-                if (mr == null || mf.sharedMesh == null) continue;
+                if (meshFilter.sharedMesh == null) continue;
+                if (meshFilter == GetComponent<MeshFilter>()) continue; // Skip self
 
-                // Handle submeshes and their materials
-                for (int submesh = 0; submesh < mf.sharedMesh.subMeshCount; submesh++)
+                MeshRenderer meshRenderer = meshFilter.GetComponent<MeshRenderer>();
+                if (meshRenderer == null) continue;
+
+                Transform meshTransform = meshFilter.transform;
+                Matrix4x4 matrix = transform.worldToLocalMatrix * meshTransform.localToWorldMatrix;
+
+                // Handle submeshes
+                if (_combineSubmeshes && meshFilter.sharedMesh.subMeshCount > 1)
                 {
-                    Material material = mr.sharedMaterials[submesh];
-                    if (!materialToCombines.ContainsKey(material))
+                    for (int i = 0; i < meshFilter.sharedMesh.subMeshCount; i++)
                     {
-                        materialToCombines[material] = new List<CombineInstance>();
-                    }
+                        CombineInstance combine = new CombineInstance
+                        {
+                            mesh = meshFilter.sharedMesh,
+                            subMeshIndex = i,
+                            transform = matrix
+                        };
 
-                    CombineInstance ci = new CombineInstance
+                        if (_mergeSubmeshes)
+                        {
+                            allCombineInstances.Add(combine);
+                        }
+                        else
+                        {
+                            Material material = i < meshRenderer.sharedMaterials.Length ? 
+                                              meshRenderer.sharedMaterials[i] : null;
+                            
+                            if (!materialGroups.ContainsKey(material))
+                                materialGroups[material] = new List<CombineInstance>();
+                            
+                            materialGroups[material].Add(combine);
+                        }
+                    }
+                }
+                else
+                {
+                    CombineInstance combine = new CombineInstance
                     {
-                        mesh = mf.sharedMesh,
-                        subMeshIndex = submesh,
-                        transform = mf.transform.localToWorldMatrix
+                        mesh = meshFilter.sharedMesh,
+                        subMeshIndex = 0,
+                        transform = matrix
                     };
-                    materialToCombines[material].Add(ci);
+
+                    if (_mergeSubmeshes)
+                    {
+                        allCombineInstances.Add(combine);
+                    }
+                    else
+                    {
+                        Material material = meshRenderer.sharedMaterials.Length > 0 ? 
+                                          meshRenderer.sharedMaterials[0] : null;
+                        
+                        if (!materialGroups.ContainsKey(material))
+                            materialGroups[material] = new List<CombineInstance>();
+                        
+                        materialGroups[material].Add(combine);
+                    }
                 }
             }
 
@@ -71,51 +112,124 @@ namespace DataKeeper.Extra
             _combinedMeshObject.transform.localRotation = Quaternion.identity;
             _combinedMeshObject.transform.localScale = Vector3.one;
 
-            // Add mesh filter and renderer
-            var finalMeshFilter = _combinedMeshObject.AddComponent<MeshFilter>();
-            var finalMeshRenderer = _combinedMeshObject.AddComponent<MeshRenderer>();
+            MeshFilter combinedMeshFilter = _combinedMeshObject.AddComponent<MeshFilter>();
+            MeshRenderer combinedMeshRenderer = _combinedMeshObject.AddComponent<MeshRenderer>();
 
-            // Combine submeshes for each material
             Mesh combinedMesh = new Mesh();
-            List<Material> materials = new List<Material>();
-            List<CombineInstance> finalCombiners = new List<CombineInstance>();
+            combinedMesh.name = "Combined Mesh";
 
-            foreach (var kvp in materialToCombines)
+            if (_mergeSubmeshes)
             {
-                Material material = kvp.Key;
-                List<CombineInstance> combineInstances = kvp.Value;
-
-                // Create a new mesh for this material
-                Mesh submesh = new Mesh();
-                submesh.CombineMeshes(combineInstances.ToArray(), true);
-
-                // Add this submesh to the final combination
-                CombineInstance ci = new CombineInstance
+                // Combine all into single submesh
+                combinedMesh.CombineMeshes(allCombineInstances.ToArray(), true);
+                
+                // Use the first available material
+                Material firstMaterial = null;
+                foreach (var meshFilter in _originalMeshFilters)
                 {
-                    mesh = submesh,
-                    subMeshIndex = 0,
-                    transform = Matrix4x4.identity
-                };
-                finalCombiners.Add(ci);
-                materials.Add(material);
+                    var renderer = meshFilter.GetComponent<MeshRenderer>();
+                    if (renderer != null && renderer.sharedMaterials.Length > 0 && renderer.sharedMaterials[0] != null)
+                    {
+                        firstMaterial = renderer.sharedMaterials[0];
+                        break;
+                    }
+                }
+                combinedMeshRenderer.material = firstMaterial;
+            }
+            else
+            {
+                // Combine while preserving submeshes per material
+                List<CombineInstance> finalCombineInstances = new List<CombineInstance>();
+                List<Material> materials = new List<Material>();
+
+                foreach (var kvp in materialGroups)
+                {
+                    if (kvp.Value.Count > 0)
+                    {
+                        Mesh tempMesh = new Mesh();
+                        tempMesh.CombineMeshes(kvp.Value.ToArray(), true);
+                        
+                        CombineInstance combineInstance = new CombineInstance
+                        {
+                            mesh = tempMesh,
+                            subMeshIndex = 0,
+                            transform = Matrix4x4.identity
+                        };
+                        
+                        finalCombineInstances.Add(combineInstance);
+                        materials.Add(kvp.Key);
+                    }
+                }
+
+                combinedMesh.CombineMeshes(finalCombineInstances.ToArray(), false);
+                combinedMeshRenderer.materials = materials.ToArray();
+
+                // Clean up temporary meshes
+                foreach (var instance in finalCombineInstances)
+                {
+                    if (Application.isPlaying)
+                        Destroy(instance.mesh);
+                    else
+                        DestroyImmediate(instance.mesh);
+                }
             }
 
-            // Combine all submeshes
-            combinedMesh.CombineMeshes(finalCombiners.ToArray(), false);
-            combinedMesh.Optimize();
-            combinedMesh.RecalculateBounds();
-            combinedMesh.RecalculateNormals();
-
-            // Assign the combined mesh and materials
-            finalMeshFilter.sharedMesh = combinedMesh;
-            finalMeshRenderer.sharedMaterials = materials.ToArray();
+            combinedMeshFilter.mesh = combinedMesh;
 
             // Disable original mesh renderers
-            foreach (var mf in _originalMeshFilters)
+            foreach (MeshFilter meshFilter in _originalMeshFilters)
             {
-                if (mf.GetComponent<MeshRenderer>() != null)
-                    mf.GetComponent<MeshRenderer>().enabled = false;
+                if (meshFilter != GetComponent<MeshFilter>())
+                {
+                    MeshRenderer renderer = meshFilter.GetComponent<MeshRenderer>();
+                    if (renderer != null)
+                        renderer.enabled = false;
+                }
             }
+
+            Debug.Log($"Successfully combined {_originalMeshFilters.Length} meshes into one.");
+        }
+
+        [ContextMenu("Separate Meshes")]
+        public void SeparateMeshes()
+        {
+            if (!IsCombined) return;
+
+            // Re-enable original mesh renderers
+            if (_originalMeshFilters != null)
+            {
+                foreach (MeshFilter meshFilter in _originalMeshFilters)
+                {
+                    if (meshFilter != null && meshFilter != GetComponent<MeshFilter>())
+                    {
+                        MeshRenderer renderer = meshFilter.GetComponent<MeshRenderer>();
+                        if (renderer != null)
+                            renderer.enabled = true;
+                    }
+                }
+            }
+
+            // Destroy combined mesh object
+            if (_combinedMeshObject != null)
+            {
+                if (Application.isPlaying)
+                    Destroy(_combinedMeshObject);
+                else
+                    DestroyImmediate(_combinedMeshObject);
+                
+                _combinedMeshObject = null;
+            }
+
+            Debug.Log("Meshes separated successfully.");
+        }
+
+        [ContextMenu("Force Combine")]
+        public void ForceCombine()
+        {
+            if (IsCombined)
+                SeparateMeshes();
+            
+            CombineAllMeshes();
         }
 
 #if UNITY_EDITOR
@@ -147,6 +261,15 @@ namespace DataKeeper.Extra
                     }
                 }
             }
+        }
+
+        [Button("Toggle Combined/Separated")]
+        private void ToggleCombined()
+        {
+            if (IsCombined)
+                SeparateMeshes();
+            else
+                CombineAllMeshes();
         }
 #endif
     }
