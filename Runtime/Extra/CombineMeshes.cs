@@ -27,7 +27,7 @@ namespace DataKeeper.Extra
         private MeshFilter[] _originalMeshFilters;
         private GameObject _combinedMeshObject;
 
-        private IEnumerable Start()
+        private IEnumerator Start()
         {
             if (CombineOnStart && !IsCombined)
             {
@@ -60,11 +60,30 @@ namespace DataKeeper.Extra
             Dictionary<Material, List<CombineInstance>> materialGroups = new Dictionary<Material, List<CombineInstance>>();
             List<CombineInstance> allCombineInstances = new List<CombineInstance>();
 
+            if (Application.isPlaying)
+            {
+                var isSkipCombine = false;
+                foreach (MeshFilter meshFilter in _originalMeshFilters)
+                {
+                    if (!meshFilter.sharedMesh.isReadable)
+                    {
+                        isSkipCombine = true;
+                        Debug.LogError($"Mesh '{meshFilter.sharedMesh.name}' on GameObject '{meshFilter.gameObject.name}' does not have read/write enabled. This may cause issues when combining meshes.", meshFilter.sharedMesh);
+                    }
+                }
+
+                if (isSkipCombine)
+                {
+                    return;
+                }
+            }
+
             foreach (MeshFilter meshFilter in _originalMeshFilters)
             {
                 if (meshFilter.sharedMesh == null) continue;
-                if (meshFilter == GetComponent<MeshFilter>()) continue; // Skip self
+                if (meshFilter == GetComponent<MeshFilter>()) continue;
 
+                // Skip self
                 MeshRenderer meshRenderer = meshFilter.GetComponent<MeshRenderer>();
                 if (meshRenderer == null) continue;
 
@@ -203,7 +222,9 @@ namespace DataKeeper.Extra
                 {
                     MeshRenderer renderer = meshFilter.GetComponent<MeshRenderer>();
                     if (renderer != null)
+                    {
                         renderer.enabled = false;
+                    }
                 }
             }
         }
