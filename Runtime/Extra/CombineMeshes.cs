@@ -9,7 +9,7 @@ namespace DataKeeper.Extra
     [AddComponentMenu("DataKeeper/Extra/Combine Meshes")]
     public class CombineMeshes : MonoBehaviour
     {
-        [SerializeField] private Optional<CombineMeshesSettingsSO> OverrideSettings = new Optional<CombineMeshesSettingsSO>();
+        [SerializeField, Header("Settings")] private Optional<CombineMeshesSettingsSO> OverrideSettings = new Optional<CombineMeshesSettingsSO>();
         
         [SerializeField] private bool _combineOnStart = true;
         [SerializeField] private bool _waitOneFrame = true;
@@ -24,8 +24,8 @@ namespace DataKeeper.Extra
         private bool MergeSubmeshes => OverrideSettings.Enabled ? OverrideSettings.Value.MergeSubmeshes : _mergeSubmeshes;
 
         private bool IsCombined => _combinedMeshObject != null;
-        private MeshFilter[] _originalMeshFilters;
-        private GameObject _combinedMeshObject;
+        [SerializeField, ReadOnlyInspector, Space, Header("Bake Data")] private GameObject _combinedMeshObject;
+        [SerializeField, ReadOnlyInspector] private MeshFilter[] _originalMeshFilters;
 
         private IEnumerator Start()
         {
@@ -258,6 +258,8 @@ namespace DataKeeper.Extra
                 
                 _combinedMeshObject = null;
             }
+            
+            _originalMeshFilters = null;
         }
 
         [ContextMenu("Force Combine")]
