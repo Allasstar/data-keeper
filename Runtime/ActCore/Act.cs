@@ -48,7 +48,6 @@ namespace DataKeeper.ActCore
         
         public static Coroutine StartCoroutine(IEnumerator coroutine)
         {
-            if (!IsEngineExist()) return null;
             return Engine.StartCoroutine(coroutine);
         }
 
