@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 
 namespace DataKeeper.Generic
 {
@@ -37,7 +36,7 @@ namespace DataKeeper.Generic
     
         public void Reg<T>(TValue value) where T : TValue
         {
-            _container[value.GetType().Name] = value;
+            _container[typeof(T).Name] = value;
         }
         
         public void Reg(TValue value)

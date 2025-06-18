@@ -23,6 +23,16 @@ namespace DataKeeper.ServiceLocatorPattern
             TableRegisters.Clear();
         }
         
+        public static void Reg<T>(T value)
+        {
+            GlobalRegister.Reg<T>(value);
+        }
+        
+        public static void Reg<T>(T value, string id)
+        {
+            GlobalRegister.Reg(value, id);
+        }
+        
         public static Register<object> ForGlobal()
         {
             return GlobalRegister;
