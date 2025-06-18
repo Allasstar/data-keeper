@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 
 namespace DataKeeper.ServiceLocatorPattern
 {
-    public static class ServiceLocator
+    public static partial class ServiceLocator
     {
         public static readonly Register<object> GlobalRegister = new Register<object>();
         public static readonly Dictionary<string, Register<object>> SceneRegisters = new Dictionary<string, Register<object>>();

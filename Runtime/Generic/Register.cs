@@ -44,14 +44,36 @@ namespace DataKeeper.Generic
             _container[value.GetType().Name] = value;
         }
         
+        public object Get(Type type, string id = "")
+        {
+            if (!string.IsNullOrEmpty(id))
+            {
+                return _container.TryGetValue(id, out var value) ? value : null;
+            }
+
+            // Try get by exact type name first
+            if (_container.TryGetValue(type.Name, out var exactMatch))
+            {
+                return exactMatch;
+            }
+
+            // If type is interface, look for implementation
+            if (type.IsInterface)
+            {
+                return _container.Values.FirstOrDefault(v => v != null && type.IsInstanceOfType(v));
+            }
+
+            return null;
+        }
+
         public T Get<T>() where T : class, TValue
         {
-            return _container.TryGetValue(typeof(T).Name, out var value) ? value as T : null;
+            return (T)Get(typeof(T));
         }
-    
+
         public T Get<T>(string id) where T : class, TValue
         {
-            return _container.TryGetValue(id, out var value) ? value as T : null;
+            return (T)Get(typeof(T), id);
         }
         
         public Register<TValue> Get<T>(out T outValue) where T : class, TValue
