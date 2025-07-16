@@ -6,6 +6,14 @@
 # [OpenUPM](https://openupm.com/packages/com.micrarriors.data-keeper/)
 [![openupm](https://img.shields.io/npm/v/com.micrarriors.data-keeper?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/com.micrarriors.data-keeper/)
 
+# **Install via git URL**
+
+**Latest:**
+`https://github.com/Allasstar/data-keeper.git`
+
+**Specific Version:**
+`https://github.com/Allasstar/data-keeper.git#0.19.0`
+
 
 # **Install via Package Manager**
 
