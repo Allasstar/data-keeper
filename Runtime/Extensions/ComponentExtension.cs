@@ -47,7 +47,7 @@ namespace DataKeeper.Extensions
         public static T GetOrAddComponent<T>(this GameObject go) where T : Component
         {
             var existingComponent = go.GetComponent<T>();
-            return existingComponent != null ? existingComponent : go.gameObject.AddComponent<T>();
+            return existingComponent != null ? existingComponent : go.AddComponent<T>();
         }
     }
 }
