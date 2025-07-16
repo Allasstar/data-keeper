@@ -1,42 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
+using DataKeeper.Signals;
 using UnityEngine;
 
 namespace DataKeeper.FSM
 {
-    public class StateMachine<TState, TTarget> where TState : Enum where TTarget : class
+    public class StateMachine<TState, TSelfType> where TState : Enum where TSelfType : class
     {
-#if UNITY_EDITOR
-        private FSMHistory<TState> stateHistory = new FSMHistory<TState>();
-        public TransitionRecordHistory[] GetStateHistory() => stateHistory.GetHistory();
-        
-        private string[] allStates;
-        public string[] GetAllStates()
-        {
-            if (allStates == null || allStates.Length == 0 || allStates.Length != states.Keys.Count)
-            {
-                allStates = Enum.GetNames(typeof(TState));
-            }
-            
-            return allStates;
-        }
-#endif
-        
-        private Dictionary<TState, State<TState, TTarget>> states = new Dictionary<TState, State<TState, TTarget>>();
+        private Dictionary<TState, State<TState, TSelfType>> states = new Dictionary<TState, State<TState, TSelfType>>();
         private List<Transition<TState>> transitions = new List<Transition<TState>>();
         private List<Transition<TState>> anyStateTransitions = new List<Transition<TState>>();
 
-        private State<TState, TTarget> currentState;
-        public TTarget Target { get; private set; }
+        private State<TState, TSelfType> currentState;
+        public TSelfType Self { get; private set; }
         public TState CurrentStateType { get; private set; }
         public TState PreviousStateType { get; private set; }
+        
+        public Signal<TState> OnStateChanged { get; private set; } = new Signal<TState>();
 
-        public StateMachine(TTarget target)
+        public StateMachine(TSelfType self)
         {
-            Target = target;
+            Self = self;
         }
         
-        public void AddState(TState stateType, State<TState, TTarget> state)
+        public void AddState(TState stateType, State<TState, TSelfType> state)
         {
             states[stateType] = state;
             state.Initialize(this);
@@ -44,7 +31,7 @@ namespace DataKeeper.FSM
 
         public void SetInitialState(TState initialState)
         {
-            if (states.TryGetValue(initialState, out State<TState, TTarget> state))
+            if (states.TryGetValue(initialState, out State<TState, TSelfType> state))
             {
                 CurrentStateType = initialState;
                 currentState = state;
@@ -90,12 +77,13 @@ namespace DataKeeper.FSM
             }
 
             PreviousStateType = CurrentStateType;
-            State<TState, TTarget> newState = states[newStateType];
+            State<TState, TSelfType> newState = states[newStateType];
 
             currentState?.OnExit();
             CurrentStateType = newStateType;
             currentState = newState;
             currentState.OnEnter();
+            OnStateChanged?.Invoke(CurrentStateType);
 
 #if UNITY_EDITOR
             stateHistory.RecordTransition(PreviousStateType, CurrentStateType);
@@ -124,5 +112,21 @@ namespace DataKeeper.FSM
         {
             currentState?.OnFixedUpdate();
         }
+        
+#if UNITY_EDITOR
+        private FSMHistory<TState> stateHistory = new FSMHistory<TState>();
+        public TransitionRecordHistory[] GetStateHistory() => stateHistory.GetHistory();
+        
+        private string[] allStates;
+        public string[] GetAllStates()
+        {
+            if (allStates == null || allStates.Length == 0 || allStates.Length != states.Keys.Count)
+            {
+                allStates = Enum.GetNames(typeof(TState));
+            }
+            
+            return allStates;
+        }
+#endif
     }
 }

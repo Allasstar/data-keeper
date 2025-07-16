@@ -5,13 +5,15 @@ namespace DataKeeper.FSM
     /// <summary>
     /// Base class for states in the FSM
     /// </summary>
-    public abstract class State<TState, TTarget> where TState : Enum where TTarget : class
+    public abstract class State<TState, TSelfType> where TState : Enum where TSelfType : class
     {
-        protected StateMachine<TState, TTarget> stateMachine;
+        public StateMachine<TState, TSelfType> StateMachine { get; private set; }
+        public TSelfType Self { get; private set; }
 
-        public virtual void Initialize(StateMachine<TState, TTarget> machine)
+        public virtual void Initialize(StateMachine<TState, TSelfType> machine)
         {
-            stateMachine = machine;
+            StateMachine = machine;
+            Self = machine.Self;
         }
 
         public virtual void OnEnter()
