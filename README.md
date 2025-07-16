@@ -8,10 +8,10 @@
 
 # **Install via Git URL**
 
-**Latest**
+**Latest:**
 `https://github.com/Allasstar/data-keeper.git`
 
-**Specific Version**
+**Specific Version:**
 `https://github.com/Allasstar/data-keeper.git#0.19.0`
 
 
