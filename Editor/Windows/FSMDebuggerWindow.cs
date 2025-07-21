@@ -8,7 +8,6 @@ namespace DataKeeper.Editor.FSM
         private GameObject selectedObject;
         private Vector2 scrollPosition;
         private bool isLocked = false;
-        private int historySize = 10;
 
         [MenuItem("Tools/Windows/FSM Debugger")]
         public static void ShowWindow()
@@ -28,11 +27,7 @@ namespace DataKeeper.Editor.FSM
             EditorGUILayout.LabelField("Lock Selection", GUILayout.Width(100));
             EditorGUI.EndChangeCheck();
             
-            EditorGUILayout.Space(5);
-            
-            EditorGUILayout.LabelField("History Size", GUILayout.Width(73));
-            historySize = EditorGUILayout.IntField(historySize, GUILayout.Width(50));
-            
+            EditorGUILayout.Space();
             EditorGUILayout.EndHorizontal();
             
             EditorGUILayout.Space(5);
@@ -55,7 +50,7 @@ namespace DataKeeper.Editor.FSM
             {
                 if (component == null) continue;
 
-                if (FSMDebugger.DrawFSMDebugger(component, historySize))
+                if (FSMDebugger.DrawFSMDebugger(component))
                 {
                     foundAnyStateMachine = true;
                 }
@@ -78,10 +73,11 @@ namespace DataKeeper.Editor.FSM
 
         private void OnSelectionChange()
         {
-            // Only update selected object when not locked
-            if (!isLocked && Selection.activeGameObject != null)
+            var newSelection = Selection.activeGameObject;
+
+            if (newSelection != null && (!isLocked || selectedObject == null))
             {
-                selectedObject = Selection.activeGameObject;
+                selectedObject = newSelection;
                 Repaint();
             }
         }

@@ -8,14 +8,10 @@ namespace DataKeeper.Editor.FSM
 {
     public static class FSMDebugger
     {
-        private static int _maxDisplayedHistory = 10;
-
-        public static bool DrawFSMDebugger(Object target, int maxDisplayedHistory = 10)
+        public static bool DrawFSMDebugger(Object target)
         {
             try
             {
-                _maxDisplayedHistory = maxDisplayedHistory;
-                
                 var targetType = target.GetType();
                 var fields = targetType.GetFields(System.Reflection.BindingFlags.NonPublic | 
                                                   System.Reflection.BindingFlags.Public | 
@@ -188,7 +184,7 @@ namespace DataKeeper.Editor.FSM
                 var history = getHistoryMethod.Invoke(stateMachine, null) as Array;
                 if (history == null || history.Length == 0) return;
 
-                for (int i = history.Length - 1; i >= Mathf.Max(0, history.Length - _maxDisplayedHistory); i--)
+                for (int i = history.Length - 1; i >= 0; i--)
                 {
                     var record = (TransitionRecordHistory)history.GetValue(i);
 

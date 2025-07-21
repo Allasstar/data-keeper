@@ -18,9 +18,10 @@ namespace DataKeeper.FSM
         }
     }
     
+    [Serializable]
     public class FSMHistory<TState> where TState : Enum
     {
-        private const int MAX_HISTORY = 10;
+        [SerializeField] private int _historySize = 10;
         private Queue<TransitionRecordHistory> stateHistory;
 
         public FSMHistory()
@@ -31,7 +32,7 @@ namespace DataKeeper.FSM
         public void RecordTransition(TState fromState, TState toState)
         {
             stateHistory.Enqueue(new TransitionRecordHistory(fromState.ToString(), toState.ToString()));
-            if (stateHistory.Count > MAX_HISTORY)
+            if (stateHistory.Count > _historySize)
             {
                 stateHistory.Dequeue();
             }

@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace DataKeeper.FSM
 {
+    [Serializable]
     public class StateMachine<TState, TSelfType> where TState : Enum where TSelfType : class
     {
         private Dictionary<TState, State<TState, TSelfType>> states = new Dictionary<TState, State<TState, TSelfType>>();
@@ -13,8 +14,8 @@ namespace DataKeeper.FSM
 
         private State<TState, TSelfType> currentState;
         public TSelfType Self { get; private set; }
-        public TState CurrentStateType { get; private set; }
-        public TState PreviousStateType { get; private set; }
+        [field: SerializeField] public TState CurrentStateType { get; private set; }
+        [field: SerializeField] public TState PreviousStateType { get; private set; }
         
         public Signal<TState> OnStateChanged { get; private set; } = new Signal<TState>();
 
@@ -114,7 +115,7 @@ namespace DataKeeper.FSM
         }
         
 #if UNITY_EDITOR
-        private FSMHistory<TState> stateHistory = new FSMHistory<TState>();
+        [SerializeField] private FSMHistory<TState> stateHistory = new FSMHistory<TState>();
         public TransitionRecordHistory[] GetStateHistory() => stateHistory.GetHistory();
         
         private string[] allStates;
