@@ -8,44 +8,56 @@ namespace DataKeeper.Editor.FSM
 {
     public static class FSMDebugger
     {
-        private const int MAX_DISPLAYED_HISTORY = 10;
+        private static int _maxDisplayedHistory = 10;
 
-        public static void DrawFSMDebuger(Object target)
+        public static bool DrawFSMDebugger(Object target, int maxDisplayedHistory = 10)
         {
             try
             {
+                _maxDisplayedHistory = maxDisplayedHistory;
+                
                 var targetType = target.GetType();
                 var fields = targetType.GetFields(System.Reflection.BindingFlags.NonPublic | 
                                                   System.Reflection.BindingFlags.Public | 
                                                   System.Reflection.BindingFlags.Instance);
 
+                bool foundStateMachine = false;
                 foreach (var field in fields)
                 {
                     if (field?.FieldType == null) continue;
-                
+        
                     if (field.FieldType.IsGenericType && 
                         field.FieldType.GetGenericTypeDefinition() == typeof(StateMachine<,>))
                     {
                         var stateMachine = field.GetValue(target);
                         if (stateMachine != null)
                         {
-                            DrawStateMachineDebug(stateMachine);
+                            DrawStateMachineDebug(stateMachine, target);
+                            foundStateMachine = true;
                         }
                     }
                 }
+                
+                return foundStateMachine;
             }
             catch (Exception e)
             {
                 Debug.LogError($"FSMDebugger error: {e.Message}");
+                return false;
             }
         }
 
-        private static void DrawStateMachineDebug(object stateMachine)
+        private static void DrawStateMachineDebug(object stateMachine, Object component)
         {
             if (stateMachine == null) return;
 
             try
             {
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.Space();
+                
+                EditorGUILayout.LabelField($"Component: {component.GetType().Name} > {nameof(stateMachine)}", EditorStyles.boldLabel);
+                
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("State Machine Debug", EditorStyles.boldLabel);
 
@@ -60,6 +72,8 @@ namespace DataKeeper.Editor.FSM
 
                 // History
                 DrawHistory(stateMachine);
+                EditorGUILayout.Space();
+                EditorGUILayout.EndVertical();
             }
             catch (Exception e)
             {
@@ -174,7 +188,7 @@ namespace DataKeeper.Editor.FSM
                 var history = getHistoryMethod.Invoke(stateMachine, null) as Array;
                 if (history == null || history.Length == 0) return;
 
-                for (int i = history.Length - 1; i >= Mathf.Max(0, history.Length - MAX_DISPLAYED_HISTORY); i--)
+                for (int i = history.Length - 1; i >= Mathf.Max(0, history.Length - _maxDisplayedHistory); i--)
                 {
                     var record = (TransitionRecordHistory)history.GetValue(i);
 
