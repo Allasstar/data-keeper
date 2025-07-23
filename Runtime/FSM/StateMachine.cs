@@ -91,7 +91,7 @@ namespace DataKeeper.FSM
 #endif
         }
 
-        public void Update()
+        public void OnUpdate()
         {
             // Check "any state" transitions first
             foreach (var transition in anyStateTransitions)
@@ -108,10 +108,20 @@ namespace DataKeeper.FSM
 
             currentState?.OnUpdate();
         }
+        
+        public virtual void OnLateUpdate()
+        {
+            currentState?.OnLateUpdate();
+        }
 
-        public void FixedUpdate()
+        public void OnFixedUpdate()
         {
             currentState?.OnFixedUpdate();
+        }
+
+        public virtual void OnAnimatorMove()
+        {
+            currentState?.OnAnimatorMove();
         }
         
 #if UNITY_EDITOR
