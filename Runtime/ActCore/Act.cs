@@ -54,11 +54,7 @@ namespace DataKeeper.ActCore
         public static void StopCoroutine(Coroutine coroutine)
         {
             if (!IsEngineExist()) return;
-
-            if (coroutine != null)
-            {
-                Engine.StopCoroutine(coroutine);
-            }
+            Engine.TryStopCoroutine(coroutine);
         }
 
         public static bool IsEngineExist()
@@ -66,39 +62,42 @@ namespace DataKeeper.ActCore
             return IsInitialized && Engine != null && Engine.gameObject != null && Engine.gameObject.activeInHierarchy;
         }
 
-        public static Coroutine OneSecondUpdate(Action callback) => StartCoroutine(ActEnumerator.OneSecondUpdate(callback));
+        public static Coroutine OneSecondUpdate(Action callback) 
+            => Engine.OneSecondUpdate(callback);
 
-        public static void One(float duration, Action<float> value = null, Action onComplete = null) => StartCoroutine(ActEnumerator.Float(0f, 1f, duration, value, onComplete));
-        public static void Int(int from, int to, float duration, Action<int> value = null, Action onComplete = null) => StartCoroutine(ActEnumerator.Int(from, to, duration, value, onComplete));
+        public static Coroutine One(float duration, Action<float> value = null, Action onComplete = null) 
+            => Engine.One(duration, value, onComplete);
+        public static Coroutine Int(int from, int to, float duration, Action<int> value = null, Action onComplete = null) 
+            => Engine.Int(from, to, duration, value, onComplete);
 
-        
-        public static void Delta(float duration, Action<float> delta = null, Action onComplete = null) => StartCoroutine(ActEnumerator.Delta(duration, delta, onComplete));
+        public static Coroutine Delta(float duration, Action<float> delta = null, Action onComplete = null) 
+            => Engine.Delta(duration, delta, onComplete);
 
-        public static void Float(float from, float to, float duration, Action<float> value = null, Action onComplete = null) => 
-            StartCoroutine(ActEnumerator.Float(from, to, duration, value, onComplete));
-        public static void Float(float from, float to, float duration, Func<float, float, float, FloatEase> ease, Action<float> value = null, Action onComplete = null) =>
-            StartCoroutine(ActEnumerator.Float(from, to, duration, ease, value, onComplete));
+        public static Coroutine Float(float from, float to, float duration, Action<float> value = null, Action onComplete = null) 
+            => Engine.Float(from, to, duration, value, onComplete);
+        public static Coroutine Float(float from, float to, float duration, Func<float, float, float, FloatEase> ease, Action<float> value = null, Action onComplete = null) 
+            => Engine.Float(from, to, duration, ease, value, onComplete);
         
-        public static void Period(float from, float to, float duration, float callbackPeriod, Action<float> value = null, Action callback = null, Action onComplete = null) =>
-            StartCoroutine(ActEnumerator.Period(from, to, duration, callbackPeriod, value, callback, onComplete));
+        public static Coroutine Period(float from, float to, float duration, float callbackPeriod, Action<float> value = null, Action callback = null, Action onComplete = null) 
+            => Engine.Period(from, to, duration, callbackPeriod, value, callback, onComplete);
         
-        public static void Timer(float duration, Action<float> value = null, Action onComplete = null) =>
-            StartCoroutine(ActEnumerator.Timer(duration, value, onComplete));
+        public static Coroutine Timer(float duration, Action<float> value = null, Action onComplete = null) 
+            => Engine.Timer(duration, value, onComplete);
         
-        public static void DeltaValue(float value, float duration, Action<float> deltaOfValue = null, Action onComplete = null) =>
-            StartCoroutine(ActEnumerator.DeltaValue(value, duration, deltaOfValue, onComplete));
+        public static Coroutine DeltaValue(float value, float duration, Action<float> deltaOfValue = null, Action onComplete = null)
+            => Engine.DeltaValue(value, duration, deltaOfValue, onComplete);
         
         /// <summary>
         /// If time less than 0 - wait 0 seconds. If time equals 0 - wait 1 frame. If time greater than 0 - wait in seconds.
         /// </summary>
         /// <param name="time">in seconds.</param>
         /// <param name="callback">callback on timeout.</param>
-        public static void DelayedCall(float time, Action callback) => StartCoroutine(ActEnumerator.WaitSeconds(time, callback));
+        public static Coroutine DelayedCall(float time, Action callback) 
+            => Engine.DelayedCall(time, callback);
 
-        public static Coroutine WaitWhile(Func<bool> wait, Action callback) => StartCoroutine(ActEnumerator.WaitWhile(wait, callback));
-        public static Coroutine WaitUntil(Func<bool> wait, Action callback) => StartCoroutine(ActEnumerator.WaitUntil(wait, callback));
-        
-        
-        
+        public static Coroutine WaitWhile(Func<bool> wait, Action callback) 
+            => Engine.WaitWhile(wait, callback);
+        public static Coroutine WaitUntil(Func<bool> wait, Action callback) 
+            => Engine.WaitUntil(wait, callback);
     }
 }
