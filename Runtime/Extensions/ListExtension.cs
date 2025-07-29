@@ -71,14 +71,28 @@ namespace DataKeeper.Extensions
             return new List<T>(list);
         }
 
-        public static void Shuffle<T>(this List<T> list)
+        public static List<T> Shuffle<T>(this List<T> list)
         {
-            int n = list.Count;
-            while (n > 1)
+            PerformShuffle(list);
+            return list;
+        }
+
+        public static List<T> ShuffleNew<T>(this List<T> list)
+        {
+            var newList = new List<T>(list);
+            PerformShuffle(newList);
+            return newList;
+        }
+
+        private static void PerformShuffle<T>(List<T> list)
+        {
+            if (list.Count <= 1) return;
+    
+            // Fisher-Yates shuffle algorithm - iterate backwards from last element
+            for (int currentIndex = list.Count - 1; currentIndex > 0; currentIndex--)
             {
-                n--;
-                int k = _systemRandom.Next(n + 1);
-                (list[k], list[n]) = (list[n], list[k]);
+                int randomIndex = _systemRandom.Next(currentIndex + 1);
+                list.Swap(currentIndex, randomIndex);
             }
         }
 
@@ -98,6 +112,60 @@ namespace DataKeeper.Extensions
         public static int IndexOf<T>(this List<T> list, Predicate<T> match)
         {
             return list.FindIndex(match);
+        }
+
+        /// <summary>
+        /// Returns the next index in a circular manner within the list.
+        /// </summary>
+        /// <param name="list">The list on which the operation is performed.</param>
+        /// <param name="index">The current index from which the next index is calculated.</param>
+        /// <typeparam name="T">The type of elements contained in the list.</typeparam>
+        /// <returns>The next index in the list. Returns -1 if the list is empty.</returns>
+        public static int NextIndex<T>(this List<T> list, int index)
+        {
+            if (list.Count == 0) return -1;
+            return (index + 1) % list.Count;
+        }
+
+        /// <summary>
+        /// Returns the previous index in a circular manner within the list.
+        /// </summary>
+        /// <param name="list">The list on which the operation is performed.</param>
+        /// <param name="index">The current index from which the previous index is calculated.</param>
+        /// <typeparam name="T">The type of elements contained in the list.</typeparam>
+        /// <returns>The previous index in the list. Returns -1 if the list is empty.</returns>
+        public static int PreviousIndex<T>(this List<T> list, int index)
+        {
+            if (list.Count == 0) return -1;
+            return (index + list.Count - 1) % list.Count;
+        }
+
+        /// <summary>
+        /// Retrieves the next element in the list relative to a given value, in a circular manner.
+        /// </summary>
+        /// <param name="list">The list to operate on.</param>
+        /// <param name="value">The current value for which the next value is being determined.</param>
+        /// <typeparam name="T">The type of elements contained in the list.</typeparam>
+        /// <returns>The next element in the list after the specified value, or default if the list is empty or if the value is not found.</returns>
+        public static T Next<T>(this List<T> list, T value)
+        {
+            var index = list.IndexOf(value);
+            var nextIndex = list.NextIndex(index);
+            return list.Get(nextIndex);
+        }
+
+        /// <summary>
+        /// Retrieves the previous element in the list relative to a given value, in a circular manner.
+        /// </summary>
+        /// <param name="list">The list on which the operation is performed.</param>
+        /// <param name="value">The value whose previous element is to be found.</param>
+        /// <typeparam name="T">The type of elements contained in the list.</typeparam>
+        /// <returns>The previous element in the list. Returns the default value for the type if the value is not found or the list is empty.</returns>
+        public static T Previous<T>(this List<T> list, T value)
+        {
+            var index = list.IndexOf(value);
+            var previousIndex = list.PreviousIndex(index);
+            return list.Get(previousIndex);
         }
     }
 }

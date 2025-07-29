@@ -1,9 +1,10 @@
+using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
 namespace DataKeeper.ActCore
 {
-    public class ActEngine : Actor
+    public class ActEngine : MonoBehaviour
     {
         public readonly UnityEvent OnApplicationQuitEvent = new UnityEvent();
         public readonly UnityEvent<bool> OnApplicationFocusEvent = new UnityEvent<bool>();
