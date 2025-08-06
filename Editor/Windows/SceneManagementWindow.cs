@@ -88,7 +88,13 @@ namespace DataKeeper.Editor.Windows
 
                     // Action buttons
                     GUI.enabled = !isLoaded;
-                    if (GUILayout.Button(new GUIContent(sceneName, $"Load Scene: {scenePath}"), GUILayout.Height(25)))
+                    
+                    var labelBuilder = new System.Text.StringBuilder();
+                    labelBuilder.Append(sceneName);
+                    if (sceneObject.isDirty) labelBuilder.Append("*");
+                    var label = labelBuilder.ToString();
+                    
+                    if (GUILayout.Button(new GUIContent(label, $"Load Scene: {scenePath}"), GUILayout.Height(25)))
                     {
                         SceneManagement.LoadScene(scenePath);
                     }
@@ -104,18 +110,14 @@ namespace DataKeeper.Editor.Windows
                     {
                         SceneManagement.UnloadScene(scenePath);
                     }
-
-                    var labelBuilder = new System.Text.StringBuilder();
-                    if (sceneObject.isDirty)
-                        labelBuilder.Append("*");
-                    else 
-                        labelBuilder.Append(" ");
                     
-                    if (isLoaded) labelBuilder.Append("Loaded");
-                    var label = labelBuilder.ToString();
-
-                    EditorGUILayout.LabelField(label, GUILayout.Width(55));
-                
+                    GUI.enabled = isLoaded && sceneObject.isDirty;
+                    
+                    if (GUILayout.Button("Save", GUILayout.Width(45), GUILayout.Height(25)))
+                    {
+                        EditorSceneManager.SaveScene(sceneObject);
+                    }
+     
                     GUI.enabled = true;
 
                     EditorGUILayout.EndHorizontal();
