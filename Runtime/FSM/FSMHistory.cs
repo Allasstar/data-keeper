@@ -22,30 +22,32 @@ namespace DataKeeper.FSM
     public class FSMHistory<TState> where TState : Enum
     {
         [SerializeField] private int _historySize = 10;
-        private Queue<TransitionRecordHistory> stateHistory;
+        private Queue<TransitionRecordHistory> _stateHistory;
 
         public FSMHistory()
         {
-            stateHistory = new Queue<TransitionRecordHistory>();
+            _stateHistory = new Queue<TransitionRecordHistory>();
         }
 
         public void RecordTransition(TState fromState, TState toState)
         {
-            stateHistory.Enqueue(new TransitionRecordHistory(fromState.ToString(), toState.ToString()));
-            if (stateHistory.Count > _historySize)
+            _stateHistory.Enqueue(new TransitionRecordHistory(fromState.ToString(), toState.ToString()));
+            if (_stateHistory.Count > _historySize)
             {
-                stateHistory.Dequeue();
+                _stateHistory.Dequeue();
             }
         }
 
+        public Queue<TransitionRecordHistory> GetQueueHistory() => _stateHistory;
+
         public TransitionRecordHistory[] GetHistory()
         {
-            return stateHistory.ToArray();
+            return _stateHistory.ToArray();
         }
 
         public void Clear()
         {
-            stateHistory.Clear();
+            _stateHistory.Clear();
         }
     }
 }
