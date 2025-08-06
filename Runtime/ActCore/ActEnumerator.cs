@@ -1,11 +1,32 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace DataKeeper.ActCore
 {
     public static class ActEnumerator
     {
+        public static Dictionary<float, WaitForSeconds> WaitForSeconds { get; private set; } = new Dictionary<float, WaitForSeconds>();
+        
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        private static void Reset()
+        {
+            WaitForSeconds = new Dictionary<float, WaitForSeconds>();
+        }
+
+        public static WaitForSeconds GetWaitForSeconds(float time)
+        {
+            if (WaitForSeconds.TryGetValue(time, out var wait))
+            {
+                return wait;
+            }
+         
+            wait = new WaitForSeconds(time);
+            WaitForSeconds.Add(time, wait);
+            return wait;
+        }
+        
         public static IEnumerator WaitUntil(Func<bool> wait, Action callback)
         {
             yield return new WaitUntil(wait);
@@ -20,7 +41,7 @@ namespace DataKeeper.ActCore
     
         public static IEnumerator OneSecondUpdate(Action callback)
         {
-            var wait = new WaitForSeconds(1);
+            var wait = GetWaitForSeconds(1);
             
             while (true)
             {
@@ -31,13 +52,13 @@ namespace DataKeeper.ActCore
     
         public static IEnumerator WaitSeconds(float time, Action callback)
         {
-            if (time == 0)
+            if (time <= 0)
             {
                 yield return null;
             }
             else if (time > 0)
             {
-                yield return new WaitForSeconds(time);
+                yield return GetWaitForSeconds(time);
             }
             callback?.Invoke();
         }
@@ -49,7 +70,7 @@ namespace DataKeeper.ActCore
             
             while (time <= duration)
             {
-                yield return new WaitForEndOfFrame();
+                yield return null;
                 time += Time.deltaTime;
                 
                 value?.Invoke(Lerp.Int(from, to, time / duration));
