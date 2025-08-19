@@ -1,0 +1,170 @@
+using System.Collections.Generic;
+using DataKeeper.Attributes;
+using UnityEditor;
+using UnityEngine;
+
+namespace DataKeeper.DynamicScene
+{
+    [AddComponentMenu("DataKeeper/Addressable/Sub Scene")]
+    public class SubScene : MonoBehaviour
+    {
+#if UNITY_EDITOR
+        
+        [SerializeField, TextArea(3, 10), Header("Helps to preview addressable prefabs")] private string _description;
+        
+        private List<GameObject> instantiatedPrefabs = new List<GameObject>();
+
+        [Button("Open Addressable Converter Tool")]
+        private void OpenAddressableConverterTool()
+        {
+            AddressableConverterTool.ShowWindow();
+        }
+    
+        [Button("Instantiate Addressable Prefabs")]
+        private void FindAndInstantiatePrefabs()
+        {
+            if (Application.isPlaying) return;
+            
+            // Clear any existing references to destroyed objects
+            instantiatedPrefabs.RemoveAll(obj => obj == null);
+        
+            // Find all AddressableLoader components in children
+            AddressableLoader[] lodManagers = GetComponentsInChildren<AddressableLoader>();
+        
+            if (lodManagers.Length == 0)
+            {
+                Debug.LogWarning("No AddressableLoader components found in children!");
+                return;
+            }
+        
+            Debug.Log($"Found {lodManagers.Length} AddressableLoader components. Starting instantiation...");
+        
+            foreach (AddressableLoader lodManager in lodManagers)
+            {
+                if (lodManager.addressableAsset != null)
+                {
+                    InstantiatePrefabForManager(lodManager);
+                }
+                else
+                {
+                    Debug.LogWarning($"AddressableLoader on {lodManager.name} has no addressable asset assigned!");
+                }
+            }
+        
+            Debug.Log($"Instantiation complete. Created {instantiatedPrefabs.Count} preview objects.");
+        }
+    
+        private void InstantiatePrefabForManager(AddressableLoader lodManager)
+        {
+            // Load the addressable asset synchronously for editor use
+            var loadHandle = lodManager.addressableAsset.LoadAssetAsync<GameObject>();
+            var prefab = loadHandle.WaitForCompletion();
+        
+            if (prefab != null)
+            {
+                // Instantiate as child of the AddressableLoader
+                GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+                instance.transform.SetParent(lodManager.transform);
+                instance.transform.localPosition = Vector3.zero;
+                instance.transform.localRotation = Quaternion.identity;
+            
+                // Add a tag to identify this as an editor preview
+                instance.name = $"[EDITOR_PREVIEW] {prefab.name}";
+            
+                // Keep track of instantiated objects
+                instantiatedPrefabs.Add(instance);
+            
+                Debug.Log($"Instantiated preview of {prefab.name} for {lodManager.name}");
+            }
+            else
+            {
+                Debug.LogError($"Failed to load addressable asset for {lodManager.name}");
+            }
+        
+            // Release the handle
+            if (loadHandle.IsValid())
+            {
+                UnityEngine.AddressableAssets.Addressables.Release(loadHandle);
+            }
+        }
+    
+        [Button("Remove Prefab Instances")]
+        private void RemovePrefabInstances()
+        {
+            if (Application.isPlaying) return;
+            
+            if (instantiatedPrefabs.Count == 0)
+            {
+                Debug.Log("No instantiated prefabs to remove.");
+                return;
+            }
+        
+            int removedCount = 0;
+        
+            // Remove all tracked instances
+            for (int i = instantiatedPrefabs.Count - 1; i >= 0; i--)
+            {
+                if (instantiatedPrefabs[i] != null)
+                {
+                    Debug.Log($"Removing preview object: {instantiatedPrefabs[i].name}");
+                    DestroyImmediate(instantiatedPrefabs[i]);
+                    removedCount++;
+                }
+                instantiatedPrefabs.RemoveAt(i);
+            }
+        
+            // Also find and remove any objects with the editor preview name pattern
+            // This handles cases where the tracking list might be out of sync
+            AddressableLoader[] lodManagers = GetComponentsInChildren<AddressableLoader>();
+            foreach (AddressableLoader lodManager in lodManagers)
+            {
+                Transform[] children = lodManager.GetComponentsInChildren<Transform>();
+                foreach (Transform child in children)
+                {
+                    if (child != lodManager.transform && child.name.StartsWith("[EDITOR_PREVIEW]"))
+                    {
+                        Debug.Log($"Removing orphaned preview object: {child.name}");
+                        DestroyImmediate(child.gameObject);
+                        removedCount++;
+                    }
+                }
+            }
+        
+            Debug.Log($"Removed {removedCount} preview objects.");
+        }
+    
+        // Clean up on destroy
+        private void OnDestroy()
+        {
+            RemovePrefabInstances();
+        }
+    
+        // Validation method to show info in inspector
+        private void OnValidate()
+        {
+            if (Application.isPlaying) return;
+        
+            // Count current preview objects
+            int previewCount = 0;
+            AddressableLoader[] lodManagers = GetComponentsInChildren<AddressableLoader>();
+            foreach (AddressableLoader lodManager in lodManagers)
+            {
+                Transform[] children = lodManager.GetComponentsInChildren<Transform>();
+                foreach (Transform child in children)
+                {
+                    if (child != lodManager.transform && child.name.StartsWith("[EDITOR_PREVIEW]"))
+                    {
+                        previewCount++;
+                    }
+                }
+            }
+        
+            if (previewCount != instantiatedPrefabs.Count)
+            {
+                // Sync the tracking list
+                instantiatedPrefabs.RemoveAll(obj => obj == null);
+            }
+        }
+#endif
+    }
+}

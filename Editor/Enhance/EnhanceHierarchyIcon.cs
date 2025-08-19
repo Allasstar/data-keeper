@@ -130,6 +130,8 @@ namespace DataKeeper.Editor.Enhance
                 priorityComponents.Add(typeof(UnityEngine.UI.VerticalLayoutGroup));
                 priorityComponents.Add(typeof(UnityEngine.UI.HorizontalOrVerticalLayoutGroup));
                 priorityComponents.Add(typeof(DataKeeper.UI.SafeAreaUI));
+                priorityComponents.Add(typeof(DataKeeper.DynamicScene.AddressableLoader));
+                priorityComponents.Add(typeof(DataKeeper.DynamicScene.SubScene));
                 priorityComponents.Add(typeof(UnityEngine.UI.Image));
                 priorityComponents.Add(typeof(TextMeshProUGUI));
                 priorityComponents.Add(typeof(TMP_InputField));
