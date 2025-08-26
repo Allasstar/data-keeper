@@ -12,6 +12,8 @@ namespace DataKeeper.DynamicScene
 {
     public class AddressableConverterTool : EditorWindow
     {
+        private const string LOADER_PREFIX = "[LOADER] ";
+        
         private GameObject selectedObject;
         private string addressableKey = "";
         private string groupName = "SubScene Objects";
@@ -567,7 +569,7 @@ namespace DataKeeper.DynamicScene
             SetupAddressable(prefab, key, groupName);
         
             // Create empty GameObject with Loader
-            GameObject lodManager = new GameObject($"LOADER_{targetObject.name}");
+            GameObject lodManager = new GameObject($"{LOADER_PREFIX}{targetObject.name}");
             lodManager.transform.position = targetObject.transform.position;
             lodManager.transform.rotation = targetObject.transform.rotation;
             lodManager.transform.SetParent(targetObject.transform.parent);
