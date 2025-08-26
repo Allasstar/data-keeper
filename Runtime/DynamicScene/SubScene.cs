@@ -51,6 +51,9 @@ namespace DataKeeper.DynamicScene
                 }
             }
         
+            // Mark the scene as dirty to indicate unsaved changes
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            
             Debug.Log($"Instantiation complete. Created {instantiatedPrefabs.Count} preview objects.");
         }
     
@@ -130,6 +133,12 @@ namespace DataKeeper.DynamicScene
                 }
             }
         
+            // Mark the scene as dirty to indicate unsaved changes
+            if (removedCount > 0)
+            {
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            }
+            
             Debug.Log($"Removed {removedCount} preview objects.");
         }
     
