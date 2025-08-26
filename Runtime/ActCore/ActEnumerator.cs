@@ -62,6 +62,23 @@ namespace DataKeeper.ActCore
             }
             callback?.Invoke();
         }
+
+        public static IEnumerator One(float duration, Action<float> value, Action onComplete)
+        {
+            var time = 0f;
+            value?.Invoke(0f);
+            
+            while (time <= duration)
+            {
+                yield return null;
+                time += Time.deltaTime;
+                
+                value?.Invoke(Mathf.Clamp01(time / duration));
+            }
+            
+            value?.Invoke(1f);
+            onComplete?.Invoke();
+        }
     
         public static IEnumerator Int(int from, int to, float duration, Action<int> value, Action onComplete)
         {

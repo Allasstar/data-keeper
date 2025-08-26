@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using DataKeeper.Extensions;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -57,6 +56,12 @@ namespace DataKeeper.ActCore
             if (!IsEngineExist()) return;
             Engine.TryStopCoroutine(coroutine);
         }
+        
+        public static void StopAllCoroutine()
+        {
+            if (!IsEngineExist()) return;
+            Engine.StopAllCoroutines();
+        }
 
         public static bool IsEngineExist()
         {
@@ -100,5 +105,14 @@ namespace DataKeeper.ActCore
             => Engine.WaitWhile(wait, callback);
         public static Coroutine WaitUntil(Func<bool> wait, Action callback) 
             => Engine.WaitUntil(wait, callback);
+
+        // New Chain methods
+        /// <summary>
+        /// Start a new ActChain with the default engine
+        /// </summary>
+        public static ActChain StartActChain()
+        {
+            return ActChain.Create(Engine);
+        }
     }
 }

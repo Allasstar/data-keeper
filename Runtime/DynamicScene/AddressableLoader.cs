@@ -13,6 +13,7 @@ namespace DataKeeper.DynamicScene
         public AssetReferenceGameObject addressableAsset;
     
         [Header("Settings")]
+        public bool debugLog = false;
         public float loadDistance = 1000f;
         public float unloadDistance = 1200f; // Slightly larger to prevent flickering
         public float checkInterval = 1f; // How often to check distances
@@ -102,8 +103,11 @@ namespace DataKeeper.DynamicScene
         private void LoadAddressable()
         {
             if (isLoaded || addressableAsset == null) return;
-        
-            Debug.Log($"Loading addressable at {transform.name}");
+
+            if (debugLog)
+            {
+                Debug.Log($"Loading addressable at {transform.name}");
+            }
         
             if (useObjectPooling && pooledInstances.Count > 0)
             {
@@ -135,7 +139,10 @@ namespace DataKeeper.DynamicScene
                 }
             
                 isLoaded = true;
-                Debug.Log($"Addressable loaded successfully with {loadedInstances.Count} instances");
+                if (debugLog)
+                {
+                    Debug.Log($"Addressable loaded successfully with {loadedInstances.Count} instances");
+                }
             }
             else
             {
@@ -146,8 +153,10 @@ namespace DataKeeper.DynamicScene
         private void UnloadAddressable()
         {
             if (!isLoaded) return;
-        
-            Debug.Log($"Unloading addressable at {transform.name}");
+            if (debugLog)
+            {
+                Debug.Log($"Unloading addressable at {transform.name}");
+            }
         
             if (useObjectPooling)
             {

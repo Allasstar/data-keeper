@@ -1,10 +1,9 @@
 using System;
-using DataKeeper.ActCore;
 using UnityEngine;
 
-namespace DataKeeper.Extensions
+namespace DataKeeper.ActCore
 {
-    public static class MonoBehaviourExtension
+    public static class ActExtension
     {
         public static bool TryStopCoroutine(this MonoBehaviour monoBehaviour, Coroutine routine)
         {
@@ -17,7 +16,7 @@ namespace DataKeeper.Extensions
             => monoBehaviour.StartCoroutine(ActEnumerator.OneSecondUpdate(callback));
 
         public static Coroutine One(this MonoBehaviour monoBehaviour, float duration, Action<float> value = null, Action onComplete = null) 
-            => monoBehaviour.StartCoroutine(ActEnumerator.Float(0f, 1f, duration, value, onComplete));
+            => monoBehaviour.StartCoroutine(ActEnumerator.One(duration, value, onComplete));
         
         public static Coroutine Int(this MonoBehaviour monoBehaviour, int from, int to, float duration, Action<int> value = null, Action onComplete = null) 
             => monoBehaviour.StartCoroutine(ActEnumerator.Int(from, to, duration, value, onComplete));
@@ -54,5 +53,13 @@ namespace DataKeeper.Extensions
         
         public static Coroutine WaitUntil(this MonoBehaviour monoBehaviour, Func<bool> wait, Action callback) 
             => monoBehaviour.StartCoroutine(ActEnumerator.WaitUntil(wait, callback));
+
+        /// <summary>
+        /// Start a new ActChain with this MonoBehaviour as the executor
+        /// </summary>
+        public static ActChain StartActChain(this MonoBehaviour monoBehaviour)
+        {
+            return ActChain.Create(monoBehaviour);
+        }
     }
 }
