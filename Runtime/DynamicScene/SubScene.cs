@@ -14,13 +14,13 @@ namespace DataKeeper.DynamicScene
         
         private List<GameObject> instantiatedPrefabs = new List<GameObject>();
 
-        [Button("Open Addressable Converter Tool")]
+        [Button("Open Addressable Converter Tool", 10, ButtonEnabledState.InEditMode)]
         private void OpenAddressableConverterTool()
         {
             AddressableConverterTool.ShowWindow();
         }
     
-        [Button("Instantiate Addressable Prefabs")]
+        [Button("Instantiate Prefabs", 20, ButtonEnabledState.InEditMode)]
         private void FindAndInstantiatePrefabs()
         {
             if (Application.isPlaying) return;
@@ -88,7 +88,7 @@ namespace DataKeeper.DynamicScene
             }
         }
     
-        [Button("Remove Prefab Instances")]
+        [Button("Remove Prefabs", 2, ButtonEnabledState.InEditMode)]
         private void RemovePrefabInstances()
         {
             if (Application.isPlaying) return;

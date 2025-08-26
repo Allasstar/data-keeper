@@ -7,11 +7,20 @@ namespace DataKeeper.Attributes
     {
         public string ButtonLabel { get; }
         public float Space { get; }
+        public ButtonEnabledState ButtonEnabledState { get; }
 
-        public ButtonAttribute(string buttonLabel = null, float space = 0f)
+        public ButtonAttribute(string buttonLabel = null, float space = 0f, ButtonEnabledState buttonEnabledState = ButtonEnabledState.Always)
         {
             ButtonLabel = buttonLabel;
             Space = space;
+            ButtonEnabledState = buttonEnabledState;
         }
+    }
+    
+    public enum ButtonEnabledState
+    {
+        Always = 0,
+        InEditMode = 1,
+        InPlayMode = 2,
     }
 }

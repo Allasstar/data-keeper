@@ -1,8 +1,10 @@
+using System;
 using System.Reflection;
 using DataKeeper.Attributes;
 using DataKeeper.Generic;
 using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace DataKeeper.Editor
 {
@@ -21,9 +23,20 @@ namespace DataKeeper.Editor
                     string buttonLabel = buttonAttribute.ButtonLabel ?? ObjectNames.NicifyVariableName(method.Name);
 
                     EditorGUILayout.Space(buttonAttribute.Space);
-                    if (GUILayout.Button(buttonLabel))
+                    bool isEnabled = buttonAttribute.ButtonEnabledState switch
                     {
-                        method.Invoke(target, null);
+                        ButtonEnabledState.Always => true,
+                        ButtonEnabledState.InEditMode => !Application.isPlaying,
+                        ButtonEnabledState.InPlayMode => Application.isPlaying,
+                        _ => true
+                    };
+
+                    using (new EditorGUI.DisabledGroupScope(!isEnabled))
+                    {
+                        if (GUILayout.Button(buttonLabel))
+                        {
+                            method.Invoke(target, null);
+                        }
                     }
                 }
             }
