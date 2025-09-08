@@ -12,7 +12,7 @@ namespace DataKeeper.DynamicScene
         
         [SerializeField, TextArea(3, 10), Header("Helps to preview addressable prefabs")] private string _description;
         
-        private List<GameObject> instantiatedPrefabs = new List<GameObject>();
+        [SerializeField, ReadOnlyInspector] private List<GameObject> instantiatedPrefabs = new List<GameObject>();
 
         [Button("Open Addressable Converter Tool", 10, ButtonEnabledState.InEditMode)]
         private void OpenAddressableConverterTool()
