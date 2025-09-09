@@ -33,6 +33,12 @@ namespace DataKeeper.UIToolkit
             element.style.backgroundColor = color;
             return element;
         }
+        
+        public static T SetBackgroundColor<T>(this T element, StyleColor color) where T : VisualElement
+        {
+            element.style.backgroundColor = color;
+            return element;
+        }
                 
         public static T SetBackgroundImage<T>(this T element, Sprite sprite) where T : VisualElement
         {
@@ -43,6 +49,12 @@ namespace DataKeeper.UIToolkit
         public static T SetBackgroundImage<T>(this T element, VectorImage vectorImage) where T : VisualElement
         {
             element.style.backgroundImage = new StyleBackground(vectorImage);
+            return element;
+        }
+        
+        public static T SetBackgroundImage<T>(this T element, StyleBackground styleBackground) where T : VisualElement
+        {
+            element.style.backgroundImage = styleBackground;
             return element;
         }
 
@@ -65,16 +77,17 @@ namespace DataKeeper.UIToolkit
             element.style.paddingTop = allSides;
             element.style.paddingRight = allSides;
             element.style.paddingBottom = allSides;
+            
             return element;
         }
 
-        public static T SetPadding<T>(this T element, float left, float top, float right, float bottom)
-            where T : VisualElement
+        public static T SetPadding<T>(this T element, float? left, float? top, float? right, float? bottom) where T : VisualElement
         {
-            element.style.paddingLeft = left;
-            element.style.paddingTop = top;
-            element.style.paddingRight = right;
-            element.style.paddingBottom = bottom;
+            if (left.HasValue) element.style.paddingLeft = left.Value;
+            if (top.HasValue) element.style.paddingTop = top.Value;
+            if (right.HasValue) element.style.paddingRight = right.Value;
+            if (bottom.HasValue) element.style.paddingBottom = bottom.Value;
+            
             return element;
         }
 
@@ -115,16 +128,17 @@ namespace DataKeeper.UIToolkit
             element.style.marginTop = allSides;
             element.style.marginRight = allSides;
             element.style.marginBottom = allSides;
+            
             return element;
         }
 
-        public static T SetMargin<T>(this T element, float left, float top, float right, float bottom)
-            where T : VisualElement
+        public static T SetMargin<T>(this T element, float? left = null, float? top = null, float? right = null, float? bottom = null)  where T : VisualElement
         {
-            element.style.marginLeft = left;
-            element.style.marginTop = top;
-            element.style.marginRight = right;
-            element.style.marginBottom = bottom;
+            if (left.HasValue) element.style.marginLeft = left.Value;
+            if (top.HasValue) element.style.marginTop = top.Value;
+            if (right.HasValue) element.style.marginRight = right.Value;
+            if (bottom.HasValue) element.style.marginBottom = bottom.Value;
+            
             return element;
         }
 
@@ -161,35 +175,35 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetBorderRadius<T>(this T element, float topLeft, float topRight, float bottomRight,
-            float bottomLeft) where T : VisualElement
+        public static T SetBorderRadius<T>(this T element, float? topLeft, float? topRight, float? bottomRight, float? bottomLeft) where T : VisualElement
         {
-            element.style.borderTopLeftRadius = topLeft;
-            element.style.borderTopRightRadius = topRight;
-            element.style.borderBottomRightRadius = bottomRight;
-            element.style.borderBottomLeftRadius = bottomLeft;
+            if (topLeft.HasValue) element.style.borderTopLeftRadius = topLeft.Value;
+            if (topRight.HasValue) element.style.borderTopRightRadius = topRight.Value;
+            if (bottomRight.HasValue) element.style.borderBottomRightRadius = bottomRight.Value;
+            if (bottomLeft.HasValue) element.style.borderBottomLeftRadius = bottomLeft.Value;
+            
             return element;
         }
 
-        public static T SetBorderTopLeftRadius<T>(this T element, float radius) where T : VisualElement
+        public static T SetBorderRadiusTopLeft<T>(this T element, float radius) where T : VisualElement
         {
             element.style.borderTopLeftRadius = radius;
             return element;
         }
 
-        public static T SetBorderTopRightRadius<T>(this T element, float radius) where T : VisualElement
+        public static T SetBorderRadiusTopRight<T>(this T element, float radius) where T : VisualElement
         {
             element.style.borderTopRightRadius = radius;
             return element;
         }
 
-        public static T SetBorderBottomRightRadius<T>(this T element, float radius) where T : VisualElement
+        public static T SetBorderRadiusBottomRight<T>(this T element, float radius) where T : VisualElement
         {
             element.style.borderBottomRightRadius = radius;
             return element;
         }
 
-        public static T SetBorderBottomLeftRadius<T>(this T element, float radius) where T : VisualElement
+        public static T SetBorderRadiusBottomLeft<T>(this T element, float radius) where T : VisualElement
         {
             element.style.borderBottomLeftRadius = radius;
             return element;
@@ -249,15 +263,55 @@ namespace DataKeeper.UIToolkit
             element.style.borderRightWidth = width;
             element.style.borderBottomWidth = width;
             element.style.borderLeftWidth = width;
+            
             element.style.borderTopColor = color;
             element.style.borderRightColor = color;
             element.style.borderBottomColor = color;
             element.style.borderLeftColor = color;
+            
+            return element;
+        }
+        
+        public static T SetBorderWidth<T>(this T element, float width) where T : VisualElement
+        {
+            element.style.borderTopWidth = width;
+            element.style.borderRightWidth = width;
+            element.style.borderBottomWidth = width;
+            element.style.borderLeftWidth = width;
+            return element;
+        }
+        
+        public static T SetBorderWidth<T>(this T element, float? left = null, float? top = null, float? right = null, float? bottom = null) where T : VisualElement
+        {
+            if (left.HasValue) element.style.borderLeftWidth = left.Value;
+            if (top.HasValue) element.style.borderTopWidth = top.Value;
+            if (right.HasValue) element.style.borderRightWidth = right.Value;
+            if (bottom.HasValue) element.style.borderBottomWidth = top.Value;
+            
+            return element;
+        }
+        
+        public static T SetBorderColor<T>(this T element, Color color) where T : VisualElement
+        {
+            element.style.borderLeftColor = color;
+            element.style.borderTopColor = color;
+            element.style.borderRightColor = color;
+            element.style.borderBottomColor = color;
+            
+            return element;
+        }
+        
+        public static T SetBorderColor<T>(this T element, Color? left = null, Color? top = null, Color? right = null, Color? bottom = null) where T : VisualElement
+        {
+            if (left.HasValue) element.style.borderLeftColor = left.Value;
+            if (top.HasValue) element.style.borderTopColor = top.Value;
+            if (right.HasValue) element.style.borderRightColor = right.Value;
+            if (bottom.HasValue) element.style.borderBottomColor = top.Value;
+            
             return element;
         }
 
-        public static T SetPositionAbsolute<T>(this T element, float? left = null, float? top = null,
-            float? right = null, float? bottom = null) where T : VisualElement
+        public static T SetPositionAbsolute<T>(this T element, float? left = null, float? top = null, float? right = null, float? bottom = null) where T : VisualElement
         {
             element.style.position = Position.Absolute;
             if (left.HasValue) element.style.left = left.Value;
