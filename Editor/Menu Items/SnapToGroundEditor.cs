@@ -31,7 +31,7 @@ namespace DataKeeper.Editor.MenuItems
         }
 
         [MenuItem("Tools/Snap/To Ground (Collider) _home", priority = 5)]
-        private static void SnapToGroundCollider()
+        public static void SnapToGroundCollider()
         {
             Undo.SetCurrentGroupName(UNDO_GROUP_NAME);
             foreach (GameObject gameObject in Selection.gameObjects)
@@ -41,7 +41,7 @@ namespace DataKeeper.Editor.MenuItems
         }
 
         [MenuItem("Tools/Snap/To Ground (Mesh) _end", priority = 6)]
-        private static void SnapToGroundMesh()
+        public static void SnapToGroundMesh()
         {
             Undo.SetCurrentGroupName(UNDO_GROUP_NAME);
             foreach (GameObject gameObject in Selection.gameObjects)
@@ -51,7 +51,7 @@ namespace DataKeeper.Editor.MenuItems
         }
 
         [MenuItem("Tools/Snap/To Ground (Transform) _pgdn", priority = 7)]
-        private static void SnapToGroundTransform()
+        public static void SnapToGroundTransform()
         {
             Undo.SetCurrentGroupName(UNDO_GROUP_NAME);
             foreach (GameObject gameObject in Selection.gameObjects)
@@ -81,6 +81,17 @@ namespace DataKeeper.Editor.MenuItems
                     SceneView.lastActiveSceneView.position.height * 0.5f);
             }
 
+            PerformMouseSnap(mousePos);
+        }
+
+        public static void PerformSnapToScreenCenter()
+        {
+            var mousePos = new Vector2(
+                SceneView.lastActiveSceneView.position.width * 0.5f, 
+                SceneView.lastActiveSceneView.position.height * 0.5f);
+            
+            mousePos.y -= 50; // Adjust for GUI space
+            
             PerformMouseSnap(mousePos);
         }
 

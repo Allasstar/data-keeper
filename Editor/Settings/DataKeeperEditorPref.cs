@@ -10,5 +10,8 @@ namespace DataKeeper.Editor.Settings
         
         public static ReactiveEditorPref<PrefabHierarchyIcon> EnhanceHierarchyPrefabIconPref =
             new ReactiveEditorPref<PrefabHierarchyIcon>(PrefabHierarchyIcon.Small, "EnhanceHierarchyPrefabIcon_Enabled");
+        
+        public static ReactiveEditorPref<bool> SnapToolsAlignToGroundPref =
+            new ReactiveEditorPref<bool>(false, "SnapTools_AlignToGround");
     }
 }
