@@ -286,7 +286,7 @@ namespace DataKeeper.UIToolkit
             if (left.HasValue) element.style.borderLeftWidth = left.Value;
             if (top.HasValue) element.style.borderTopWidth = top.Value;
             if (right.HasValue) element.style.borderRightWidth = right.Value;
-            if (bottom.HasValue) element.style.borderBottomWidth = top.Value;
+            if (bottom.HasValue) element.style.borderBottomWidth = bottom.Value;
             
             return element;
         }
@@ -306,7 +306,7 @@ namespace DataKeeper.UIToolkit
             if (left.HasValue) element.style.borderLeftColor = left.Value;
             if (top.HasValue) element.style.borderTopColor = top.Value;
             if (right.HasValue) element.style.borderRightColor = right.Value;
-            if (bottom.HasValue) element.style.borderBottomColor = top.Value;
+            if (bottom.HasValue) element.style.borderBottomColor = bottom.Value;
             
             return element;
         }
@@ -317,7 +317,8 @@ namespace DataKeeper.UIToolkit
             if (left.HasValue) element.style.left = left.Value;
             if (top.HasValue) element.style.top = top.Value;
             if (right.HasValue) element.style.right = right.Value;
-            if (bottom.HasValue) element.style.bottom = top.Value;
+            if (bottom.HasValue) element.style.bottom = bottom.Value;
+            
             return element;
         }
 
@@ -342,6 +343,12 @@ namespace DataKeeper.UIToolkit
         public static T SetFontStyle<T>(this T element, FontStyle fontStyle) where T : VisualElement
         {
             element.style.unityFontStyleAndWeight = fontStyle;
+            return element;
+        }
+        
+        public static T SetTextAlign<T>(this T element, TextAnchor textAnchor) where T : VisualElement
+        {
+            element.style.unityTextAlign = textAnchor;
             return element;
         }
 
