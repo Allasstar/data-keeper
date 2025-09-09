@@ -70,6 +70,7 @@ namespace DataKeeper.Editor.MenuItems
             }
 
             Vector2 mousePos = Event.current?.mousePosition ?? Vector2.zero;
+            mousePos.y -= 50; // Adjust for GUI space
             
             if (mousePos == Vector2.zero && SceneView.lastActiveSceneView != null)
             {
@@ -98,7 +99,7 @@ namespace DataKeeper.Editor.MenuItems
             try
             {
                 RaycastHit hit;
-                if (Physics.Raycast(ray, out hit, RAYCAST_MAX_DISTANCE))
+                if (Physics.Raycast(ray, out hit, RAYCAST_MAX_DISTANCE * 10))
                 {
                     Undo.SetCurrentGroupName(UNDO_GROUP_NAME);
                     
@@ -119,7 +120,6 @@ namespace DataKeeper.Editor.MenuItems
                     }
                     
                     Undo.CollapseUndoOperations(Undo.GetCurrentGroup());
-                    Debug.Log($"Snapped {Selection.gameObjects.Length} object(s) to mouse position: {hit.point}");
                 }
                 else
                 {
