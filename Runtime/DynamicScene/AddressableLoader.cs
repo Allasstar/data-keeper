@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -16,8 +15,8 @@ namespace DataKeeper.DynamicScene
         [Header("Settings")]
         public bool debugLog = false;
         public bool drawGizmo = false;
-        public float loadDistance = 1000f;
-        public float unloadDistance = 1200f; // Slightly larger to prevent flickering
+        public float loadDistance = 1100f;
+        public float unloadDistance = 1150f;
         
         public float checkInterval = 1f; // How often to check distances
         public float checkDelay = 0f; // How often to check distances

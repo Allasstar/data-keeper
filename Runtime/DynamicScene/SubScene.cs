@@ -9,27 +9,27 @@ namespace DataKeeper.DynamicScene
     public class SubScene : MonoBehaviour
     {
         [Header("Settings")]
-        public bool updateFromSubScene = false;
-        public float checkInterval = 1f; // How often to check distances
-        public float checkDelay = 0f; // How often to check distances
+        public bool checkChildren = false;
+        public float checkInterval = 1f;
+        public float checkDelay = 0f;
         public List<Camera> cameraList = new List<Camera>();
 
         [Header("Runtime")]
-        [SerializeField] private AddressableLoader[] _childeren;
+        [SerializeField] private AddressableLoader[] _children;
 
         private void Awake()
         {
-            _childeren = GetComponentsInChildren<AddressableLoader>();
+            _children = GetComponentsInChildren<AddressableLoader>();
             
-            foreach (var child in _childeren)
+            foreach (var child in _children)
             {
-                child.SetUpdateFromSubScene(updateFromSubScene);
+                child.SetUpdateFromSubScene(checkChildren);
             }
         }
         
         private void Start()
         {
-            if(!updateFromSubScene) return;
+            if(!checkChildren) return;
 
             if (cameraList.Count == 0)
             {
@@ -45,7 +45,7 @@ namespace DataKeeper.DynamicScene
                 return;
             }
             
-            foreach (var child in _childeren)
+            foreach (var child in _children)
             {
                 child.cameraList = cameraList;
             }
@@ -53,14 +53,14 @@ namespace DataKeeper.DynamicScene
         
         private void OnEnable()
         {
-            if(!updateFromSubScene) return;
+            if(!checkChildren) return;
             
             InvokeRepeating(nameof(CheckDistance), checkDelay, checkInterval);
         }
 
         private void OnDisable()
         {
-            if(!updateFromSubScene) return;
+            if(!checkChildren) return;
             
             CancelInvoke(nameof(CheckDistance));
         }
@@ -68,7 +68,7 @@ namespace DataKeeper.DynamicScene
         private void CheckDistance()
         {
             Debug.Log("CheckDistance: " + gameObject.name);
-            foreach (var child in _childeren)
+            foreach (var child in _children)
             {
                 child.CheckDistance();
             }
