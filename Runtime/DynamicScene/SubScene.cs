@@ -5,9 +5,75 @@ using UnityEngine;
 
 namespace DataKeeper.DynamicScene
 {
-    [AddComponentMenu("DataKeeper/Addressable/Sub Scene")]
+    [AddComponentMenu("DataKeeper/Addressable/Sub Scene"), DisallowMultipleComponent, DefaultExecutionOrder(5)]
     public class SubScene : MonoBehaviour
     {
+        [Header("Settings")]
+        public bool updateFromSubScene = false;
+        public float checkInterval = 1f; // How often to check distances
+        public float checkDelay = 0f; // How often to check distances
+        public List<Camera> cameraList = new List<Camera>();
+
+        [Header("Runtime")]
+        [SerializeField] private AddressableLoader[] _childeren;
+
+        private void Awake()
+        {
+            _childeren = GetComponentsInChildren<AddressableLoader>();
+            
+            foreach (var child in _childeren)
+            {
+                child.SetUpdateFromSubScene(updateFromSubScene);
+            }
+        }
+        
+        private void Start()
+        {
+            if(!updateFromSubScene) return;
+
+            if (cameraList.Count == 0)
+            {
+                if (Camera.main != null)
+                {
+                    cameraList.Add(Camera.main);
+                }
+            }
+ 
+            if (cameraList.Count == 0)
+            {
+                Debug.LogError("No camera found for SubScene!");
+                return;
+            }
+            
+            foreach (var child in _childeren)
+            {
+                child.cameraList = cameraList;
+            }
+        }
+        
+        private void OnEnable()
+        {
+            if(!updateFromSubScene) return;
+            
+            InvokeRepeating(nameof(CheckDistance), checkDelay, checkInterval);
+        }
+
+        private void OnDisable()
+        {
+            if(!updateFromSubScene) return;
+            
+            CancelInvoke(nameof(CheckDistance));
+        }
+
+        private void CheckDistance()
+        {
+            Debug.Log("CheckDistance: " + gameObject.name);
+            foreach (var child in _childeren)
+            {
+                child.CheckDistance();
+            }
+        }
+
 #if UNITY_EDITOR
         
         [Header("Editor Only"), 
@@ -17,7 +83,7 @@ namespace DataKeeper.DynamicScene
         
         [SerializeField, ReadOnlyInspector] 
         private List<GameObject> instantiatedPrefabs = new List<GameObject>();
-
+        
         [Button("Open Addressable Converter Tool", 10, ButtonEnabledState.InEditMode)]
         private void OpenAddressableConverterTool()
         {

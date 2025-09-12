@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -5,7 +6,7 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace DataKeeper.DynamicScene
 {
-    [AddComponentMenu("DataKeeper/Addressable/Addressable Loader")]
+    [AddComponentMenu("DataKeeper/Addressable/Addressable Loader"), DisallowMultipleComponent, DefaultExecutionOrder(10)]
     [SelectionBase]
     public class AddressableLoader : MonoBehaviour
     {
@@ -14,26 +15,34 @@ namespace DataKeeper.DynamicScene
     
         [Header("Settings")]
         public bool debugLog = false;
+        public bool drawGizmo = false;
         public float loadDistance = 1000f;
         public float unloadDistance = 1200f; // Slightly larger to prevent flickering
+        
         public float checkInterval = 1f; // How often to check distances
         public float checkDelay = 0f; // How often to check distances
+        public List<Camera> cameraList = new List<Camera>();
     
         [Header("Instance Settings")]
         public int maxInstances = 10;
         public bool useObjectPooling = true;
     
-        private Camera mainCamera;
         private List<GameObject> loadedInstances = new List<GameObject>();
         private List<GameObject> pooledInstances = new List<GameObject>();
         private AsyncOperationHandle<GameObject> loadHandle;
         private bool isLoaded = false;
+        private bool updateFromSubScene = false;
+        private float loadDistanceSquared;
+        private float unloadDistanceSquared;
     
         // Static reference for multiple instances support
         private static Dictionary<string, List<AddressableLoader>> allManagers = new Dictionary<string, List<AddressableLoader>>();
     
         private void Awake()
         {
+            loadDistanceSquared = loadDistance * loadDistance;
+            unloadDistanceSquared = unloadDistance * unloadDistance;
+            
             // Register this manager
             string key = addressableAsset != null ? addressableAsset.AssetGUID : transform.position.ToString();
             if (!allManagers.ContainsKey(key))
@@ -45,17 +54,19 @@ namespace DataKeeper.DynamicScene
     
         private void Start()
         {
-            // Find main camera
-            mainCamera = Camera.main;
-            if (mainCamera == null)
+            if(updateFromSubScene) return;
+
+            if (cameraList.Count == 0)
             {
-                mainCamera = FindObjectOfType<Camera>();
+                if (Camera.main != null)
+                {
+                    cameraList.Add(Camera.main);
+                }
             }
-        
-            if (mainCamera == null)
+ 
+            if (cameraList.Count == 0)
             {
                 Debug.LogError("No camera found for AddressableLODManager!");
-                return;
             }
         }
     
@@ -77,24 +88,45 @@ namespace DataKeeper.DynamicScene
 
         private void OnEnable()
         {
+            if(updateFromSubScene) return;
+            
             InvokeRepeating(nameof(CheckDistance), checkDelay, checkInterval);
         }
 
         private void OnDisable()
         {
+            if(updateFromSubScene) return;
+            
             CancelInvoke(nameof(CheckDistance));
         }
 
-        private void CheckDistance()
+        public void CheckDistance()
         {
-            if (mainCamera == null) return;
-            float distance = Vector3.Distance(transform.position, mainCamera.transform.position);
-            
-            if (!isLoaded && distance <= loadDistance)
+            if (cameraList.Count == 0) return;
+    
+            Vector3 position = transform.position;
+            float minDistanceSquared = float.MaxValue;
+    
+            for (int i = 0; i < cameraList.Count; i++)
+            {
+                if (cameraList[i] == null) continue;
+        
+                Vector3 cameraPos = cameraList[i].transform.position;
+                float distanceSquared = (position.x - cameraPos.x) * (position.x - cameraPos.x) +
+                                        (position.y - cameraPos.y) * (position.y - cameraPos.y) +
+                                        (position.z - cameraPos.z) * (position.z - cameraPos.z);
+        
+                if (distanceSquared < minDistanceSquared)
+                {
+                    minDistanceSquared = distanceSquared;
+                }
+            }
+    
+            if (!isLoaded && minDistanceSquared <= loadDistanceSquared)
             {
                 LoadAddressable();
             }
-            else if (isLoaded && distance > unloadDistance)
+            else if (isLoaded && minDistanceSquared > unloadDistanceSquared)
             {
                 UnloadAddressable();
             }
@@ -212,5 +244,27 @@ namespace DataKeeper.DynamicScene
         {
             return loadedInstances.Count;
         }
+
+        public void SetUpdateFromSubScene(bool isUpdateFromSubScene)
+        {
+            updateFromSubScene = isUpdateFromSubScene;
+        }
+
+
+#if UNITY_EDITOR
+        private void OnDrawGizmosSelected()
+        {
+            if (!drawGizmo) return;
+            
+            Gizmos.color = Color.blue;
+            Gizmos.DrawCube(transform.position, Vector3.one);
+            
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(transform.position, loadDistance);
+            
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(transform.position, unloadDistance);
+        }
+#endif
     }
 }

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace DataKeepr.Spatial
+namespace DataKeeper.Spatial
 {
     [Serializable]
     public class Octree<T> where T : Component

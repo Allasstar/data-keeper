@@ -15,6 +15,10 @@ public class ToolsWindow : EditorWindow
     private static Vector3 copiedPosition;
     private static Vector3 copiedRotation;
     private static Vector3 copiedScale = Vector3.one;
+    
+    // Add these fields to your class
+    private Slider timeScaleSlider;
+    private float timeScale = 1f;
 
     [MenuItem("Tools/Windows/Tools", priority = 10)]
     public static void ShowWindow()
@@ -34,15 +38,89 @@ public class ToolsWindow : EditorWindow
             .SetPadding(10)
             .SetFlexGrow(1);
 
-        // Ground Snap Section
         CreateGroundSnapSection(mainContainer);
-
-        // Create Grouping Tools Section
         CreateGroupingToolsSection(mainContainer);
-        
+        CreateTimeScaleSection(mainContainer);
         CreateBuffersSection(mainContainer);
 
         root.Add(mainContainer);
+    }
+
+    private void CreateTimeScaleSection(VisualElement parent)
+    {
+        var section = CreateSection("Time Scale", parent);
+    
+        // Create horizontal container (similar to EditorGUILayout.BeginHorizontal)
+        var timeScaleContainer = new VisualElement()
+            .SetFlexDirection(FlexDirection.Row)
+            .SetJustifyContent(Justify.Center)
+            .SetFlexShrink(1)
+            .SetAlignItems(Align.Center)
+            .SetMarginBottom(5)
+            .SetMarginLeft(30)
+            .SetMarginRight(30);
+
+        // TimeScale slider
+        timeScaleSlider = new Slider(0f, 10f)
+            .SetFlexGrow(1f)
+            .SetMarginRight(5);
+
+        var floatField = new FloatField()
+            .SetWidth(50);
+    
+        floatField.value = timeScale;
+        timeScaleSlider.value = timeScale;
+        
+        floatField.RegisterValueChangedCallback(evt =>
+        {
+            timeScale = evt.newValue;
+            timeScaleSlider.SetValueWithoutNotify(evt.newValue);
+        });
+        
+        timeScaleSlider.RegisterValueChangedCallback(evt =>
+        {
+            timeScale = evt.newValue;
+            floatField.SetValueWithoutNotify(evt.newValue);
+        });
+
+        // Apply button
+        var applyBtn = new Button(() => 
+            {
+                Time.timeScale = timeScale;
+            })
+            .SetText("Apply")
+            .SetWidth(45)
+            .SetMarginRight(2);
+
+        // Reset button
+        var resetBtn = new Button(() => 
+            {
+                timeScale = 1f;
+                Time.timeScale = 1f;
+                timeScaleSlider.value = timeScale;
+            })
+            .SetText("Reset")
+            .SetWidth(45)
+            .SetMarginRight(2);
+
+        // Refresh button
+        var refreshBtn = new Button(() => 
+            {
+                timeScale = Time.timeScale;
+                timeScaleSlider.value = timeScale;
+            })
+            .SetText("Refresh")
+            .SetWidth(55);
+
+        // Add all elements to container
+        timeScaleContainer.Add(timeScaleSlider);
+        timeScaleContainer.Add(floatField);
+
+        section.Add(timeScaleContainer);
+        
+        section.Add(applyBtn);
+        section.Add(resetBtn);
+        section.Add(refreshBtn);
     }
 
     private void CreateBuffersSection(VisualElement parent)
@@ -341,23 +419,26 @@ public class ToolsWindow : EditorWindow
         var sectionContainer = new VisualElement()
             .SetMarginBottom(5);
 
-        var sectionTitle = new Label(title)
+        // Create foldout instead of label
+        var foldout = new Foldout()
             .SetFontSize(12)
             .SetFontStyle(FontStyle.Bold)
-            .SetMarginBottom(5)
-            .SetColor(new Color(0.9f, 0.9f, 0.9f));
-
-        sectionContainer.Add(sectionTitle);
-
-        var separator = new VisualElement()
-            .SetHeight(1)
-            .SetBackgroundColor(new Color(0.3f, 0.3f, 0.3f))
             .SetMarginBottom(5);
 
-        sectionContainer.Add(separator);
+        foldout.text = title;
+        
+        // Style the foldout toggle
+        foldout.Q<Toggle>().SetColor(new Color(0.85f, 0.85f, 0.85f));
+        foldout.value = false;
 
+        // Create content container for section items
+        var contentContainer = new VisualElement();
+        
+        foldout.Add(contentContainer);
+        sectionContainer.Add(foldout);
         parent.Add(sectionContainer);
-        return sectionContainer;
+    
+        return contentContainer; // Return the content container instead of section container
     }
 
     private Button CreateIconButton(string text, string iconName, System.Action onClick)
