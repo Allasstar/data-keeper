@@ -214,6 +214,18 @@ namespace DataKeeper.UIToolkit
             element.style.overflow = overflow;
             return element;
         }
+        
+        public static T SetFlexRow<T>(this T element) where T : VisualElement
+        {
+            element.style.flexDirection = FlexDirection.Row;
+            return element;
+        }
+        
+        public static T SetFlexColumn<T>(this T element) where T : VisualElement
+        {
+            element.style.flexDirection = FlexDirection.Column;
+            return element;
+        }
 
         public static T SetFlexDirection<T>(this T element, FlexDirection direction) where T : VisualElement
         {

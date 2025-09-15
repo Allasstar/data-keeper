@@ -52,18 +52,13 @@ public class ToolsWindow : EditorWindow
     
         // Create horizontal container (similar to EditorGUILayout.BeginHorizontal)
         var timeScaleContainer = new VisualElement()
-            .SetFlexDirection(FlexDirection.Row)
-            .SetJustifyContent(Justify.Center)
-            .SetFlexShrink(1)
-            .SetAlignItems(Align.Center)
-            .SetMarginBottom(5)
-            .SetMarginLeft(30)
-            .SetMarginRight(30);
+            .SetFlexRow()
+            .SetFlexGrow(1)
+            .SetMarginBottom(5);
 
         // TimeScale slider
         timeScaleSlider = new Slider(0f, 10f)
-            .SetFlexGrow(1f)
-            .SetMarginRight(5);
+            .SetFlexGrow(1f);
 
         var floatField = new FloatField()
             .SetWidth(50);
@@ -83,14 +78,17 @@ public class ToolsWindow : EditorWindow
             floatField.SetValueWithoutNotify(evt.newValue);
         });
 
+        var buttonContainer = new VisualElement()
+            .SetFlexRow();
+
         // Apply button
         var applyBtn = new Button(() => 
             {
                 Time.timeScale = timeScale;
             })
             .SetText("Apply")
-            .SetWidth(45)
-            .SetMarginRight(2);
+            .SetMarginRight(2)
+            .SetChildOf(buttonContainer);
 
         // Reset button
         var resetBtn = new Button(() => 
@@ -100,8 +98,8 @@ public class ToolsWindow : EditorWindow
                 timeScaleSlider.value = timeScale;
             })
             .SetText("Reset")
-            .SetWidth(45)
-            .SetMarginRight(2);
+            .SetMarginRight(2)
+            .SetChildOf(buttonContainer);
 
         // Refresh button
         var refreshBtn = new Button(() => 
@@ -110,17 +108,14 @@ public class ToolsWindow : EditorWindow
                 timeScaleSlider.value = timeScale;
             })
             .SetText("Refresh")
-            .SetWidth(55);
+            .SetChildOf(buttonContainer);
 
         // Add all elements to container
         timeScaleContainer.Add(timeScaleSlider);
         timeScaleContainer.Add(floatField);
 
         section.Add(timeScaleContainer);
-        
-        section.Add(applyBtn);
-        section.Add(resetBtn);
-        section.Add(refreshBtn);
+        section.Add(buttonContainer);
     }
 
     private void CreateBuffersSection(VisualElement parent)
@@ -208,22 +203,28 @@ public class ToolsWindow : EditorWindow
         groupBtn.tooltip = "Create new GameObject at center of selected objects and parent them to it";
         section.Add(groupBtn);
 
-        cellSizeField = new FloatField()
-            .SetPositionAbsolute(right: -5)
-            .SetHeight(35)
-            .SetWidth(35);
-
-        cellSizeField.value = 20;
+        var btnContainer = new VisualElement()
+            .SetFlexRow()
+            .SetFlexGrow(1);
 
         // Split by Cell Button
         var splitBtn = CreateIconButton(
             "Split Children by Cell",
             "d_Grid Icon",
-            SplitChildrenByCell);
+            SplitChildrenByCell)
+            .SetFlexGrow(1)
+            .SetChildOf(btnContainer);
+        
+        cellSizeField = new FloatField()
+            .SetWidth(50)
+            .SetHeight(18)
+            .SetMarginTop(5)
+            .SetChildOf(btnContainer);
+
+        cellSizeField.value = 20;
 
         splitBtn.tooltip = "Split child objects into groups based on cell size";
-        section.Add(splitBtn);
-        splitBtn.Add(cellSizeField);
+        section.Add(btnContainer);
         
         // Create Empty at Position Button
         var createEmptyBtn = CreateIconButton(
@@ -261,6 +262,7 @@ public class ToolsWindow : EditorWindow
         // Create parent object
         var parent = new GameObject("Group_" + System.DateTime.Now.ToString("HHmmss"));
         parent.transform.position = center;
+        parent.transform.parent = selected[0].transform.parent;
 
         Undo.RegisterCreatedObjectUndo(parent, "Create Group Parent");
 
