@@ -17,7 +17,9 @@ namespace DataKeeper.DynamicScene
         // Track currently loading addressables to prevent double loads
         private static HashSet<string> currentlyLoading = new HashSet<string>();
         
-        // Events
+        /// <summary>
+        /// Auto unsubscribe on invoke.
+        /// </summary>
         public static event Action OnAllCurrentLoaded;
         
         private class AddressableData
