@@ -1,11 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
-using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace DataKeeper.DynamicScene
 {
-    [AddComponentMenu("DataKeeper/Addressable/Addressable Loader"), DisallowMultipleComponent, DefaultExecutionOrder(10)]
+    [AddComponentMenu("DataKeeper/Addressable/Addressable Loader"), DisallowMultipleComponent, DefaultExecutionOrder(-10)]
     [SelectionBase]
     public class AddressableLoader : MonoBehaviour
     {
@@ -15,40 +14,26 @@ namespace DataKeeper.DynamicScene
         [Header("Settings")]
         public bool debugLog = false;
         public bool drawGizmo = false;
+        public bool useObjectPooling = true;
         public float loadDistance = 1100f;
         public float unloadDistance = 1150f;
         
-        public float checkInterval = 1f; // How often to check distances
-        public float checkDelay = 0f; // How often to check distances
+        public float checkInterval = 1f;
+        public float checkDelay = 0f;
         public List<Camera> cameraList = new List<Camera>();
     
-        [Header("Instance Settings")]
-        public int maxInstances = 10;
-        public bool useObjectPooling = true;
-    
-        private List<GameObject> loadedInstances = new List<GameObject>();
-        private List<GameObject> pooledInstances = new List<GameObject>();
-        private AsyncOperationHandle<GameObject> loadHandle;
+        private GameObject loadedInstance;
         private bool isLoaded = false;
         private bool updateFromSubScene = false;
         private float loadDistanceSquared;
         private float unloadDistanceSquared;
-    
-        // Static reference for multiple instances support
-        private static Dictionary<string, List<AddressableLoader>> allManagers = new Dictionary<string, List<AddressableLoader>>();
-    
+
         private void Awake()
         {
             loadDistanceSquared = loadDistance * loadDistance;
             unloadDistanceSquared = unloadDistance * unloadDistance;
             
-            // Register this manager
-            string key = addressableAsset != null ? addressableAsset.AssetGUID : transform.position.ToString();
-            if (!allManagers.ContainsKey(key))
-            {
-                allManagers[key] = new List<AddressableLoader>();
-            }
-            allManagers[key].Add(this);
+            SubSceneManager.RegisterLoader(this);
         }
     
         private void Start()
@@ -65,24 +50,13 @@ namespace DataKeeper.DynamicScene
  
             if (cameraList.Count == 0)
             {
-                Debug.LogError("No camera found for AddressableLODManager!");
+                Debug.LogError("No camera found for AddressableLoader!");
             }
         }
     
         private void OnDestroy()
         {
-            // Unregister this manager
-            string key = addressableAsset != null ? addressableAsset.AssetGUID : transform.position.ToString();
-            if (allManagers.ContainsKey(key))
-            {
-                allManagers[key].Remove(this);
-                if (allManagers[key].Count == 0)
-                {
-                    allManagers.Remove(key);
-                }
-            }
-        
-            UnloadAddressable();
+            SubSceneManager.UnregisterLoader(this);
         }
 
         private void OnEnable()
@@ -137,90 +111,35 @@ namespace DataKeeper.DynamicScene
 
             if (debugLog)
             {
-                Debug.Log($"Loading addressable at {transform.name}");
+                Debug.Log($"Requesting load for addressable at {transform.name}");
             }
         
-            if (useObjectPooling && pooledInstances.Count > 0)
-            {
-                // Use pooled instance
-                GameObject pooledObj = pooledInstances[0];
-                pooledInstances.RemoveAt(0);
-                loadedInstances.Add(pooledObj);
-                pooledObj.SetActive(true);
-                isLoaded = true;
-            }
-            else
-            {
-                // Load from addressables
-                loadHandle = addressableAsset.LoadAssetAsync<GameObject>();
-                loadHandle.Completed += OnAddressableLoaded;
-            }
-        }
-    
-        private void OnAddressableLoaded(AsyncOperationHandle<GameObject> handle)
-        {
-            if (handle.Status == AsyncOperationStatus.Succeeded)
-            {
-                // Create instances up to maxInstances
-                for (int i = 0; i < maxInstances && loadedInstances.Count < maxInstances; i++)
-                {
-                    GameObject instance = Instantiate(handle.Result, transform.position, transform.rotation, transform);
-                    instance.name = $"{handle.Result.name}_Instance_{i}";
-                    loadedInstances.Add(instance);
-                }
-            
-                isLoaded = true;
-                if (debugLog)
-                {
-                    Debug.Log($"Addressable loaded successfully with {loadedInstances.Count} instances");
-                }
-            }
-            else
-            {
-                Debug.LogError($"Failed to load addressable: {handle.OperationException}");
-            }
+            SubSceneManager.RequestLoad(this);
         }
     
         private void UnloadAddressable()
         {
             if (!isLoaded) return;
+            
             if (debugLog)
             {
-                Debug.Log($"Unloading addressable at {transform.name}");
+                Debug.Log($"Requesting unload for addressable at {transform.name}");
             }
         
-            if (useObjectPooling)
-            {
-                // Move to pool instead of destroying
-                foreach (GameObject instance in loadedInstances)
-                {
-                    if (instance != null)
-                    {
-                        instance.SetActive(false);
-                        pooledInstances.Add(instance);
-                    }
-                }
-            }
-            else
-            {
-                // Destroy instances
-                foreach (GameObject instance in loadedInstances)
-                {
-                    if (instance != null)
-                    {
-                        DestroyImmediate(instance);
-                    }
-                }
-            }
-        
-            loadedInstances.Clear();
+            SubSceneManager.RequestUnload(this);
             isLoaded = false;
+        }
+    
+        // Called by SubSceneManager when instance is ready
+        public void SetLoadedInstance(GameObject instance)
+        {
+            loadedInstance = instance;
+            isLoaded = instance != null;
+        }
         
-            // Release handle if valid
-            if (loadHandle.IsValid())
-            {
-                Addressables.Release(loadHandle);
-            }
+        public GameObject GetLoadedInstance()
+        {
+            return loadedInstance;
         }
     
         // Public methods for manual control
@@ -238,17 +157,11 @@ namespace DataKeeper.DynamicScene
         {
             return isLoaded;
         }
-    
-        public int GetLoadedInstanceCount()
-        {
-            return loadedInstances.Count;
-        }
 
         public void SetUpdateFromSubScene(bool isUpdateFromSubScene)
         {
             updateFromSubScene = isUpdateFromSubScene;
         }
-
 
 #if UNITY_EDITOR
         private void OnDrawGizmosSelected()

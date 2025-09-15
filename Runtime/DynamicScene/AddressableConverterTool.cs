@@ -17,10 +17,8 @@ namespace DataKeeper.DynamicScene
         private GameObject selectedObject;
         private string addressableKey = "";
         private string groupName = "SubScene Objects";
-        private float loadDistance = 1000f;
-        private float unloadDistance = 1200f;
-        private int maxInstances = 1;
-        private bool useObjectPooling = true;
+        private float loadDistance = 1100f;
+        private float unloadDistance = 1150f;
     
         // Batch conversion settings
         private bool convertChildren = false;
@@ -179,8 +177,6 @@ namespace DataKeeper.DynamicScene
             GUILayout.Label("Settings", EditorStyles.boldLabel);
             loadDistance = EditorGUILayout.FloatField("Load Distance", loadDistance);
             unloadDistance = EditorGUILayout.FloatField("Unload Distance", unloadDistance);
-            maxInstances = EditorGUILayout.IntField("Max Instances", maxInstances);
-            useObjectPooling = EditorGUILayout.Toggle("Use Object Pooling", useObjectPooling);
         
             EditorGUILayout.Space();
         
@@ -580,8 +576,6 @@ namespace DataKeeper.DynamicScene
             // Setup manager properties
             manager.loadDistance = loadDistance;
             manager.unloadDistance = unloadDistance;
-            manager.maxInstances = maxInstances;
-            manager.useObjectPooling = useObjectPooling;
         
             // Create AssetReference
             var assetReference = new AssetReferenceGameObject(AssetDatabase.AssetPathToGUID(prefabPath));

@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace DataKeeper.DynamicScene
 {
-    [AddComponentMenu("DataKeeper/Addressable/Sub Scene"), DisallowMultipleComponent, DefaultExecutionOrder(5)]
+    [AddComponentMenu("DataKeeper/Addressable/Sub Scene"), DisallowMultipleComponent, DefaultExecutionOrder(-20)]
     public class SubScene : MonoBehaviour
     {
         [Header("Settings")]
@@ -67,7 +67,6 @@ namespace DataKeeper.DynamicScene
 
         private void CheckDistance()
         {
-            Debug.Log("CheckDistance: " + gameObject.name);
             foreach (var child in _children)
             {
                 child.CheckDistance();
