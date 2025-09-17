@@ -418,8 +418,7 @@ public class ToolsWindow : EditorWindow
 
     private VisualElement CreateSection(string title, VisualElement parent)
     {
-        var sectionContainer = new VisualElement()
-            .SetMarginBottom(5);
+        var sectionContainer = new VisualElement();
 
         // Create foldout instead of label
         var foldout = new Foldout()

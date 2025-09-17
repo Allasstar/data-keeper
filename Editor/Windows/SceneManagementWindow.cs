@@ -9,7 +9,6 @@ namespace DataKeeper.Editor.Windows
     public class SceneManagementWindow : EditorWindow
     {
         private Vector2 scrollPosition;
-        private float timeScale = 1f;
 
         [MenuItem("Tools/Windows/Scenes", priority = 0)]
         public static void ShowWindow()
@@ -23,41 +22,7 @@ namespace DataKeeper.Editor.Windows
 
         private void OnGUI()
         {
-            RenderTimeScaleControls();
-            EditorGUILayout.Space();
             RenderSceneList();
-        }
-
-        private void RenderTimeScaleControls()
-        {
-            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-    
-            GUILayout.Label("TimeScale", GUILayout.Width(65));
-            
-            timeScale = EditorGUILayout.Slider(timeScale, 0f, 10f, GUILayout.ExpandWidth(true));
-    
-            if (GUILayout.Button("Apply", EditorStyles.toolbarButton, GUILayout.Width(45)))
-            {
-                Time.timeScale = timeScale;
-            }
-    
-            if (GUILayout.Button("Reset", EditorStyles.toolbarButton, GUILayout.Width(45)))
-            {
-                GUI.FocusControl(null);
-                timeScale = 1f;
-                Time.timeScale = 1f;
-                Repaint();
-            }
-    
-            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(55)))
-            {
-                GUI.FocusControl(null);
-                timeScale = Time.timeScale;
-                Repaint();
-            }
-    
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.EndHorizontal();
         }
 
         private void RenderSceneList()
@@ -96,19 +61,19 @@ namespace DataKeeper.Editor.Windows
                     
                     if (GUILayout.Button(new GUIContent(label, $"Load Scene: {scenePath}"), GUILayout.Height(25)))
                     {
-                        SceneManagement.LoadScene(scenePath);
+                        EditorSceneManagement.LoadScene(scenePath);
                     }
 
                     if (GUILayout.Button("Add", GUILayout.Width(45), GUILayout.Height(25)))
                     {
-                        SceneManagement.LoadSceneAdditive(scenePath);
+                        EditorSceneManagement.LoadSceneAdditive(scenePath);
                     }
 
                     // Disable Unload if only one scene is loaded
                     GUI.enabled = isLoaded && loadedSceneCount > 1;
                     if (GUILayout.Button("Unload", GUILayout.Width(60), GUILayout.Height(25)))
                     {
-                        SceneManagement.UnloadScene(scenePath);
+                        EditorSceneManagement.UnloadScene(scenePath);
                     }
                     
                     GUI.enabled = isLoaded && sceneObject.isDirty;
@@ -121,7 +86,6 @@ namespace DataKeeper.Editor.Windows
                     GUI.enabled = true;
 
                     EditorGUILayout.EndHorizontal();
-                    DrawHorizontalLine();
                     EditorGUILayout.Space();
                 }
             }
@@ -129,13 +93,8 @@ namespace DataKeeper.Editor.Windows
             EditorGUILayout.EndScrollView();
         }
 
-        private void DrawHorizontalLine(float height = 1f)
-        {
-            EditorGUI.DrawRect(EditorGUILayout.GetControlRect(false, height), Color.gray);
-        }
-
         // Helper class to manage scene loading with error handling
-        private static class SceneManagement
+        private static class EditorSceneManagement
         {
             private static bool SaveDirtyScenesPrompt()
             {
