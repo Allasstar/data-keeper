@@ -56,7 +56,8 @@ namespace DataKeeper.Extensions
             => v.normalized * magnitude;
 
         public static Vector2 ToVector2XZ(this Vector3 v) => new Vector2(v.x, v.z);
-
+        public static Vector2 ToVector2XY(this Vector3 v) => new Vector2(v.x, v.y);
+        
         public static Vector3 RandomInSphere(this Vector3 center, float radius)
             => center + Random.insideUnitSphere * radius;
 
