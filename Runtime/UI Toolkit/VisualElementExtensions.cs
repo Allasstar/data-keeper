@@ -8,6 +8,12 @@ namespace DataKeeper.UIToolkit
     public static class VisualElementExtensions
     {
         #region VisualElement Basics
+        
+        public static T SetEnabledSelf<T>(this T element, bool isEnabled) where T : VisualElement
+        {
+            element.SetEnabled(isEnabled);
+            return element;
+        }
 
         public static T SetSize<T>(this T element, float width, float height) where T : VisualElement
         {
