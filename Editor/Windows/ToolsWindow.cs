@@ -29,6 +29,10 @@ namespace DataKeeper.Editor.Windows
         // Scene management fields
         private ScrollView mainContainer;
         private VisualElement sceneView;
+        private static readonly Color SceneBorderColorLoaded = new Color(0.3f, 0.3f, 0.7f);
+        private static readonly Color SceneBorderColorNormal = new Color(0.3f, 0.3f, 0.3f);
+        private static readonly Color SceneLabelColorNormal = new Color(0.8f, 0.8f, 0.8f);
+        private static readonly Color SceneLabelColorLoaded = Color.white;
 
         [MenuItem("Tools/Windows/Tools", priority = 10)]
         public static void ShowWindow()
@@ -108,12 +112,12 @@ namespace DataKeeper.Editor.Windows
                     .SetPadding(5)
                     .SetBorderRadius(3)
                     .SetBorderWidth(1)
-                    .SetBorderColor(new Color(0.3f, 0.3f, 0.3f));
+                    .SetBorderColor(isLoaded ? SceneBorderColorLoaded : SceneBorderColorNormal);
 
                 // Scene name label
                 var nameLabel = new Label(sceneName + (sceneObject.isDirty ? "*" : ""))
                     .SetFontStyle(isLoaded ? FontStyle.Bold : FontStyle.Normal)
-                    .SetColor(isLoaded ? Color.white : new Color(0.8f, 0.8f, 0.8f))
+                    .SetColor(isLoaded ? SceneLabelColorLoaded : SceneLabelColorNormal)
                     .SetMarginBottom(3);
 
                 sceneContainer.Add(nameLabel);
