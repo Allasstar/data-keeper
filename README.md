@@ -49,11 +49,6 @@ Please follow the instrustions:
 
 The `Initializator` class is a static utility located in the `DataKeeper.Init` namespace. It serves as an initialization helper that loads and initializes all `SO` (Scriptable Object) resources at a specific moment during runtime. This can be particularly useful to set up and prepare resources before a scene is loaded.
 
-## [BootstrapSO](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/BootstrapSO.md)
-
-The `BootstrapSO` class, located within the `DataKeeper.Extra` namespace, is a specialized Scriptable Object designed for managing scene loading and object instantiation during the initialization phase of a Unity project. It acts as a bootstrapper, managing the loading of scenes, initialization of objects, and setup of required resources at the start of a game or application.
-
-
 ## [Reactive](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Reactive.md)
 
 The `Reactive<T>` class, located within the `DataKeeper.Generic` namespace, provides a generic reactive data type that can track and trigger events when its value changes. This feature is useful in scenarios where you want to maintain and observe the state of a value reactively.
