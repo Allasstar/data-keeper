@@ -15,6 +15,46 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
+        #region SizePixel
+
+        public static T SetMaxSize<T>(this T element, float? width, float? height) where T : VisualElement
+        {
+            if(width.HasValue) element.style.maxWidth = width.Value;
+            if(height.HasValue) element.style.maxHeight = height.Value;
+            return element;
+        }
+        
+        public static T SetMaxWidth<T>(this T element, float width) where T : VisualElement
+        {
+            element.style.maxWidth = width;
+            return element;
+        }
+        
+        public static T SetMaxHeight<T>(this T element, float height) where T : VisualElement
+        {
+            element.style.maxHeight = height;
+            return element;
+        }
+        
+        public static T SetMinSize<T>(this T element, float? width, float? height) where T : VisualElement
+        {
+            if(width.HasValue) element.style.minWidth = width.Value;
+            if(height.HasValue) element.style.minHeight = height.Value;
+            return element;
+        }
+        
+        public static T SetMinWidth<T>(this T element, float width) where T : VisualElement
+        {
+            element.style.minWidth = width;
+            return element;
+        }
+        
+        public static T SetMinHeight<T>(this T element, float height) where T : VisualElement
+        {
+            element.style.minHeight = height;
+            return element;
+        }
+
         public static T SetSize<T>(this T element, float width, float height) where T : VisualElement
         {
             element.style.width = width;
@@ -33,6 +73,8 @@ namespace DataKeeper.UIToolkit
             element.style.height = height;
             return element;
         }
+        
+        #endregion
 
         public static T SetBackgroundColor<T>(this T element, Color color) where T : VisualElement
         {
