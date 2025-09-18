@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,7 +9,7 @@ namespace DataKeeper.UIToolkit
     /// <summary>
     /// Extensions for hierarchy management, classes, and utility functions
     /// </summary>
-    public static class VisualElementHierarchyExtensions
+    public static class UTKHierarchyExtensions
     {
         #region Hierarchy Management
 
@@ -50,7 +51,7 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T RemoveFromParent<T>(this T element) where T : VisualElement
+        public static T RemoveFromHierarchy<T>(this T element) where T : VisualElement
         {
             element.RemoveFromHierarchy();
             return element;
@@ -98,13 +99,13 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T ToggleClass<T>(this T element, string className) where T : VisualElement
+        public static T ToggleInClassList<T>(this T element, string className) where T : VisualElement
         {
             element.ToggleInClassList(className);
             return element;
         }
 
-        public static T SetClass<T>(this T element, string className, bool enabled) where T : VisualElement
+        public static T EnableInClassList<T>(this T element, string className, bool enabled) where T : VisualElement
         {
             element.EnableInClassList(className, enabled);
             return element;
@@ -132,71 +133,6 @@ namespace DataKeeper.UIToolkit
 
         #endregion
 
-        #region Query and Search Extensions
-
-        public static TElement QueryChild<TElement>(this VisualElement element, string name = null, string className = null) 
-            where TElement : VisualElement
-        {
-            return element.Q<TElement>(name, className);
-        }
-
-        public static TElement QueryChild<TElement>(this VisualElement element, string name) 
-            where TElement : VisualElement
-        {
-            return element.Q<TElement>(name);
-        }
-
-        public static VisualElement QueryChild(this VisualElement element, string name = null, string className = null)
-        {
-            return element.Q(name, className);
-        }
-
-        public static System.Collections.Generic.List<TElement> QueryAllChildren<TElement>(this VisualElement element, string name = null, string className = null) 
-            where TElement : VisualElement
-        {
-            return element.Query<TElement>(name, className).ToList();
-        }
-
-        public static TElement FindChildByType<TElement>(this VisualElement element) where TElement : VisualElement
-        {
-            foreach (var child in element.hierarchy.Children())
-            {
-                if (child is TElement typedChild)
-                    return typedChild;
-                
-                var found = child.FindChildByType<TElement>();
-                if (found != null)
-                    return found;
-            }
-            return null;
-        }
-
-        public static VisualElement FindParentOfType<TElement>(this VisualElement element) where TElement : VisualElement
-        {
-            var parent = element.parent;
-            while (parent != null)
-            {
-                if (parent is TElement)
-                    return parent;
-                parent = parent.parent;
-            }
-            return null;
-        }
-
-        public static T FindAncestorWithClass<T>(this T element, string className) where T : VisualElement
-        {
-            var parent = element.parent;
-            while (parent != null)
-            {
-                if (parent.ClassListContains(className) && parent is T typedParent)
-                    return typedParent;
-                parent = parent.parent;
-            }
-            return null;
-        }
-
-        #endregion
-
         #region Safe Area and Screen Utilities
 
         public static T SetSafeArea<T>(this T element, bool apply = true) where T : VisualElement
@@ -220,32 +156,6 @@ namespace DataKeeper.UIToolkit
             element.style.borderRightWidth = Screen.width - (safeArea.x + safeArea.width);
             element.style.borderTopWidth = Screen.height - (safeArea.y + safeArea.height);
 
-            return element;
-        }
-
-        #endregion
-
-        #region Conditional Styling
-
-        public static T If<T>(this T element, bool condition, Func<T, T> action) where T : VisualElement
-        {
-            return condition ? action(element) : element;
-        }
-
-        public static T IfElse<T>(this T element, bool condition, Func<T, T> trueAction, Func<T, T> falseAction) where T : VisualElement
-        {
-            return condition ? trueAction(element) : falseAction(element);
-        }
-
-        public static T When<T>(this T element, Func<bool> condition, Func<T, T> action) where T : VisualElement
-        {
-            return condition() ? action(element) : element;
-        }
-
-        public static T ApplyIf<T>(this T element, bool condition, Action<T> action) where T : VisualElement
-        {
-            if (condition)
-                action?.Invoke(element);
             return element;
         }
 
@@ -280,12 +190,12 @@ namespace DataKeeper.UIToolkit
 
         public static T DebugBackground<T>(this T element, Color? color = null) where T : VisualElement
         {
-            var debugColor = color ?? new Color(1f, 0f, 0f, 0.3f); // Semi-transparent red
+            var debugColor = color ?? new Color(1f, 0f, 0f, 0.3f);
             element.style.backgroundColor = debugColor;
             return element;
         }
 
-        public static T LogInfo<T>(this T element, string message = "") where T : VisualElement
+        public static T DebugLogInfo<T>(this T element, string message = "") where T : VisualElement
         {
             var info = string.IsNullOrEmpty(message) 
                 ? $"Element: {element.name} ({element.GetType().Name})"
@@ -338,9 +248,9 @@ namespace DataKeeper.UIToolkit
         public static T SaveState<T>(this T element, string key, object state) where T : VisualElement
         {
             if (element.userData == null)
-                element.userData = new System.Collections.Generic.Dictionary<string, object>();
+                element.userData = new Dictionary<string, object>();
             
-            if (element.userData is System.Collections.Generic.Dictionary<string, object> dict)
+            if (element.userData is Dictionary<string, object> dict)
             {
                 dict[key] = state;
             }
@@ -350,7 +260,7 @@ namespace DataKeeper.UIToolkit
 
         public static TState GetState<T, TState>(this T element, string key, TState defaultValue = default) where T : VisualElement
         {
-            if (element.userData is System.Collections.Generic.Dictionary<string, object> dict)
+            if (element.userData is Dictionary<string, object> dict)
             {
                 return dict.TryGetValue(key, out var value) && value is TState state ? state : defaultValue;
             }
@@ -360,7 +270,7 @@ namespace DataKeeper.UIToolkit
 
         public static T ClearState<T>(this T element, string key = null) where T : VisualElement
         {
-            if (element.userData is System.Collections.Generic.Dictionary<string, object> dict)
+            if (element.userData is Dictionary<string, object> dict)
             {
                 if (key == null)
                     dict.Clear();
@@ -378,14 +288,6 @@ namespace DataKeeper.UIToolkit
         public static T SetGenerateVisualContent<T>(this T element, Action<MeshGenerationContext> generateVisualContent) where T : VisualElement
         {
             element.generateVisualContent += generateVisualContent;
-            return element;
-        }
-
-        public static T OptimizeForPerformance<T>(this T element) where T : VisualElement
-        {
-            // Disable unnecessary updates for static elements
-            element.pickingMode = PickingMode.Ignore;
-            element.focusable = false;
             return element;
         }
 

@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -7,7 +9,7 @@ namespace DataKeeper.UIToolkit
     /// <summary>
     /// Extensions for specific UI element types like Button, Image, TextField, etc.
     /// </summary>
-    public static class ElementSpecificExtensions
+    public static class UTKExtensions
     {
         #region Button Extensions
 
@@ -27,53 +29,6 @@ namespace DataKeeper.UIToolkit
         public static T SetButtonText<T>(this T button, string text) where T : Button
         {
             button.text = text;
-            return button;
-        }
-
-        public static T SetButtonStyle<T>(this T button, string ussClass = "") where T : Button
-        {
-            if (!string.IsNullOrEmpty(ussClass))
-                button.AddToClassList(ussClass);
-            return button;
-        }
-
-        public static T SetPrimaryButton<T>(this T button) where T : Button
-        {
-            button.style.backgroundColor = new Color(0.2f, 0.6f, 1f, 1f); // Blue
-            button.style.color = Color.white;
-            button.SetBorderWidth(0);
-            button.SetBorderRadius(4);
-            button.style.paddingLeft = 16;
-            button.style.paddingRight = 16;
-            button.style.paddingTop = 8;
-            button.style.paddingBottom = 8;
-            return button;
-        }
-
-        public static T SetSecondaryButton<T>(this T button) where T : Button
-        {
-            button.style.backgroundColor = Color.clear;
-            button.style.color = new Color(0.2f, 0.6f, 1f, 1f);
-            button.SetBorderWidth(1);
-            button.SetBorderColor(new Color(0.2f, 0.6f, 1f, 1f));
-            button.SetBorderRadius(4);
-            button.style.paddingLeft = 16;
-            button.style.paddingRight = 16;
-            button.style.paddingTop = 8;
-            button.style.paddingBottom = 8;
-            return button;
-        }
-
-        public static T SetDangerButton<T>(this T button) where T : Button
-        {
-            button.style.backgroundColor = new Color(0.9f, 0.2f, 0.2f, 1f); // Red
-            button.style.color = Color.white;
-            button.SetBorderWidth(0);
-            button.SetBorderRadius(4);
-            button.style.paddingLeft = 16;
-            button.style.paddingRight = 16;
-            button.style.paddingTop = 8;
-            button.style.paddingBottom = 8;
             return button;
         }
 
@@ -117,21 +72,9 @@ namespace DataKeeper.UIToolkit
             return image;
         }
 
-        public static T SetImageFit<T>(this T image) where T : Image
+        public static T SetImageScaleMode<T>(this T image, ScaleMode scaleMode) where T : Image
         {
-            image.scaleMode = ScaleMode.ScaleToFit;
-            return image;
-        }
-
-        public static T SetImageStretch<T>(this T image) where T : Image
-        {
-            image.scaleMode = ScaleMode.StretchToFill;
-            return image;
-        }
-
-        public static T SetImageCrop<T>(this T image) where T : Image
-        {
-            image.scaleMode = ScaleMode.ScaleAndCrop;
+            image.scaleMode = scaleMode;
             return image;
         }
 
@@ -145,12 +88,6 @@ namespace DataKeeper.UIToolkit
             return label;
         }
 
-        public static T SetLabelFormat<T>(this T label, string format, params object[] args) where T : Label
-        {
-            label.text = string.Format(format, args);
-            return label;
-        }
-
         #endregion
 
         #region TextField Extensions
@@ -158,37 +95,6 @@ namespace DataKeeper.UIToolkit
         public static T SetValue<T>(this T textField, string value) where T : TextField
         {
             textField.value = value;
-            return textField;
-        }
-
-        public static T SetPlaceholder<T>(this T textField, string placeholder) where T : TextField
-        {
-            // Note: Unity UI Toolkit doesn't have built-in placeholder support
-            // This is a workaround using the label
-            if (string.IsNullOrEmpty(textField.value))
-            {
-                textField.labelElement.text = placeholder;
-                textField.labelElement.style.color = Color.gray;
-            }
-            
-            textField.RegisterCallback<FocusInEvent>(_ =>
-            {
-                if (textField.value == placeholder)
-                {
-                    textField.value = "";
-                    textField.labelElement.style.color = Color.black;
-                }
-            });
-            
-            textField.RegisterCallback<FocusOutEvent>(_ =>
-            {
-                if (string.IsNullOrEmpty(textField.value))
-                {
-                    textField.labelElement.text = placeholder;
-                    textField.labelElement.style.color = Color.gray;
-                }
-            });
-            
             return textField;
         }
 
@@ -300,7 +206,7 @@ namespace DataKeeper.UIToolkit
 
         #region DropdownField Extensions
 
-        public static T SetDropdownChoices<T>(this T dropdown, System.Collections.Generic.List<string> choices) where T : DropdownField
+        public static T SetDropdownChoices<T>(this T dropdown, List<string> choices) where T : DropdownField
         {
             dropdown.choices = choices;
             return dropdown;
@@ -334,24 +240,6 @@ namespace DataKeeper.UIToolkit
             return scrollView;
         }
 
-        public static T SetHorizontalScroll<T>(this T scrollView) where T : ScrollView
-        {
-            scrollView.mode = ScrollViewMode.Horizontal;
-            return scrollView;
-        }
-
-        public static T SetVerticalScroll<T>(this T scrollView) where T : ScrollView
-        {
-            scrollView.mode = ScrollViewMode.Vertical;
-            return scrollView;
-        }
-
-        public static T SetVerticalAndHorizontalScroll<T>(this T scrollView) where T : ScrollView
-        {
-            scrollView.mode = ScrollViewMode.VerticalAndHorizontal;
-            return scrollView;
-        }
-
         public static T SetScrollDecelerationRate<T>(this T scrollView, float rate) where T : ScrollView
         {
             scrollView.scrollDecelerationRate = rate;
@@ -374,7 +262,7 @@ namespace DataKeeper.UIToolkit
             return listView;
         }
 
-        public static T SetListViewItemSource<T>(this T listView, System.Collections.IList itemsSource) where T : ListView
+        public static T SetListViewItemSource<T>(this T listView, IList itemsSource) where T : ListView
         {
             listView.itemsSource = itemsSource;
             return listView;
@@ -398,9 +286,9 @@ namespace DataKeeper.UIToolkit
             return listView;
         }
 
-        public static T SetOnListViewSelectionChanged<T>(this T listView, Action<System.Collections.Generic.IEnumerable<object>> callback) where T : ListView
+        public static T SetOnListViewSelectionChanged<T>(this T listView, Action<IEnumerable<object>> callback) where T : ListView
         {
-            listView.onSelectionChange += callback;
+            listView.selectionChanged += callback;
             return listView;
         }
 

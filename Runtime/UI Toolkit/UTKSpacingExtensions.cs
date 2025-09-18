@@ -1,4 +1,3 @@
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DataKeeper.UIToolkit
@@ -6,7 +5,7 @@ namespace DataKeeper.UIToolkit
     /// <summary>
     /// Extensions for margin and padding with pixel, percentage, auto, and initial support
     /// </summary>
-    public static class VisualElementSpacingExtensions
+    public static class UTKSpacingExtensions
     {
         #region Padding Extensions
 

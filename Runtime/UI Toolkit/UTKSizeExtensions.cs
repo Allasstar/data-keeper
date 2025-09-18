@@ -5,7 +5,7 @@ namespace DataKeeper.UIToolkit
     /// <summary>
     /// Extensions for size, width, and height styling with pixel, percentage, auto, and initial support
     /// </summary>
-    public static class VisualElementSizeExtensions
+    public static class UTKSizeExtensions
     {
         #region Width Extensions
 
@@ -231,21 +231,6 @@ namespace DataKeeper.UIToolkit
         {
             element.style.width = size;
             element.style.height = size;
-            return element;
-        }
-
-        public static T SetAspectRatio<T>(this T element, float ratio) where T : VisualElement
-        {
-            // Note: Unity UI Toolkit doesn't have direct aspect-ratio support
-            // This is a utility that can be used with calculated heights/widths
-            element.RegisterCallback<GeometryChangedEvent>(evt =>
-            {
-                var width = evt.newRect.width;
-                if (width > 0)
-                {
-                    element.style.height = width / ratio;
-                }
-            });
             return element;
         }
 

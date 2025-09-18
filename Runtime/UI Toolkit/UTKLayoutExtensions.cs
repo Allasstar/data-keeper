@@ -6,7 +6,7 @@ namespace DataKeeper.UIToolkit
     /// <summary>
     /// Extensions for layout, flexbox, and positioning
     /// </summary>
-    public static class VisualElementLayoutExtensions
+    public static class UTKLayoutExtensions
     {
         #region Flex Direction Extensions
 
@@ -106,24 +106,6 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetFlexWrapOn<T>(this T element) where T : VisualElement
-        {
-            element.style.flexWrap = Wrap.Wrap;
-            return element;
-        }
-
-        public static T SetFlexNoWrap<T>(this T element) where T : VisualElement
-        {
-            element.style.flexWrap = Wrap.NoWrap;
-            return element;
-        }
-
-        public static T SetFlexWrapReverse<T>(this T element) where T : VisualElement
-        {
-            element.style.flexWrap = Wrap.WrapReverse;
-            return element;
-        }
-
         #endregion
 
         #region Alignment Extensions
@@ -134,63 +116,9 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetAlignItemsStart<T>(this T element) where T : VisualElement
-        {
-            element.style.alignItems = Align.FlexStart;
-            return element;
-        }
-
-        public static T SetAlignItemsCenter<T>(this T element) where T : VisualElement
-        {
-            element.style.alignItems = Align.Center;
-            return element;
-        }
-
-        public static T SetAlignItemsEnd<T>(this T element) where T : VisualElement
-        {
-            element.style.alignItems = Align.FlexEnd;
-            return element;
-        }
-
-        public static T SetAlignItemsStretch<T>(this T element) where T : VisualElement
-        {
-            element.style.alignItems = Align.Stretch;
-            return element;
-        }
-
         public static T SetAlignSelf<T>(this T element, Align align) where T : VisualElement
         {
             element.style.alignSelf = align;
-            return element;
-        }
-
-        public static T SetAlignSelfStart<T>(this T element) where T : VisualElement
-        {
-            element.style.alignSelf = Align.FlexStart;
-            return element;
-        }
-
-        public static T SetAlignSelfCenter<T>(this T element) where T : VisualElement
-        {
-            element.style.alignSelf = Align.Center;
-            return element;
-        }
-
-        public static T SetAlignSelfEnd<T>(this T element) where T : VisualElement
-        {
-            element.style.alignSelf = Align.FlexEnd;
-            return element;
-        }
-
-        public static T SetAlignSelfStretch<T>(this T element) where T : VisualElement
-        {
-            element.style.alignSelf = Align.Stretch;
-            return element;
-        }
-
-        public static T SetAlignSelfAuto<T>(this T element) where T : VisualElement
-        {
-            element.style.alignSelf = Align.Auto;
             return element;
         }
 
@@ -245,12 +173,6 @@ namespace DataKeeper.UIToolkit
             if (top.HasValue) element.style.top = top.Value;
             if (right.HasValue) element.style.right = right.Value;
             if (bottom.HasValue) element.style.bottom = bottom.Value;
-            return element;
-        }
-
-        public static T SetPositionRelative<T>(this T element) where T : VisualElement
-        {
-            element.style.position = Position.Relative;
             return element;
         }
 

@@ -5,7 +5,7 @@ namespace DataKeeper.UIToolkit
     /// <summary>
     /// Core VisualElement extensions for basic functionality
     /// </summary>
-    public static class VisualElementCoreExtensions
+    public static class UTKCoreExtensions
     {
         public static T SetEnabledSelf<T>(this T element, bool isEnabled) where T : VisualElement
         {

@@ -6,7 +6,7 @@ namespace DataKeeper.UIToolkit
     /// <summary>
     /// Extensions for visual appearance: colors, backgrounds, borders, and border radius
     /// </summary>
-    public static class VisualElementAppearanceExtensions
+    public static class UTKAppearanceExtensions
     {
         #region Color Extensions
 
@@ -83,13 +83,6 @@ namespace DataKeeper.UIToolkit
         public static T SetBackgroundSize<T>(this T element, BackgroundSize size) where T : VisualElement
         {
             element.style.backgroundSize = size;
-            return element;
-        }
-
-        public static T SetBackgroundPosition<T>(this T element, BackgroundPosition position) where T : VisualElement
-        {
-            element.style.backgroundPositionX = position;
-            element.style.backgroundPositionY = position;
             return element;
         }
 
@@ -248,34 +241,6 @@ namespace DataKeeper.UIToolkit
         }
 
         // Utility border radius methods
-        public static T SetBorderRadiusTop<T>(this T element, float radius) where T : VisualElement
-        {
-            element.style.borderTopLeftRadius = radius;
-            element.style.borderTopRightRadius = radius;
-            return element;
-        }
-
-        public static T SetBorderRadiusBottom<T>(this T element, float radius) where T : VisualElement
-        {
-            element.style.borderBottomLeftRadius = radius;
-            element.style.borderBottomRightRadius = radius;
-            return element;
-        }
-
-        public static T SetBorderRadiusLeft<T>(this T element, float radius) where T : VisualElement
-        {
-            element.style.borderTopLeftRadius = radius;
-            element.style.borderBottomLeftRadius = radius;
-            return element;
-        }
-
-        public static T SetBorderRadiusRight<T>(this T element, float radius) where T : VisualElement
-        {
-            element.style.borderTopRightRadius = radius;
-            element.style.borderBottomRightRadius = radius;
-            return element;
-        }
-
         public static T SetRoundedCorners<T>(this T element) where T : VisualElement
         {
             // Creates fully rounded corners (50% radius)
@@ -283,60 +248,6 @@ namespace DataKeeper.UIToolkit
             element.style.borderTopRightRadius = Length.Percent(50);
             element.style.borderBottomLeftRadius = Length.Percent(50);
             element.style.borderBottomRightRadius = Length.Percent(50);
-            return element;
-        }
-
-        #endregion
-
-        #region Shadow Extensions (if supported in future Unity versions)
-
-        // Note: These may not work in current Unity versions but are prepared for future updates
-        public static T SetBoxShadow<T>(this T element, float offsetX, float offsetY, float blurRadius, Color color) where T : VisualElement
-        {
-            // This is a placeholder for when Unity adds box-shadow support
-            // Currently not supported in Unity UI Toolkit
-            return element;
-        }
-
-        #endregion
-
-        #region Gradient Extensions
-
-        public static T SetBackgroundGradient<T>(this T element, Color startColor, Color endColor, float angle = 0f) where T : VisualElement
-        {
-            // Create a simple linear gradient using Unity's built-in capabilities
-            // Note: This is a simplified approach - Unity UI Toolkit has limited gradient support
-            element.style.backgroundColor = Color.Lerp(startColor, endColor, 0.5f);
-            return element;
-        }
-
-        #endregion
-
-        #region Utility Appearance Methods
-
-        public static T SetTransparent<T>(this T element) where T : VisualElement
-        {
-            element.style.backgroundColor = Color.clear;
-            return element;
-        }
-
-        public static T SetSemiTransparent<T>(this T element, float alpha = 0.5f) where T : VisualElement
-        {
-            var currentColor = element.resolvedStyle.backgroundColor;
-            currentColor.a = alpha;
-            element.style.backgroundColor = currentColor;
-            return element;
-        }
-
-        public static T SetWhiteBackground<T>(this T element) where T : VisualElement
-        {
-            element.style.backgroundColor = Color.white;
-            return element;
-        }
-
-        public static T SetBlackBackground<T>(this T element) where T : VisualElement
-        {
-            element.style.backgroundColor = Color.black;
             return element;
         }
 
