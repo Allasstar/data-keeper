@@ -16,24 +16,15 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        // Width - Percentage values
-        public static T SetWidthPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetWidth<T>(this T element, float wight, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.width = Length.Percent(percentage);
+            element.style.width = new Length(wight, lengthUnit);
             return element;
         }
-
-        // Width - Auto
-        public static T SetWidthAuto<T>(this T element) where T : VisualElement
+        
+        public static T SetWidth<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.width = StyleKeyword.Auto;
-            return element;
-        }
-
-        // Width - Initial
-        public static T SetWidthInitial<T>(this T element) where T : VisualElement
-        {
-            element.style.width = StyleKeyword.Initial;
+            element.style.width = styleKeyword;
             return element;
         }
 
@@ -48,24 +39,15 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        // Height - Percentage values
-        public static T SetHeightPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetHeight<T>(this T element, float height, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.height = Length.Percent(percentage);
+            element.style.height = new Length(height, lengthUnit);
             return element;
         }
-
-        // Height - Auto
-        public static T SetHeightAuto<T>(this T element) where T : VisualElement
+        
+        public static T SetHeight<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.height = StyleKeyword.Auto;
-            return element;
-        }
-
-        // Height - Initial
-        public static T SetHeightInitial<T>(this T element) where T : VisualElement
-        {
-            element.style.height = StyleKeyword.Initial;
+            element.style.height = styleKeyword;
             return element;
         }
 
@@ -82,18 +64,18 @@ namespace DataKeeper.UIToolkit
         }
 
         // Size - Percentage values
-        public static T SetSizePercent<T>(this T element, float widthPercent, float heightPercent) where T : VisualElement
+        public static T SetSize<T>(this T element, float width, float height, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.width = Length.Percent(widthPercent);
-            element.style.height = Length.Percent(heightPercent);
+            element.style.width = new Length(width, lengthUnit);
+            element.style.height = new Length(height, lengthUnit);
             return element;
         }
 
         // Size - Auto
-        public static T SetSizeAuto<T>(this T element) where T : VisualElement
+        public static T SetSize<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.width = StyleKeyword.Auto;
-            element.style.height = StyleKeyword.Auto;
+            element.style.width = styleKeyword;
+            element.style.height = styleKeyword;
             return element;
         }
 
@@ -107,15 +89,15 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetMinWidthPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetMinWidth<T>(this T element, float minWidth, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.minWidth = Length.Percent(percentage);
+            element.style.minWidth = new Length(minWidth, lengthUnit);
             return element;
         }
 
-        public static T SetMinWidthAuto<T>(this T element) where T : VisualElement
+        public static T SetMinWidth<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.minWidth = StyleKeyword.Auto;
+            element.style.minWidth = styleKeyword;
             return element;
         }
 
@@ -129,15 +111,15 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetMinHeightPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetMinHeight<T>(this T element, float minHeight, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.minHeight = Length.Percent(percentage);
+            element.style.minHeight = new Length(minHeight, lengthUnit);
             return element;
         }
 
-        public static T SetMinHeightAuto<T>(this T element) where T : VisualElement
+        public static T SetMinHeight<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.minHeight = StyleKeyword.Auto;
+            element.style.minHeight = styleKeyword;
             return element;
         }
 
@@ -151,15 +133,15 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetMaxWidthPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetMaxWidth<T>(this T element, float maxWidth, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.maxWidth = Length.Percent(percentage);
+            element.style.maxWidth = new Length(maxWidth, lengthUnit);
             return element;
         }
 
-        public static T SetMaxWidthNone<T>(this T element) where T : VisualElement
+        public static T SetMaxWidth<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.maxWidth = StyleKeyword.None;
+            element.style.maxWidth = styleKeyword;
             return element;
         }
 
@@ -173,52 +155,20 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetMaxHeightPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetMaxHeight<T>(this T element, float maxHeight, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.maxHeight = Length.Percent(percentage);
+            element.style.maxHeight = new Length(maxHeight, lengthUnit);
             return element;
         }
 
-        public static T SetMaxHeightNone<T>(this T element) where T : VisualElement
+        public static T SetMaxHeight<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.maxHeight = StyleKeyword.None;
-            return element;
-        }
-
-        #endregion
-
-        #region Min/Max Size Combinations
-
-        public static T SetMinSize<T>(this T element, float? width, float? height) where T : VisualElement
-        {
-            if (width.HasValue) element.style.minWidth = width.Value;
-            if (height.HasValue) element.style.minHeight = height.Value;
-            return element;
-        }
-
-        public static T SetMaxSize<T>(this T element, float? width, float? height) where T : VisualElement
-        {
-            if (width.HasValue) element.style.maxWidth = width.Value;
-            if (height.HasValue) element.style.maxHeight = height.Value;
-            return element;
-        }
-
-        public static T SetMinSizePercent<T>(this T element, float? widthPercent, float? heightPercent) where T : VisualElement
-        {
-            if (widthPercent.HasValue) element.style.minWidth = Length.Percent(widthPercent.Value);
-            if (heightPercent.HasValue) element.style.minHeight = Length.Percent(heightPercent.Value);
-            return element;
-        }
-
-        public static T SetMaxSizePercent<T>(this T element, float? widthPercent, float? heightPercent) where T : VisualElement
-        {
-            if (widthPercent.HasValue) element.style.maxWidth = Length.Percent(widthPercent.Value);
-            if (heightPercent.HasValue) element.style.maxHeight = Length.Percent(heightPercent.Value);
+            element.style.maxHeight = styleKeyword;
             return element;
         }
 
         #endregion
-
+        
         #region Utility Size Methods
 
         public static T SetStretchToParent<T>(this T element) where T : VisualElement
@@ -227,10 +177,25 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetSquareSize<T>(this T element, float size) where T : VisualElement
+        public static T SetSize<T>(this T element, float size) where T : VisualElement
         {
             element.style.width = size;
             element.style.height = size;
+            return element;
+        }
+        
+        public static T SetSize<T>(this T element, float size, LengthUnit lengthUnit) where T : VisualElement
+        {
+            var length = new Length(size, lengthUnit);
+            element.style.width = length;
+            element.style.height = length;
+            return element;
+        }
+        
+        public static T SetSize<T>(this T element, float size, StyleKeyword styleKeyword) where T : VisualElement
+        {
+            element.style.width = styleKeyword;
+            element.style.height = styleKeyword;
             return element;
         }
 

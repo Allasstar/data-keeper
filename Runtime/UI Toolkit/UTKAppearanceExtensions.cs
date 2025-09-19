@@ -22,7 +22,7 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetColorHex<T>(this T element, string hexColor) where T : VisualElement
+        public static T SetColor<T>(this T element, string hexColor) where T : VisualElement
         {
             if (ColorUtility.TryParseHtmlString(hexColor, out Color color))
             {
@@ -47,7 +47,7 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetBackgroundColorHex<T>(this T element, string hexColor) where T : VisualElement
+        public static T SetBackgroundColor<T>(this T element, string hexColor) where T : VisualElement
         {
             if (ColorUtility.TryParseHtmlString(hexColor, out Color color))
             {
@@ -141,7 +141,7 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetBorderColorHex<T>(this T element, string hexColor) where T : VisualElement
+        public static T SetBorderColor<T>(this T element, string hexColor) where T : VisualElement
         {
             if (ColorUtility.TryParseHtmlString(hexColor, out Color color))
             {
@@ -194,6 +194,16 @@ namespace DataKeeper.UIToolkit
             element.style.borderBottomRightRadius = radius;
             return element;
         }
+        
+        public static T SetBorderRadius<T>(this T element, float radius, LengthUnit lengthUnit) where T : VisualElement
+        {
+            var radiusLength = new Length(radius, lengthUnit);
+            element.style.borderTopLeftRadius = radiusLength;
+            element.style.borderTopRightRadius = radiusLength;
+            element.style.borderBottomLeftRadius = radiusLength;
+            element.style.borderBottomRightRadius = radiusLength;
+            return element;
+        }
 
         public static T SetBorderRadius<T>(this T element, float? topLeft, float? topRight, float? bottomRight, float? bottomLeft) where T : VisualElement
         {
@@ -203,29 +213,38 @@ namespace DataKeeper.UIToolkit
             if (bottomLeft.HasValue) element.style.borderBottomLeftRadius = bottomLeft.Value;
             return element;
         }
+        
+        public static T SetBorderRadius<T>(this T element, float? topLeft, float? topRight, float? bottomRight, float? bottomLeft, LengthUnit lengthUnit) where T : VisualElement
+        {
+            if (topLeft.HasValue) element.style.borderTopLeftRadius = new Length(topLeft.Value, lengthUnit);
+            if (topRight.HasValue) element.style.borderTopRightRadius = new Length(topRight.Value, lengthUnit);
+            if (bottomRight.HasValue) element.style.borderBottomRightRadius = new Length(bottomRight.Value, lengthUnit);
+            if (bottomLeft.HasValue) element.style.borderBottomLeftRadius = new Length(bottomLeft.Value, lengthUnit);
+            return element;
+        }
 
         // Individual border radius corners
-        public static T SetBorderRadiusTopLeft<T>(this T element, float radius) where T : VisualElement
+        public static T SetBorderRadiusTopLeft<T>(this T element, float radius, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.borderTopLeftRadius = radius;
+            element.style.borderTopLeftRadius = new Length(radius, lengthUnit);
             return element;
         }
 
-        public static T SetBorderRadiusTopRight<T>(this T element, float radius) where T : VisualElement
+        public static T SetBorderRadiusTopRight<T>(this T element, float radius, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.borderTopRightRadius = radius;
+            element.style.borderTopRightRadius = new Length(radius, lengthUnit);
             return element;
         }
 
-        public static T SetBorderRadiusBottomRight<T>(this T element, float radius) where T : VisualElement
+        public static T SetBorderRadiusBottomRight<T>(this T element, float radius, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.borderBottomRightRadius = radius;
+            element.style.borderBottomRightRadius = new Length(radius, lengthUnit);
             return element;
         }
 
-        public static T SetBorderRadiusBottomLeft<T>(this T element, float radius) where T : VisualElement
+        public static T SetBorderRadiusBottomLeft<T>(this T element, float radius, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.borderBottomLeftRadius = radius;
+            element.style.borderBottomLeftRadius = new Length(radius, lengthUnit);
             return element;
         }
 

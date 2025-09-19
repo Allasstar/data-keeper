@@ -1,8 +1,6 @@
 using System;
-using DataKeeper.Extensions;
 using UnityEngine;
 using UnityEngine.UIElements;
-using Cursor = UnityEngine.UIElements.Cursor;
 
 namespace DataKeeper.UIToolkit
 {
@@ -95,7 +93,6 @@ namespace DataKeeper.UIToolkit
 
         #endregion
 
-
         #region Manipulator Extensions
 
         public static T SetManipulator<T, TManipulator>(this T element, TManipulator manipulator)
@@ -106,13 +103,13 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetClickable<T>(this T element, Action callback) where T : VisualElement
+        public static T SetManipulator<T>(this T element, Action callback) where T : VisualElement
         {
             element.AddManipulator(new Clickable(callback));
             return element;
         }
 
-        public static T SetClickable<T>(this T element, Action<EventBase> callback) where T : VisualElement
+        public static T SetManipulator<T>(this T element, Action<EventBase> callback) where T : VisualElement
         {
             element.AddManipulator(new Clickable(callback));
             return element;

@@ -20,11 +20,24 @@ namespace DataKeeper.UIToolkit
             element.style.paddingBottom = allSides;
             return element;
         }
+        
+        /// <summary>
+        /// Set padding for all sides (inside space)
+        /// </summary>
+        public static T SetPadding<T>(this T element, float allSides, LengthUnit lengthUnit) where T : VisualElement
+        {
+            var allSidesLength = new Length(allSides, lengthUnit);
+            element.style.paddingLeft = allSidesLength;
+            element.style.paddingTop = allSidesLength;
+            element.style.paddingRight = allSidesLength;
+            element.style.paddingBottom = allSidesLength;
+            return element;
+        }
 
         /// <summary>
         /// Set padding for specific sides (inside space)
         /// </summary>
-        public static T SetPadding<T>(this T element, float? left, float? top, float? right, float? bottom) where T : VisualElement
+        public static T SetPadding<T>(this T element, float? left = null, float? top = null, float? right = null, float? bottom = null) where T : VisualElement
         {
             if (left.HasValue) element.style.paddingLeft = left.Value;
             if (top.HasValue) element.style.paddingTop = top.Value;
@@ -32,89 +45,65 @@ namespace DataKeeper.UIToolkit
             if (bottom.HasValue) element.style.paddingBottom = bottom.Value;
             return element;
         }
-
-        // Padding - Percentage variants
-        public static T SetPaddingPercent<T>(this T element, float allSidesPercent) where T : VisualElement
+        
+        /// <summary>
+        /// Set padding for specific sides (inside space)
+        /// </summary>
+        public static T SetPadding<T>(this T element, LengthUnit lengthUnit, float? left = null, float? top = null, float? right = null, float? bottom = null) where T : VisualElement
         {
-            var padding = Length.Percent(allSidesPercent);
-            element.style.paddingLeft = padding;
-            element.style.paddingTop = padding;
-            element.style.paddingRight = padding;
-            element.style.paddingBottom = padding;
-            return element;
-        }
-
-        public static T SetPaddingPercent<T>(this T element, float? leftPercent, float? topPercent, float? rightPercent, float? bottomPercent) where T : VisualElement
-        {
-            if (leftPercent.HasValue) element.style.paddingLeft = Length.Percent(leftPercent.Value);
-            if (topPercent.HasValue) element.style.paddingTop = Length.Percent(topPercent.Value);
-            if (rightPercent.HasValue) element.style.paddingRight = Length.Percent(rightPercent.Value);
-            if (bottomPercent.HasValue) element.style.paddingBottom = Length.Percent(bottomPercent.Value);
+            if (left.HasValue) element.style.paddingLeft = new Length(left.Value, lengthUnit);
+            if (top.HasValue) element.style.paddingTop = new Length(top.Value, lengthUnit);
+            if (right.HasValue) element.style.paddingRight = new Length(right.Value, lengthUnit);
+            if (bottom.HasValue) element.style.paddingBottom = new Length(bottom.Value, lengthUnit);
             return element;
         }
 
         // Individual padding sides - Pixels
-        public static T SetPaddingLeft<T>(this T element, float padding) where T : VisualElement
+        public static T SetPaddingLeft<T>(this T element, float padding, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.paddingLeft = padding;
+            element.style.paddingLeft = new Length(padding, lengthUnit);
             return element;
         }
 
-        public static T SetPaddingTop<T>(this T element, float padding) where T : VisualElement
+        public static T SetPaddingTop<T>(this T element, float padding, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.paddingTop = padding;
+            element.style.paddingTop = new Length(padding, lengthUnit);
             return element;
         }
 
-        public static T SetPaddingRight<T>(this T element, float padding) where T : VisualElement
+        public static T SetPaddingRight<T>(this T element, float padding, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.paddingRight = padding;
+            element.style.paddingRight = new Length(padding, lengthUnit);
             return element;
         }
 
-        public static T SetPaddingBottom<T>(this T element, float padding) where T : VisualElement
+        public static T SetPaddingBottom<T>(this T element, float padding, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.paddingBottom = padding;
+            element.style.paddingBottom = new Length(padding, lengthUnit);
             return element;
         }
 
-        // Individual padding sides - Percentage
-        public static T SetPaddingLeftPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetPaddingLeft<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.paddingLeft = Length.Percent(percentage);
+            element.style.paddingLeft = styleKeyword;
             return element;
         }
 
-        public static T SetPaddingTopPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetPaddingTop<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.paddingTop = Length.Percent(percentage);
+            element.style.paddingTop = styleKeyword;
             return element;
         }
 
-        public static T SetPaddingRightPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetPaddingRight<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.paddingRight = Length.Percent(percentage);
+            element.style.paddingRight = styleKeyword;
             return element;
         }
 
-        public static T SetPaddingBottomPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetPaddingBottom<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.paddingBottom = Length.Percent(percentage);
-            return element;
-        }
-
-        // Horizontal and Vertical padding shortcuts
-        public static T SetPaddingHorizontal<T>(this T element, float horizontal) where T : VisualElement
-        {
-            element.style.paddingLeft = horizontal;
-            element.style.paddingRight = horizontal;
-            return element;
-        }
-
-        public static T SetPaddingVertical<T>(this T element, float vertical) where T : VisualElement
-        {
-            element.style.paddingTop = vertical;
-            element.style.paddingBottom = vertical;
+            element.style.paddingBottom = styleKeyword;
             return element;
         }
 
@@ -133,6 +122,19 @@ namespace DataKeeper.UIToolkit
             element.style.marginBottom = allSides;
             return element;
         }
+        
+        /// <summary>
+        /// Set margin for all sides (outside space)
+        /// </summary>
+        public static T SetMargin<T>(this T element, float allSides, LengthUnit lengthUnit) where T : VisualElement
+        {
+            var allSidesLength = new Length(allSides, lengthUnit);
+            element.style.marginLeft = allSidesLength;
+            element.style.marginTop = allSidesLength;
+            element.style.marginRight = allSidesLength;
+            element.style.marginBottom = allSidesLength;
+            return element;
+        }
 
         /// <summary>
         /// Set margin for specific sides (outside space)
@@ -145,152 +147,75 @@ namespace DataKeeper.UIToolkit
             if (bottom.HasValue) element.style.marginBottom = bottom.Value;
             return element;
         }
-
-        // Margin - Percentage variants
-        public static T SetMarginPercent<T>(this T element, float allSidesPercent) where T : VisualElement
+        
+        /// <summary>
+        /// Set margin for specific sides (outside space)
+        /// </summary>
+        public static T SetMargin<T>(this T element, LengthUnit lengthUnit, float? left = null, float? top = null, float? right = null, float? bottom = null) where T : VisualElement
         {
-            var margin = Length.Percent(allSidesPercent);
-            element.style.marginLeft = margin;
-            element.style.marginTop = margin;
-            element.style.marginRight = margin;
-            element.style.marginBottom = margin;
-            return element;
-        }
-
-        public static T SetMarginPercent<T>(this T element, float? leftPercent, float? topPercent, float? rightPercent, float? bottomPercent) where T : VisualElement
-        {
-            if (leftPercent.HasValue) element.style.marginLeft = Length.Percent(leftPercent.Value);
-            if (topPercent.HasValue) element.style.marginTop = Length.Percent(topPercent.Value);
-            if (rightPercent.HasValue) element.style.marginRight = Length.Percent(rightPercent.Value);
-            if (bottomPercent.HasValue) element.style.marginBottom = Length.Percent(bottomPercent.Value);
+            if (left.HasValue) element.style.marginLeft = new Length(left.Value, lengthUnit);
+            if (top.HasValue) element.style.marginTop = new Length(top.Value, lengthUnit);
+            if (right.HasValue) element.style.marginRight = new Length(right.Value, lengthUnit);
+            if (bottom.HasValue) element.style.marginBottom = new Length(bottom.Value, lengthUnit);
             return element;
         }
 
         // Margin - Auto variants
-        public static T SetMarginAuto<T>(this T element) where T : VisualElement
+        public static T SetMargin<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.marginLeft = StyleKeyword.Auto;
-            element.style.marginTop = StyleKeyword.Auto;
-            element.style.marginRight = StyleKeyword.Auto;
-            element.style.marginBottom = StyleKeyword.Auto;
+            element.style.marginLeft = styleKeyword;
+            element.style.marginTop = styleKeyword;
+            element.style.marginRight = styleKeyword;
+            element.style.marginBottom = styleKeyword;
             return element;
         }
-
-        public static T SetMarginHorizontalAuto<T>(this T element) where T : VisualElement
-        {
-            element.style.marginLeft = StyleKeyword.Auto;
-            element.style.marginRight = StyleKeyword.Auto;
-            return element;
-        }
-
-        public static T SetMarginVerticalAuto<T>(this T element) where T : VisualElement
-        {
-            element.style.marginTop = StyleKeyword.Auto;
-            element.style.marginBottom = StyleKeyword.Auto;
-            return element;
-        }
-
+        
         // Individual margin sides - Pixels
-        public static T SetMarginLeft<T>(this T element, float margin) where T : VisualElement
+        public static T SetMarginLeft<T>(this T element, float margin, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.marginLeft = margin;
+            element.style.marginLeft = new Length(margin, lengthUnit);
             return element;
         }
 
-        public static T SetMarginTop<T>(this T element, float margin) where T : VisualElement
+        public static T SetMarginTop<T>(this T element, float margin, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.marginTop = margin;
+            element.style.marginTop = new Length(margin, lengthUnit);
             return element;
         }
 
-        public static T SetMarginRight<T>(this T element, float margin) where T : VisualElement
+        public static T SetMarginRight<T>(this T element, float margin, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.marginRight = margin;
+            element.style.marginRight = new Length(margin, lengthUnit);
             return element;
         }
 
-        public static T SetMarginBottom<T>(this T element, float margin) where T : VisualElement
+        public static T SetMarginBottom<T>(this T element, float margin, LengthUnit lengthUnit = LengthUnit.Pixel) where T : VisualElement
         {
-            element.style.marginBottom = margin;
+            element.style.marginBottom = new Length(margin, lengthUnit);
+            return element;
+        }
+        
+        public static T SetMarginLeft<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
+        {
+            element.style.marginLeft = styleKeyword;
             return element;
         }
 
-        // Individual margin sides - Percentage
-        public static T SetMarginLeftPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetMarginTop<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.marginLeft = Length.Percent(percentage);
+            element.style.marginTop = styleKeyword;
             return element;
         }
 
-        public static T SetMarginTopPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetMarginRight<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.marginTop = Length.Percent(percentage);
+            element.style.marginRight = styleKeyword;
             return element;
         }
 
-        public static T SetMarginRightPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetMarginBottom<T>(this T element, StyleKeyword styleKeyword) where T : VisualElement
         {
-            element.style.marginRight = Length.Percent(percentage);
-            return element;
-        }
-
-        public static T SetMarginBottomPercent<T>(this T element, float percentage) where T : VisualElement
-        {
-            element.style.marginBottom = Length.Percent(percentage);
-            return element;
-        }
-
-        // Individual margin sides - Auto
-        public static T SetMarginLeftAuto<T>(this T element) where T : VisualElement
-        {
-            element.style.marginLeft = StyleKeyword.Auto;
-            return element;
-        }
-
-        public static T SetMarginTopAuto<T>(this T element) where T : VisualElement
-        {
-            element.style.marginTop = StyleKeyword.Auto;
-            return element;
-        }
-
-        public static T SetMarginRightAuto<T>(this T element) where T : VisualElement
-        {
-            element.style.marginRight = StyleKeyword.Auto;
-            return element;
-        }
-
-        public static T SetMarginBottomAuto<T>(this T element) where T : VisualElement
-        {
-            element.style.marginBottom = StyleKeyword.Auto;
-            return element;
-        }
-
-        // Horizontal and Vertical margin shortcuts
-        public static T SetMarginHorizontal<T>(this T element, float horizontal) where T : VisualElement
-        {
-            element.style.marginLeft = horizontal;
-            element.style.marginRight = horizontal;
-            return element;
-        }
-
-        public static T SetMarginVertical<T>(this T element, float vertical) where T : VisualElement
-        {
-            element.style.marginTop = vertical;
-            element.style.marginBottom = vertical;
-            return element;
-        }
-
-        public static T SetMarginHorizontalPercent<T>(this T element, float percentage) where T : VisualElement
-        {
-            element.style.marginLeft = Length.Percent(percentage);
-            element.style.marginRight = Length.Percent(percentage);
-            return element;
-        }
-
-        public static T SetMarginVerticalPercent<T>(this T element, float percentage) where T : VisualElement
-        {
-            element.style.marginTop = Length.Percent(percentage);
-            element.style.marginBottom = Length.Percent(percentage);
+            element.style.marginBottom = styleKeyword;
             return element;
         }
 

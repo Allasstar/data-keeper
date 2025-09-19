@@ -55,16 +55,16 @@ namespace DataKeeper.UIToolkit
             element.style.flexShrink = shrink;
             return element;
         }
-
+        
         public static T SetFlexBasis<T>(this T element, float basis) where T : VisualElement
         {
             element.style.flexBasis = basis;
             return element;
         }
 
-        public static T SetFlexBasisPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetFlexBasis<T>(this T element, float basis, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.flexBasis = Length.Percent(percentage);
+            element.style.flexBasis = new Length(basis, lengthUnit);
             return element;
         }
 
@@ -91,8 +91,8 @@ namespace DataKeeper.UIToolkit
 
         public static T SetFlexNone<T>(this T element) where T : VisualElement
         {
-            element.style.flexGrow = 0;
-            element.style.flexShrink = 0;
+            element.style.flexGrow = StyleKeyword.None;
+            element.style.flexShrink = StyleKeyword.None;
             return element;
         }
 
@@ -129,36 +129,6 @@ namespace DataKeeper.UIToolkit
         public static T SetJustifyContent<T>(this T element, Justify justify) where T : VisualElement
         {
             element.style.justifyContent = justify;
-            return element;
-        }
-
-        public static T SetJustifyStart<T>(this T element) where T : VisualElement
-        {
-            element.style.justifyContent = Justify.FlexStart;
-            return element;
-        }
-
-        public static T SetJustifyCenter<T>(this T element) where T : VisualElement
-        {
-            element.style.justifyContent = Justify.Center;
-            return element;
-        }
-
-        public static T SetJustifyEnd<T>(this T element) where T : VisualElement
-        {
-            element.style.justifyContent = Justify.FlexEnd;
-            return element;
-        }
-
-        public static T SetJustifySpaceBetween<T>(this T element) where T : VisualElement
-        {
-            element.style.justifyContent = Justify.SpaceBetween;
-            return element;
-        }
-
-        public static T SetJustifySpaceAround<T>(this T element) where T : VisualElement
-        {
-            element.style.justifyContent = Justify.SpaceAround;
             return element;
         }
 
@@ -208,27 +178,27 @@ namespace DataKeeper.UIToolkit
         }
 
         // Position with percentage
-        public static T SetLeftPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetLeft<T>(this T element, float left, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.left = Length.Percent(percentage);
+            element.style.left = new Length(left, lengthUnit);
             return element;
         }
 
-        public static T SetTopPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetTop<T>(this T element, float top, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.top = Length.Percent(percentage);
+            element.style.top = new Length(top, lengthUnit);
             return element;
         }
 
-        public static T SetRightPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetRight<T>(this T element, float right, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.right = Length.Percent(percentage);
+            element.style.right = new Length(right, lengthUnit);
             return element;
         }
 
-        public static T SetBottomPercent<T>(this T element, float percentage) where T : VisualElement
+        public static T SetBottom<T>(this T element, float bottom, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.bottom = Length.Percent(percentage);
+            element.style.bottom = new Length(bottom, lengthUnit);
             return element;
         }
 
@@ -271,13 +241,6 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetFlexCenterBoth<T>(this T element) where T : VisualElement
-        {
-            element.style.alignItems = Align.Center;
-            element.style.justifyContent = Justify.Center;
-            return element;
-        }
-
         #endregion
 
         #region Transform Extensions
@@ -288,9 +251,9 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetTranslatePercent<T>(this T element, float xPercent, float yPercent) where T : VisualElement
+        public static T SetTranslate<T>(this T element, float x, float y, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.translate = new Translate(Length.Percent(xPercent), Length.Percent(yPercent));
+            element.style.translate = new Translate(new Length(x, lengthUnit), new Length(y, lengthUnit));
             return element;
         }
 
@@ -318,9 +281,9 @@ namespace DataKeeper.UIToolkit
             return element;
         }
 
-        public static T SetTransformOriginPercent<T>(this T element, float xPercent, float yPercent) where T : VisualElement
+        public static T SetTransformOrigin<T>(this T element, float x, float y, LengthUnit lengthUnit) where T : VisualElement
         {
-            element.style.transformOrigin = new TransformOrigin(Length.Percent(xPercent), Length.Percent(yPercent));
+            element.style.transformOrigin = new TransformOrigin(new Length(x, lengthUnit), new Length(y, lengthUnit));
             return element;
         }
 
