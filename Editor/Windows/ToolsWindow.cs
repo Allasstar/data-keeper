@@ -613,19 +613,38 @@ namespace DataKeeper.Editor.Windows
 
         private static void CreateEmptyAtPosition()
         {
-            var selected = Selection.activeGameObject;
-            if (selected == null)
+            var selection = Selection.gameObjects;
+            if (selection == null || selection.Length == 0)
             {
-                Debug.LogWarning("No object selected");
+                Debug.LogWarning("No objects selected to group");
                 return;
             }
+    
+            Undo.IncrementCurrentGroup();
+            var undoGroupIndex = Undo.GetCurrentGroup();
+            
+            var created = new List<GameObject>();
+    
+            foreach (var selected in selection)
+            {
+                if (selected == null)
+                {
+                    continue;
+                }
 
-            var newObj = new GameObject("Empty_" + selected.name);
-            newObj.transform.position = selected.transform.position;
-            newObj.transform.rotation = selected.transform.rotation;
-
-            Undo.RegisterCreatedObjectUndo(newObj, "Create Empty at Position");
-            Selection.activeGameObject = newObj;
+                var newObj = new GameObject("Empty_" + selected.name);
+                newObj.transform.position = selected.transform.position;
+                newObj.transform.rotation = selected.transform.rotation;
+                newObj.transform.parent = selected.transform.parent;
+                newObj.transform.SetSiblingIndex(selected.transform.GetSiblingIndex());
+                created.Add(newObj);
+                
+                Undo.RegisterCreatedObjectUndo(newObj, "Create Empty at Position");
+            }
+            
+            Selection.objects = created.ToArray();
+    
+            Undo.CollapseUndoOperations(undoGroupIndex);
         }
 
         private static void CopyTransform()
