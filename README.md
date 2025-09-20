@@ -74,6 +74,11 @@ The `ServiceLocator` system, located in the `DataKeeper.ServiceLocatorPattern` n
 
 The `Pool<T>` class, located within the `DataKeeper.PoolSystem` namespace, is a generic implementation of an object pooling system. It provides the functionality to manage, reuse, and recycle instances of a given `Component`. This class is designed for efficient runtime object management, which is particularly useful in scenarios like Unity game development.
 
+# [UIToolkit](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/UIToolkit.md)
+
+The `DataKeeper.UIToolkit` namespace is a comprehensive extension library for Unity's UI Toolkit system, providing fluent API extensions and utilities to streamline UI development. This namespace contains various extension classes that make it easier to work with Unity's `VisualElement` system by providing method chaining capabilities and simplified styling operations.
+
+
 ## [Signals](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/Signals.md)
 
 The `DataKeeper.Signals` namespace provides a set of utilities and abstractions for implementing a signal-based event-driven system. Signals enable communication between different objects or parts of the system in a decoupled manner. This namespace is designed for scenarios where event management, persistent signals, and runtime callbacks are crucial.
