@@ -570,6 +570,26 @@ namespace DataKeeper.Extensions
         {
             return (color.r + color.g * 0.5f) > (color.b + color.g * 0.5f);
         }
+        
+        public static Color Alpha(this Color color, float alpha)
+        {
+            return new Color(color.r, color.g, color.b, alpha);
+        }
+
+        public static Color Lighten(this Color color, float amount = 0.5f)
+        {
+            return Color.Lerp(color, Color.white, Mathf.Clamp01(amount));
+        }
+
+        public static Color Darken(this Color color, float amount = 0.5f)
+        {
+            return Color.Lerp(color, Color.black, Mathf.Clamp01(amount));
+        }
+        
+        public static Color Lerp(this Color colorA, Color colorB, float amount)
+        {
+            return Color.Lerp(colorA, colorB, Mathf.Clamp01(amount));
+        }
         #endregion
     }
 }

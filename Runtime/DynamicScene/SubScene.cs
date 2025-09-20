@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Linq;
 using DataKeeper.Attributes;
+using DataKeeper.Helpers;
 using UnityEditor;
 using UnityEngine;
 
@@ -15,6 +17,9 @@ namespace DataKeeper.DynamicScene
         public List<Camera> cameraList = new List<Camera>();
 
         [Header("Runtime")]
+        [SerializeField] private Vector3 _center;
+        [SerializeField] private float _radius;
+        [SerializeField] private bool _wasInRadius;
         [SerializeField] private AddressableLoader[] _children;
 
         private void Awake()
@@ -31,6 +36,62 @@ namespace DataKeeper.DynamicScene
         {
             if(!checkChildren) return;
 
+            InitializeCameraList();
+            InitializeCheckRadius();
+        }
+
+        private void OnEnable()
+        {
+            if(!checkChildren) return;
+            
+            InvokeRepeating(nameof(CheckDistance), checkDelay, checkInterval);
+        }
+
+        private void OnDisable()
+        {
+            if(!checkChildren) return;
+            
+            CancelInvoke(nameof(CheckDistance));
+        }
+
+        private void CheckDistance()
+        {
+            var inRadius = IsInRadius();
+
+            if (inRadius || _wasInRadius)
+            {
+                foreach (var child in _children)
+                {
+                    child.CheckDistance();
+                }
+                
+                _wasInRadius = inRadius;
+            }
+        }
+
+        private bool IsInRadius()
+        {
+            if (cameraList.Count == 0) return false;
+            return cameraList.Any(a => Vector3.Distance(a.transform.position, _center) <= _radius);
+        }
+
+        private void InitializeCheckRadius()
+        {
+            _center = Vector3.zero;
+
+            foreach (var child in _children)
+            {
+                _center += child.transform.position;
+            }
+            
+            _center /= _children.Length;
+            var maxDistance = _children.Max(m => Vector3.Distance(_center, m.transform.position));
+            _radius = _children.Max(m => m.unloadDistance) * 1.2f + maxDistance;
+            _wasInRadius = false;
+        }
+        
+        private void InitializeCameraList()
+        {
             if (cameraList.Count == 0)
             {
                 if (Camera.main != null)
@@ -50,28 +111,6 @@ namespace DataKeeper.DynamicScene
                 child.cameraList = cameraList;
             }
         }
-        
-        private void OnEnable()
-        {
-            if(!checkChildren) return;
-            
-            InvokeRepeating(nameof(CheckDistance), checkDelay, checkInterval);
-        }
-
-        private void OnDisable()
-        {
-            if(!checkChildren) return;
-            
-            CancelInvoke(nameof(CheckDistance));
-        }
-
-        private void CheckDistance()
-        {
-            foreach (var child in _children)
-            {
-                child.CheckDistance();
-            }
-        }
 
 #if UNITY_EDITOR
         
@@ -83,6 +122,17 @@ namespace DataKeeper.DynamicScene
         [SerializeField, ReadOnlyInspector] 
         private List<GameObject> instantiatedPrefabs = new List<GameObject>();
         
+        [SerializeField] private bool _showGizmo = false;
+
+        private void OnDrawGizmosSelected()
+        {
+            if(!_showGizmo) return;
+            if(!Application.isPlaying) return;
+            
+            Gizmos.color = Colors.GreenFaint;
+            Gizmos.DrawSphere(_center, _radius);
+        }
+
         [Button("Open Addressable Converter Tool", 10, ButtonEnabledState.InEditMode)]
         private void OpenAddressableConverterTool()
         {
