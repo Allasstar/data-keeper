@@ -1,12 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
-using DataKeeper.UIToolkit;
 using UnityEngine.UIElements;
 
-namespace DataKeeper.UI_Toolkit.Elements
+namespace DataKeeper.UIToolkit.Elements
 {
     [UxmlElement]
-    public partial class Box : VisualElement
+    public partial class FlexBox : VisualElement
     {
         private FlexDirection _childDirection = FlexDirection.Column;
         [UxmlAttribute("childDirection")]
@@ -33,7 +32,7 @@ namespace DataKeeper.UI_Toolkit.Elements
             }
         }
 
-        public Box()
+        public FlexBox()
         {
             this.SetFlexDirection(_childDirection);
             this.SetOnGeometryChanged(OnGeometryChanged);
