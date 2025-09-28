@@ -4,6 +4,16 @@ namespace DataKeeper.Extensions
 {
     public static class ObjectExtensions
     {
+        public static bool IsNull(this object obj)
+        {
+            if (obj is UnityEngine.Object unityObj)
+            {
+                return unityObj == null;
+            }
+            
+            return obj == null;
+        }
+        
         /// <summary>
         /// Safely casts an object to the specified type T.
         /// Returns the cast object if successful, otherwise returns the default value for T.
