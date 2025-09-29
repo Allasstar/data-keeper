@@ -3,25 +3,25 @@ using UnityEngine;
 
 namespace DataKeeper.Extra
 {
-    [AddComponentMenu("DataKeeper/Extra/Hide Flags Menu"), DisallowMultipleComponent]
-    public class HideFlagsMenu : MonoBehaviour
+    [AddComponentMenu("DataKeeper/Extra/Hide Flags Manager"), DisallowMultipleComponent]
+    public class HideFlagsManager : MonoBehaviour
     {
         [field: SerializeField] public HideFlagsTarget FlagsTarget { get; private set; } = HideFlagsTarget.Self;
         [field: SerializeField] public HideFlags Flags { get; private set; } = HideFlags.None;
         
-        public HideFlagsMenu SetHideFlagsTarget(HideFlagsTarget hideFlagsTarget)
+        public HideFlagsManager SetHideFlagsTarget(HideFlagsTarget hideFlagsTarget)
         {
             FlagsTarget = hideFlagsTarget;
             return this;
         }
         
-        public HideFlagsMenu SetHideFlags(HideFlags hideFlags)
+        public HideFlagsManager SetHideFlags(HideFlags hideFlags)
         {
             Flags = hideFlags;
             return this;
         }
 
-        public HideFlagsMenu Apply()
+        public HideFlagsManager Apply()
         {
             switch (FlagsTarget)
             {
@@ -42,7 +42,7 @@ namespace DataKeeper.Extra
             return this;
         }
 
-        public HideFlagsMenu Reset()
+        public HideFlagsManager Reset()
         {
             switch (FlagsTarget)
             {
@@ -84,7 +84,7 @@ namespace DataKeeper.Extra
             }
         }
 
-        [Button("Apply", 10, groupLabel: "Test Group")]
+        [Button("Apply", 10)]
         private void ApplyHideFlags()
         {
 #if UNITY_EDITOR
