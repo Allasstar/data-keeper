@@ -44,7 +44,7 @@ namespace DataKeeper.DynamicScene
             Overwrite           // Overwrite existing prefabs
         }
     
-        [MenuItem("Tools/Addressable Converter", priority = 11)]
+        [MenuItem("Tools/Windows/Addressable Converter", priority = 11)]
         public static void ShowWindow()
         {
             GetWindow<AddressableConverterTool>("Addressable Converter");
