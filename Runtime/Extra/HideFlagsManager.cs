@@ -1,13 +1,16 @@
 using DataKeeper.Attributes;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace DataKeeper.Extra
 {
+    [ExecuteAlways]
     [AddComponentMenu("DataKeeper/Extra/Hide Flags Manager"), DisallowMultipleComponent]
     public class HideFlagsManager : MonoBehaviour
     {
         [field: SerializeField] public HideFlagsTarget FlagsTarget { get; private set; } = HideFlagsTarget.Self;
         [field: SerializeField] public HideFlags Flags { get; private set; } = HideFlags.None;
+        [field: SerializeField, HideInInspector] public bool ApplyOnValidate { get; private set; } = false;
         
         public HideFlagsManager SetHideFlagsTarget(HideFlagsTarget hideFlagsTarget)
         {
@@ -18,6 +21,12 @@ namespace DataKeeper.Extra
         public HideFlagsManager SetHideFlags(HideFlags hideFlags)
         {
             Flags = hideFlags;
+            return this;
+        }
+        
+        public HideFlagsManager SetApplyOnValidate(bool applyOnValidate)
+        {
+            ApplyOnValidate = applyOnValidate;
             return this;
         }
 
@@ -111,6 +120,23 @@ namespace DataKeeper.Extra
         }
 
 #if UNITY_EDITOR
+        
+        private void OnEnable()
+        {
+            if (ApplyOnValidate)
+            {
+                Apply();
+            }
+        }
+
+        private void OnValidate()
+        {
+            if (ApplyOnValidate)
+            {
+                Apply();
+            }
+        }
+
         private Object[] GetAffectedObjects()
         {
             System.Collections.Generic.List<Object> objects = new System.Collections.Generic.List<Object>();

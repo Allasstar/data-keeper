@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using DataKeeper.Attributes;
+using DataKeeper.Extra;
 using DataKeeper.Helpers;
 using UnityEditor;
 using UnityEngine;
@@ -133,13 +134,13 @@ namespace DataKeeper.DynamicScene
             Gizmos.DrawSphere(_center, _radius);
         }
 
-        [Button("Open Addressable Converter Tool", 10, ButtonEnabledState.InEditMode)]
+        [Button("Open Addressable Converter Tool", 10, ButtonEnabledState.InEditMode, "Editor Window")]
         private void OpenAddressableConverterTool()
         {
             AddressableConverterTool.ShowWindow();
         }
     
-        [Button("Instantiate Prefabs", 20, ButtonEnabledState.InEditMode)]
+        [Button("Load Prefabs", 20, ButtonEnabledState.InEditMode, "Preview")]
         private void FindAndInstantiatePrefabs()
         {
             if (Application.isPlaying) return;
@@ -189,6 +190,12 @@ namespace DataKeeper.DynamicScene
                 instance.transform.SetParent(lodManager.transform);
                 instance.transform.localPosition = Vector3.zero;
                 instance.transform.localRotation = Quaternion.identity;
+                
+                instance.AddComponent<HideFlagsManager>()
+                    .SetHideFlagsTarget(HideFlagsTarget.Self)
+                    .SetHideFlags(HideFlags.DontSave | HideFlags.NotEditable)
+                    .SetApplyOnValidate(true)
+                    .Apply();
             
                 // Add a tag to identify this as an editor preview
                 instance.name = $"[EDITOR_PREVIEW] {prefab.name}";
@@ -210,7 +217,7 @@ namespace DataKeeper.DynamicScene
             }
         }
     
-        [Button("Remove Prefabs", 2, ButtonEnabledState.InEditMode)]
+        [Button("Unload Prefabs", 2, ButtonEnabledState.InEditMode)]
         private void RemovePrefabInstances()
         {
             if (Application.isPlaying) return;
