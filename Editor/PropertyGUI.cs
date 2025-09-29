@@ -1,6 +1,6 @@
-using System;
 using System.Reflection;
 using DataKeeper.Attributes;
+using DataKeeper.Extensions;
 using DataKeeper.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -23,6 +23,12 @@ namespace DataKeeper.Editor
                     string buttonLabel = buttonAttribute.ButtonLabel ?? ObjectNames.NicifyVariableName(method.Name);
 
                     EditorGUILayout.Space(buttonAttribute.Space);
+
+                    if (!buttonAttribute.GroupLabel.IsNullOrEmpty())
+                    {
+                        EditorGUILayout.LabelField(buttonAttribute.GroupLabel);
+                    }
+                    
                     bool isEnabled = buttonAttribute.ButtonEnabledState switch
                     {
                         ButtonEnabledState.Always => true,

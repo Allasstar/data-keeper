@@ -1,79 +1,112 @@
 using DataKeeper.Attributes;
 using UnityEngine;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace DataKeeper.Extra
 {
     [AddComponentMenu("DataKeeper/Extra/Hide Flags Menu"), DisallowMultipleComponent]
     public class HideFlagsMenu : MonoBehaviour
     {
-        [field: SerializeField] public HideFlagsTarget HideFlagsTarget { get; private set; } = HideFlagsTarget.Self;
-        [field: SerializeField] public HideFlags HideFlags { get; private set; } = HideFlags.None;
+        [field: SerializeField] public HideFlagsTarget FlagsTarget { get; private set; } = HideFlagsTarget.Self;
+        [field: SerializeField] public HideFlags Flags { get; private set; } = HideFlags.None;
         
         public HideFlagsMenu SetHideFlagsTarget(HideFlagsTarget hideFlagsTarget)
         {
-            HideFlagsTarget = hideFlagsTarget;
+            FlagsTarget = hideFlagsTarget;
             return this;
         }
         
         public HideFlagsMenu SetHideFlags(HideFlags hideFlags)
         {
-            HideFlags = hideFlags;
+            Flags = hideFlags;
             return this;
         }
 
-        public void Apply()
+        public HideFlagsMenu Apply()
         {
-            switch (HideFlagsTarget)
+            switch (FlagsTarget)
             {
                 case HideFlagsTarget.Self:
-                    ApplyToGameObject(gameObject);
+                    ApplyToGameObject(gameObject, Flags);
                     break;
                 
                 case HideFlagsTarget.Children:
-                    ApplyToChildren(gameObject);
+                    ApplyToChildren(gameObject, Flags);
                     break;
                 
                 case HideFlagsTarget.SelfAndChildren:
-                    ApplyToChildren(gameObject);
-                    ApplyToGameObject(gameObject);
+                    ApplyToChildren(gameObject, Flags);
+                    ApplyToGameObject(gameObject, Flags);
                     break;
             }
+            
+            return this;
         }
 
-        private void ApplyToGameObject(GameObject target)
+        public HideFlagsMenu Reset()
         {
-            target.hideFlags = HideFlags;
+            switch (FlagsTarget)
+            {
+                case HideFlagsTarget.Self:
+                    ApplyToGameObject(gameObject, HideFlags.None);
+                    break;
+                
+                case HideFlagsTarget.Children:
+                    ApplyToChildren(gameObject, HideFlags.None);
+                    break;
+                
+                case HideFlagsTarget.SelfAndChildren:
+                    ApplyToChildren(gameObject, HideFlags.None);
+                    ApplyToGameObject(gameObject, HideFlags.None);
+                    break;
+            }
+            
+            return this;
         }
 
-        private void ApplyToChildren(GameObject parent)
+        private void ApplyToGameObject(GameObject target, HideFlags hideFlags)
+        {
+            target.hideFlags = hideFlags;
+        }
+
+        private void ApplyToChildren(GameObject parent, HideFlags hideFlags)
         {
             Transform transform = parent.transform;
             for (int i = 0; i < transform.childCount; i++)
             {
                 Transform child = transform.GetChild(i);
-                ApplyToGameObject(child.gameObject);
+                ApplyToGameObject(child.gameObject, hideFlags);
                 
                 // Recursively apply to all descendants
                 if (child.childCount > 0)
                 {
-                    ApplyToChildren(child.gameObject);
+                    ApplyToChildren(child.gameObject, hideFlags);
                 }
             }
         }
 
-        [Button("Apply", 10)]
+        [Button("Apply", 10, groupLabel: "Test Group")]
         private void ApplyHideFlags()
         {
 #if UNITY_EDITOR
-            Undo.RegisterCompleteObjectUndo(GetAffectedObjects(), "Apply Hide Flags");
+            UnityEditor.Undo.RegisterCompleteObjectUndo(GetAffectedObjects(), "Apply Hide Flags");
 #endif
             Apply();
             
 #if UNITY_EDITOR
-            EditorUtility.SetDirty(gameObject);
+            UnityEditor.EditorUtility.SetDirty(gameObject);
+#endif
+        }
+        
+        [Button("Reset")]
+        private void ResetHideFlags()
+        {
+#if UNITY_EDITOR
+            UnityEditor.Undo.RegisterCompleteObjectUndo(GetAffectedObjects(), "Reset Hide Flags");
+#endif
+            Reset();
+            
+#if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(gameObject);
 #endif
         }
 
@@ -82,7 +115,7 @@ namespace DataKeeper.Extra
         {
             System.Collections.Generic.List<Object> objects = new System.Collections.Generic.List<Object>();
             
-            switch (HideFlagsTarget)
+            switch (FlagsTarget)
             {
                 case HideFlagsTarget.Self:
                     CollectObjectsFromGameObject(gameObject, objects);
