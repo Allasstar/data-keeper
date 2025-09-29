@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DataKeeper.Editor.Settings;
+using DataKeeper.Extra;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
@@ -12,6 +13,13 @@ namespace DataKeeper.Editor.Enhance
         Small = 0,
         Big = 1,
         Default = 2,
+    }
+    
+    public enum HierarchyIconType
+    {
+        All = 0,
+        Primary = 1,
+        Secondary = 2,
     }
 
     [InitializeOnLoad]
@@ -48,11 +56,56 @@ namespace DataKeeper.Editor.Enhance
         private static Dictionary<System.Type, Texture> componentIconCache = new Dictionary<System.Type, Texture>();
 
         // Settings
-        private static List<System.Type> priorityComponents = new List<System.Type>();
-        private static bool isEnabled => DataKeeperEditorPref.EnhanceHierarchyIconPref.Value;
+        private static List<System.Type> priorityComponents = new List<System.Type>()
+        {
+            typeof(Camera),
+            typeof(Light),
+            typeof(CharacterController),
+            typeof(LODGroup),
+            typeof(Rigidbody),
+            typeof(Animator),
+            typeof(Animation),
+            typeof(AudioSource),
+            typeof(Collider),
+            typeof(ParticleSystem),
+            typeof(MeshFilter),
+            typeof(AudioListener),
+            typeof(Canvas),
+            typeof(DataKeeper.UI.ButtonUI),
+            typeof(DataKeeper.UI.ToggleUI),
+            typeof(UnityEngine.UI.Button),
+            typeof(UnityEngine.UI.Slider),
+            typeof(UnityEngine.UI.Toggle),
+            typeof(UnityEngine.UI.Dropdown),
+            typeof(UnityEngine.UI.InputField),
+            typeof(UnityEngine.UI.Scrollbar),
+            typeof(UnityEngine.UI.ScrollRect),
+            typeof(UnityEngine.UI.ToggleGroup),
+            typeof(DataKeeper.UI.ToggleUIGroup),
+            typeof(UnityEngine.UI.LayoutGroup),
+            typeof(UnityEngine.UI.LayoutElement),
+            typeof(UnityEngine.UI.ContentSizeFitter),
+            typeof(UnityEngine.UI.AspectRatioFitter),
+            typeof(UnityEngine.UI.GridLayoutGroup),
+            typeof(UnityEngine.UI.HorizontalLayoutGroup),
+            typeof(UnityEngine.UI.VerticalLayoutGroup),
+            typeof(UnityEngine.UI.HorizontalOrVerticalLayoutGroup),
+            typeof(DataKeeper.UI.SafeAreaUI),
+            typeof(DataKeeper.DynamicScene.AddressableLoader),
+            typeof(DataKeeper.DynamicScene.SubScene),
+            typeof(UnityEngine.UI.Image),
+            typeof(TMP_Text),
+            typeof(TMP_InputField),
+            typeof(HideFlagsMenu)
+        };
+
+        private static bool isEnabled => DataKeeperEditorPref.EnhanceHierarchy_Enabled.Value;
 
         private static PrefabHierarchyIcon PrefabHierarchyIconType =>
-            DataKeeperEditorPref.EnhanceHierarchyPrefabIconPref.Value;
+            DataKeeperEditorPref.EnhanceHierarchy_PrefabIconType.Value;
+        
+        private static HierarchyIconType HierarchyIconType =>
+            DataKeeperEditorPref.EnhanceHierarchy_IconType.Value;
 
         // Colors
         private static readonly Color DefaultColorPro = new Color(0.219f, 0.219f, 0.219f);
@@ -96,47 +149,6 @@ namespace DataKeeper.Editor.Enhance
         // Constructor runs when Unity starts or scripts recompile
         static EnhanceHierarchyIcon()
         {
-            // Initialize with some default priority components if none are set
-            if (priorityComponents.Count == 0)
-            {
-                priorityComponents.Add(typeof(Camera));
-                priorityComponents.Add(typeof(Light));
-                priorityComponents.Add(typeof(CharacterController));
-                priorityComponents.Add(typeof(LODGroup));
-                priorityComponents.Add(typeof(Rigidbody));
-                priorityComponents.Add(typeof(Animator));
-                priorityComponents.Add(typeof(Animation));
-                priorityComponents.Add(typeof(AudioSource));
-                priorityComponents.Add(typeof(Collider));
-                priorityComponents.Add(typeof(ParticleSystem));
-                priorityComponents.Add(typeof(MeshFilter));
-                priorityComponents.Add(typeof(DataKeeper.UI.ButtonUI));
-                priorityComponents.Add(typeof(DataKeeper.UI.ToggleUI));
-                priorityComponents.Add(typeof(UnityEngine.UI.Button));
-                priorityComponents.Add(typeof(UnityEngine.UI.Slider));
-                priorityComponents.Add(typeof(UnityEngine.UI.Toggle));
-                priorityComponents.Add(typeof(UnityEngine.UI.Dropdown));
-                priorityComponents.Add(typeof(UnityEngine.UI.InputField));
-                priorityComponents.Add(typeof(UnityEngine.UI.Scrollbar));
-                priorityComponents.Add(typeof(UnityEngine.UI.ScrollRect));
-                priorityComponents.Add(typeof(UnityEngine.UI.ToggleGroup));
-                priorityComponents.Add(typeof(DataKeeper.UI.ToggleUIGroup));
-                priorityComponents.Add(typeof(UnityEngine.UI.LayoutGroup));
-                priorityComponents.Add(typeof(UnityEngine.UI.LayoutElement));
-                priorityComponents.Add(typeof(UnityEngine.UI.ContentSizeFitter));
-                priorityComponents.Add(typeof(UnityEngine.UI.AspectRatioFitter));
-                priorityComponents.Add(typeof(UnityEngine.UI.GridLayoutGroup));
-                priorityComponents.Add(typeof(UnityEngine.UI.HorizontalLayoutGroup));
-                priorityComponents.Add(typeof(UnityEngine.UI.VerticalLayoutGroup));
-                priorityComponents.Add(typeof(UnityEngine.UI.HorizontalOrVerticalLayoutGroup));
-                priorityComponents.Add(typeof(DataKeeper.UI.SafeAreaUI));
-                priorityComponents.Add(typeof(DataKeeper.DynamicScene.AddressableLoader));
-                priorityComponents.Add(typeof(DataKeeper.DynamicScene.SubScene));
-                priorityComponents.Add(typeof(UnityEngine.UI.Image));
-                priorityComponents.Add(typeof(TextMeshProUGUI));
-                priorityComponents.Add(typeof(TMP_InputField));
-            }
-
             EditorApplication.update -= HandleEditorAppUpdate;
             EditorApplication.update += HandleEditorAppUpdate;
             EditorApplication.hierarchyWindowItemOnGUI -= HandleHierarchyWindowItemOnGUI;
@@ -165,12 +177,29 @@ namespace DataKeeper.Editor.Enhance
 
             GameObject gameObject = EditorUtility.InstanceIDToObject(instanceID) as GameObject;
             if (gameObject == null) return;
+            
+            switch (HierarchyIconType)
+            {
+                case HierarchyIconType.All:
+                    var primaryIcon = DrawPrimaryIcon(gameObject, instanceID, selectionRect);
+                    DrawSecondaryIcons(gameObject, selectionRect, primaryIcon);
+                    break;
+                case HierarchyIconType.Primary:
+                    DrawPrimaryIcon(gameObject, instanceID, selectionRect);
+                    break;
+                case HierarchyIconType.Secondary:
+                    DrawSecondaryIcons(gameObject, selectionRect, null);
+                    break;
+            }
+        }
 
-            Component targetComponent = GetIconComponent(gameObject);
-            if (targetComponent == null) return;
+        private static Component DrawPrimaryIcon(GameObject gameObject, int instanceID, Rect selectionRect)
+        {
+            Component targetComponent = GetPrimaryIconComponent(gameObject);
+            if (targetComponent == null) return null;
 
             Texture icon = GetComponentIcon(targetComponent);
-            if (icon == null) return;
+            if (icon == null) return null;
 
             Rect iconRect = new Rect(selectionRect);
             iconRect.width = 16f;
@@ -206,7 +235,7 @@ namespace DataKeeper.Editor.Enhance
                     case PrefabHierarchyIcon.Big:
                         break;
                     case PrefabHierarchyIcon.Default:
-                        return;
+                        return null;
                 }
             }
 
@@ -221,10 +250,62 @@ namespace DataKeeper.Editor.Enhance
             GUI.DrawTexture(iconRect, icon);
 
             GUI.color = _guiColor;
+            
+            return targetComponent;
         }
 
-        // Gets the component to use for icon based on priority settings
-        private static Component GetIconComponent(GameObject gameObject)
+        private static void DrawSecondaryIcons(GameObject gameObject, Rect selectionRect, Component exclude)
+        {
+            List<Component> secondaryComponentsFound = new List<Component>();
+            
+            // Collect all secondary components on this GameObject
+            foreach (var componentType in priorityComponents)
+            {
+                Component component = gameObject.GetComponent(componentType);
+                if (component != null && component != exclude)
+                {
+                    secondaryComponentsFound.Add(component);
+                }
+            }
+
+            if (secondaryComponentsFound.Count == 0) return;
+
+            // Calculate starting position (right side of the hierarchy item)
+            float iconSize = 16f;
+            float iconSpacing = 2f;
+            float rightOffset = 0f;
+
+            _guiColor = GUI.color;
+            if (!gameObject.activeInHierarchy)
+            {
+                GUI.color = DisabledIconColor;
+            }
+
+            // Draw icons from right to left
+            for (int i = secondaryComponentsFound.Count - 1; i >= 0; i--)
+            {
+                Component component = secondaryComponentsFound[i];
+                Texture icon = GetComponentIcon(component);
+                if (icon == null) continue;
+
+                Rect iconRect = new Rect(
+                    selectionRect.xMax - iconSize - rightOffset,
+                    selectionRect.y,
+                    iconSize,
+                    iconSize
+                );
+
+                // Draw icon without background
+                GUI.DrawTexture(iconRect, icon);
+
+                rightOffset += iconSize + iconSpacing;
+            }
+
+            GUI.color = _guiColor;
+        }
+
+        // Gets the primary component to use for icon based on priority settings
+        private static Component GetPrimaryIconComponent(GameObject gameObject)
         {
             // First check priority list
             foreach (var componentType in priorityComponents)
