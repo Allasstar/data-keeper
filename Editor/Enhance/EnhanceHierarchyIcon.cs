@@ -68,7 +68,7 @@ namespace DataKeeper.Editor.Enhance
             typeof(AudioSource),
             typeof(Collider),
             typeof(ParticleSystem),
-            typeof(MeshFilter),
+            typeof(MeshRenderer),
             typeof(AudioListener),
             typeof(Canvas),
             typeof(DataKeeper.UI.ButtonUI),
@@ -93,9 +93,10 @@ namespace DataKeeper.Editor.Enhance
             typeof(DataKeeper.UI.SafeAreaUI),
             typeof(DataKeeper.DynamicScene.AddressableLoader),
             typeof(DataKeeper.DynamicScene.SubScene),
-            typeof(UnityEngine.UI.Image),
-            typeof(TMP_Text),
+            typeof(TMP_Dropdown),
             typeof(TMP_InputField),
+            typeof(TMP_Text),
+            typeof(UnityEngine.UI.Image),
             typeof(HideFlagsManager)
         };
 
