@@ -1,3 +1,4 @@
+using DataKeeper.Editor.Drawer;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,6 +10,7 @@ namespace DataKeeper.Editor.Attributes
         public override void OnInspectorGUI()
         {
             base.OnInspectorGUI();
+            DictionaryInspectorGUI.DrawDictionaries(target);
             PropertyGUI.DrawButtons(target);
         }
     }
