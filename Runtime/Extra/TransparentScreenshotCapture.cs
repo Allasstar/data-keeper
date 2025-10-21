@@ -3,6 +3,8 @@ using UnityEngine;
 
 namespace DataKeeper.Extra
 {
+    [AddComponentMenu("DataKeeper/Extra/Transparent Screenshot Capture")]
+    [RequireComponent(typeof(Camera))]
     public class TransparentScreenshotCapture : MonoBehaviour
     {
         public GameObject targetObject;
