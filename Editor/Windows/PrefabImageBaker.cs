@@ -17,12 +17,11 @@ namespace DataKeeper.Editor.Windows
         private ColorField backgroundColorField;
         private FloatField cameraDistanceField;
         private Vector2Field cameraOrbitField;
+        private Vector3Field cameraPivotField;
         private Vector3Field lightPositionField;
         private Vector3Field lightRotationField;
         private ColorField lightColorField;
-        private Vector3Field objectPositionField;
-        private Vector3Field objectRotationField;
-        private Vector3Field objectScaleField;
+        private FloatField lightIntensityField;
         private IntegerField imageWidthField;
         private IntegerField imageHeightField;
         private IMGUIContainer previewContainer;
@@ -33,12 +32,11 @@ namespace DataKeeper.Editor.Windows
         private Color backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0f);
         private float cameraDistance = 6f;
         private Vector2 cameraOrbit = new Vector2(0, 0); // x = horizontal angle, y = vertical angle
+        private Vector3 cameraPivot = Vector3.zero;
         private Vector3 lightPosition = new Vector3(0, 3, -3);
         private Vector3 lightRotation = new Vector3(50, -30, 0);
         private Color lightColor = Color.white;
-        private Vector3 objectPosition = Vector3.zero;
-        private Vector3 objectRotation = Vector3.zero;
-        private Vector3 objectScale = Vector3.one;
+        private float lightIntensity = 1f;
         private int imageWidth = 512;
         private int imageHeight = 512;
         
@@ -121,6 +119,17 @@ namespace DataKeeper.Editor.Windows
             });
             root.Add(cameraOrbitField);
             
+            cameraPivotField = new Vector3Field("Pivot Point")
+            {
+                value = cameraPivot
+            };
+            cameraPivotField.RegisterValueChangedCallback(evt => 
+            {
+                cameraPivot = evt.newValue;
+                UpdatePreview();
+            });
+            root.Add(cameraPivotField);
+            
             root.Add(CreateSpacer());
             
             // Light Settings
@@ -164,46 +173,16 @@ namespace DataKeeper.Editor.Windows
             });
             root.Add(lightColorField);
             
-            root.Add(CreateSpacer());
-            
-            // Object Transform
-            Label objectLabel = new Label("Object Transform");
-            objectLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            objectLabel.style.marginBottom = 5;
-            root.Add(objectLabel);
-            
-            objectPositionField = new Vector3Field("Position")
+            lightIntensityField = new FloatField("Intensity")
             {
-                value = objectPosition
+                value = lightIntensity
             };
-            objectPositionField.RegisterValueChangedCallback(evt => 
+            lightIntensityField.RegisterValueChangedCallback(evt => 
             {
-                objectPosition = evt.newValue;
+                lightIntensity = Mathf.Max(0f, evt.newValue);
                 UpdatePreview();
             });
-            root.Add(objectPositionField);
-            
-            objectRotationField = new Vector3Field("Rotation")
-            {
-                value = objectRotation
-            };
-            objectRotationField.RegisterValueChangedCallback(evt => 
-            {
-                objectRotation = evt.newValue;
-                UpdatePreview();
-            });
-            root.Add(objectRotationField);
-            
-            objectScaleField = new Vector3Field("Scale")
-            {
-                value = objectScale
-            };
-            objectScaleField.RegisterValueChangedCallback(evt => 
-            {
-                objectScale = evt.newValue;
-                UpdatePreview();
-            });
-            root.Add(objectScaleField);
+            root.Add(lightIntensityField);
             
             root.Add(CreateSpacer());
             
@@ -282,7 +261,7 @@ namespace DataKeeper.Editor.Windows
                 previewLight.transform.position = lightPosition;
                 previewLight.transform.rotation = Quaternion.Euler(lightRotation);
                 previewLight.color = lightColor;
-                previewLight.intensity = 1f;
+                previewLight.intensity = lightIntensity;
             }
         }
         
@@ -300,8 +279,8 @@ namespace DataKeeper.Editor.Windows
                 -Mathf.Cos(horizontalRad) * Mathf.Cos(verticalRad) * cameraDistance
             );
             
-            previewRenderUtility.camera.transform.position = objectPosition + offset;
-            previewRenderUtility.camera.transform.LookAt(objectPosition);
+            previewRenderUtility.camera.transform.position = cameraPivot + offset;
+            previewRenderUtility.camera.transform.LookAt(cameraPivot);
         }
         
         private void UpdatePreview()
@@ -322,9 +301,9 @@ namespace DataKeeper.Editor.Windows
             {
                 previewInstance = Instantiate(selectedPrefab);
                 previewInstance.hideFlags = HideFlags.HideAndDontSave;
-                previewInstance.transform.position = objectPosition;
-                previewInstance.transform.rotation = Quaternion.Euler(objectRotation);
-                previewInstance.transform.localScale = objectScale;
+                previewInstance.transform.position = Vector3.zero;
+                previewInstance.transform.rotation = Quaternion.identity;
+                previewInstance.transform.localScale = Vector3.one;
             }
             
             // Update camera and light
@@ -333,6 +312,7 @@ namespace DataKeeper.Editor.Windows
             previewLight.transform.position = lightPosition;
             previewLight.transform.rotation = Quaternion.Euler(lightRotation);
             previewLight.color = lightColor;
+            previewLight.intensity = lightIntensity;
             
             previewContainer.MarkDirtyRepaint();
         }
@@ -472,7 +452,7 @@ namespace DataKeeper.Editor.Windows
             Light bakeLight = tempLightObj.AddComponent<Light>();
             bakeLight.type = LightType.Directional;
             bakeLight.color = lightColor;
-            bakeLight.intensity = 1f;
+            bakeLight.intensity = lightIntensity;
             
             // Position light relative to camera view
             Vector3 lightDir = Quaternion.Euler(lightRotation) * Vector3.forward;
@@ -481,9 +461,9 @@ namespace DataKeeper.Editor.Windows
             // Create temporary instance of prefab
             GameObject tempInstance = Instantiate(selectedPrefab);
             tempInstance.hideFlags = HideFlags.HideAndDontSave;
-            tempInstance.transform.position = objectPosition;
-            tempInstance.transform.rotation = Quaternion.Euler(objectRotation);
-            tempInstance.transform.localScale = objectScale;
+            tempInstance.transform.position = Vector3.zero;
+            tempInstance.transform.rotation = Quaternion.identity;
+            tempInstance.transform.localScale = Vector3.one;
             
             // Create render texture
             RenderTexture renderTexture = new RenderTexture(imageWidth, imageHeight, 24, RenderTextureFormat.ARGB32);
