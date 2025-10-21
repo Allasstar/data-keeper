@@ -18,7 +18,6 @@ namespace DataKeeper.Editor.Windows
         private FloatField cameraDistanceField;
         private Vector2Field cameraOrbitField;
         private Vector3Field cameraPivotField;
-        private Vector3Field lightPositionField;
         private Vector3Field lightRotationField;
         private ColorField lightColorField;
         private FloatField lightIntensityField;
@@ -33,7 +32,6 @@ namespace DataKeeper.Editor.Windows
         private float cameraDistance = 6f;
         private Vector2 cameraOrbit = new Vector2(0, 0); // x = horizontal angle, y = vertical angle
         private Vector3 cameraPivot = Vector3.zero;
-        private Vector3 lightPosition = new Vector3(0, 3, -3);
         private Vector3 lightRotation = new Vector3(50, -30, 0);
         private Color lightColor = Color.white;
         private float lightIntensity = 1f;
@@ -137,17 +135,6 @@ namespace DataKeeper.Editor.Windows
             lightLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             lightLabel.style.marginBottom = 5;
             root.Add(lightLabel);
-            
-            lightPositionField = new Vector3Field("Light Position")
-            {
-                value = lightPosition
-            };
-            lightPositionField.RegisterValueChangedCallback(evt => 
-            {
-                lightPosition = evt.newValue;
-                UpdatePreview();
-            });
-            root.Add(lightPositionField);
             
             lightRotationField = new Vector3Field("Light Rotation")
             {
@@ -258,7 +245,6 @@ namespace DataKeeper.Editor.Windows
                 
                 // Add directional light
                 previewLight = previewRenderUtility.lights[0];
-                previewLight.transform.position = lightPosition;
                 previewLight.transform.rotation = Quaternion.Euler(lightRotation);
                 previewLight.color = lightColor;
                 previewLight.intensity = lightIntensity;
@@ -309,7 +295,6 @@ namespace DataKeeper.Editor.Windows
             // Update camera and light
             UpdateCameraTransform();
             previewRenderUtility.camera.backgroundColor = backgroundColor;
-            previewLight.transform.position = lightPosition;
             previewLight.transform.rotation = Quaternion.Euler(lightRotation);
             previewLight.color = lightColor;
             previewLight.intensity = lightIntensity;
