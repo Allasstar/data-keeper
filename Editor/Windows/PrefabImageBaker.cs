@@ -3,6 +3,8 @@ using UnityEditor;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using System.IO;
+using UnityEditor.SceneManagement;
+using UnityEngine.SceneManagement;
 
 namespace DataKeeper.Editor.Windows
 {
@@ -21,6 +23,7 @@ namespace DataKeeper.Editor.Windows
         private Vector3Field lightRotationField;
         private ColorField lightColorField;
         private FloatField lightIntensityField;
+        private ColorField ambientColorField;
         private IntegerField imageWidthField;
         private IntegerField imageHeightField;
         private IMGUIContainer previewContainer;
@@ -35,12 +38,13 @@ namespace DataKeeper.Editor.Windows
         private Vector3 lightRotation = new Vector3(50, -30, 0);
         private Color lightColor = Color.white;
         private float lightIntensity = 1f;
+        private Color ambientColor = new Color(0f, 0f, 0f, 0f);
         private int imageWidth = 512;
         private int imageHeight = 512;
         
         private Rect previewRect;
         
-        [MenuItem("Tools/Windows/Prefab Image Baker")]
+        // [MenuItem("Tools/Windows/Prefab Image Baker (Beta)")]
         public static void ShowWindow()
         {
             PrefabImageBaker window = GetWindow<PrefabImageBaker>();
@@ -171,6 +175,19 @@ namespace DataKeeper.Editor.Windows
             });
             root.Add(lightIntensityField);
             
+            ambientColorField = new ColorField("Ambient Color")
+            {
+                value = ambientColor,
+                showAlpha = false,
+                hdr = false
+            };
+            ambientColorField.RegisterValueChangedCallback(evt => 
+            {
+                ambientColor = evt.newValue;
+                UpdatePreview();
+            });
+            root.Add(ambientColorField);
+            
             root.Add(CreateSpacer());
             
             // Output Settings
@@ -238,35 +255,30 @@ namespace DataKeeper.Editor.Windows
             if (previewRenderUtility == null)
             {
                 previewRenderUtility = new PreviewRenderUtility();
-                UpdateCameraTransform();
-                previewRenderUtility.camera.clearFlags = CameraClearFlags.SolidColor;
-                previewRenderUtility.camera.backgroundColor = backgroundColor;
                 previewRenderUtility.camera.fieldOfView = 30;
+                previewRenderUtility.camera.nearClipPlane = 0.1f;
+                previewRenderUtility.camera.farClipPlane = 1000f;
                 
                 // Add directional light
                 previewLight = previewRenderUtility.lights[0];
-                previewLight.transform.rotation = Quaternion.Euler(lightRotation);
-                previewLight.color = lightColor;
-                previewLight.intensity = lightIntensity;
             }
+            UpdatePreview();
         }
         
-        private void UpdateCameraTransform()
+        private void UpdateCameraTransform(Camera camera, Vector3 pivot, Vector2 orbit, float distance)
         {
-            if (previewRenderUtility == null) return;
-            
             // Calculate camera position based on orbit angles and distance
-            float horizontalRad = cameraOrbit.x * Mathf.Deg2Rad;
-            float verticalRad = cameraOrbit.y * Mathf.Deg2Rad;
+            float horizontalRad = orbit.x * Mathf.Deg2Rad;
+            float verticalRad = orbit.y * Mathf.Deg2Rad;
             
             Vector3 offset = new Vector3(
-                Mathf.Sin(horizontalRad) * Mathf.Cos(verticalRad) * cameraDistance,
-                Mathf.Sin(verticalRad) * cameraDistance,
-                -Mathf.Cos(horizontalRad) * Mathf.Cos(verticalRad) * cameraDistance
+                Mathf.Sin(horizontalRad) * Mathf.Cos(verticalRad) * distance,
+                Mathf.Sin(verticalRad) * distance,
+                -Mathf.Cos(horizontalRad) * Mathf.Cos(verticalRad) * distance
             );
             
-            previewRenderUtility.camera.transform.position = cameraPivot + offset;
-            previewRenderUtility.camera.transform.LookAt(cameraPivot);
+            camera.transform.position = pivot + offset;
+            camera.transform.LookAt(pivot);
         }
         
         private void UpdatePreview()
@@ -274,6 +286,7 @@ namespace DataKeeper.Editor.Windows
             if (previewRenderUtility == null)
             {
                 InitializePreviewUtility();
+                return;
             }
             
             // Clean up previous instance
@@ -285,16 +298,17 @@ namespace DataKeeper.Editor.Windows
             // Create new instance if prefab is selected
             if (selectedPrefab != null)
             {
-                previewInstance = Instantiate(selectedPrefab);
-                previewInstance.hideFlags = HideFlags.HideAndDontSave;
+                previewInstance = previewRenderUtility.InstantiatePrefabInScene(selectedPrefab);
                 previewInstance.transform.position = Vector3.zero;
                 previewInstance.transform.rotation = Quaternion.identity;
                 previewInstance.transform.localScale = Vector3.one;
             }
             
             // Update camera and light
-            UpdateCameraTransform();
+            UpdateCameraTransform(previewRenderUtility.camera, cameraPivot, cameraOrbit, cameraDistance);
+            previewRenderUtility.camera.clearFlags = CameraClearFlags.SolidColor;
             previewRenderUtility.camera.backgroundColor = backgroundColor;
+            previewRenderUtility.ambientColor = ambientColor;
             previewLight.transform.rotation = Quaternion.Euler(lightRotation);
             previewLight.color = lightColor;
             previewLight.intensity = lightIntensity;
@@ -312,13 +326,7 @@ namespace DataKeeper.Editor.Windows
             if (Event.current.type == EventType.Repaint)
             {
                 previewRenderUtility.BeginPreview(rect, GUIStyle.none);
-                
-                if (previewInstance != null)
-                {
-                    RenderObject(previewInstance);
-                }
-                
-                previewRenderUtility.camera.Render();
+                previewRenderUtility.Render();
                 Texture resultTexture = previewRenderUtility.EndPreview();
                 GUI.DrawTexture(rect, resultTexture, ScaleMode.ScaleToFit, false);
                 
@@ -360,43 +368,6 @@ namespace DataKeeper.Editor.Windows
             Handles.EndGUI();
         }
         
-        private void RenderObject(GameObject obj)
-        {
-            // Render all mesh renderers
-            MeshFilter[] meshFilters = obj.GetComponentsInChildren<MeshFilter>();
-            foreach (var meshFilter in meshFilters)
-            {
-                if (meshFilter.sharedMesh != null)
-                {
-                    Renderer renderer = meshFilter.GetComponent<Renderer>();
-                    if (renderer != null && renderer.sharedMaterial != null)
-                    {
-                        previewRenderUtility.DrawMesh(
-                            meshFilter.sharedMesh,
-                            meshFilter.transform.localToWorldMatrix,
-                            renderer.sharedMaterial,
-                            0
-                        );
-                    }
-                }
-            }
-            
-            // Render skinned mesh renderers
-            SkinnedMeshRenderer[] skinnedRenderers = obj.GetComponentsInChildren<SkinnedMeshRenderer>();
-            foreach (var skinnedRenderer in skinnedRenderers)
-            {
-                if (skinnedRenderer.sharedMesh != null && skinnedRenderer.sharedMaterial != null)
-                {
-                    previewRenderUtility.DrawMesh(
-                        skinnedRenderer.sharedMesh,
-                        skinnedRenderer.transform.localToWorldMatrix,
-                        skinnedRenderer.sharedMaterial,
-                        0
-                    );
-                }
-            }
-        }
-        
         private void BakeImage()
         {
             if (selectedPrefab == null)
@@ -417,74 +388,104 @@ namespace DataKeeper.Editor.Windows
                 return;
             }
             
-            // Create temporary camera and setup
-            GameObject tempCameraObj = new GameObject("TempBakeCamera");
-            tempCameraObj.hideFlags = HideFlags.HideAndDontSave;
-            Camera bakeCamera = tempCameraObj.AddComponent<Camera>();
-            
-            // Setup camera
-            UpdateCameraTransform();
-            bakeCamera.transform.position = previewRenderUtility.camera.transform.position;
-            bakeCamera.transform.rotation = previewRenderUtility.camera.transform.rotation;
-            bakeCamera.fieldOfView = previewRenderUtility.camera.fieldOfView;
-            bakeCamera.clearFlags = CameraClearFlags.SolidColor;
-            bakeCamera.backgroundColor = backgroundColor;
-            bakeCamera.cullingMask = ~0;
-            
-            // Create temporary light
-            GameObject tempLightObj = new GameObject("TempBakeLight");
-            tempLightObj.hideFlags = HideFlags.HideAndDontSave;
-            Light bakeLight = tempLightObj.AddComponent<Light>();
-            bakeLight.type = LightType.Directional;
-            bakeLight.color = lightColor;
-            bakeLight.intensity = lightIntensity;
-            
-            // Position light relative to camera view
-            Vector3 lightDir = Quaternion.Euler(lightRotation) * Vector3.forward;
-            bakeLight.transform.rotation = Quaternion.LookRotation(lightDir);
-            
-            // Create temporary instance of prefab
-            GameObject tempInstance = Instantiate(selectedPrefab);
-            tempInstance.hideFlags = HideFlags.HideAndDontSave;
-            tempInstance.transform.position = Vector3.zero;
-            tempInstance.transform.rotation = Quaternion.identity;
-            tempInstance.transform.localScale = Vector3.one;
-            
-            // Create render texture
-            RenderTexture renderTexture = new RenderTexture(imageWidth, imageHeight, 24, RenderTextureFormat.ARGB32);
-            renderTexture.antiAliasing = 4;
-            
-            bakeCamera.targetTexture = renderTexture;
-            
-            // Render
-            RenderTexture.active = renderTexture;
-            bakeCamera.Render();
-            
-            // Read pixels
-            Texture2D texture = new Texture2D(imageWidth, imageHeight, TextureFormat.ARGB32, false);
-            texture.ReadPixels(new Rect(0, 0, imageWidth, imageHeight), 0, 0);
-            texture.Apply();
-            
-            // Save to file
-            byte[] bytes = texture.EncodeToPNG();
-            File.WriteAllBytes(path, bytes);
-            
-            // Cleanup - clear camera target texture BEFORE destroying it
-            bakeCamera.targetTexture = null;
-            RenderTexture.active = null;
-            DestroyImmediate(renderTexture);
-            DestroyImmediate(texture);
-            DestroyImmediate(tempInstance);
-            DestroyImmediate(tempLightObj);
-            DestroyImmediate(tempCameraObj);
-            
-            // Refresh asset database if saved in project
-            if (path.StartsWith(Application.dataPath))
+            Scene previewScene = EditorSceneManager.NewPreviewScene();
+            RenderTexture renderTexture = null;
+            GameObject cameraObj = null;
+            GameObject lightObj = null;
+            GameObject bakeInstance = null;
+            cameraObj = new GameObject("BakeCamera");
+            Camera bakeCamera = cameraObj.AddComponent<Camera>();
+
+            try
             {
-                AssetDatabase.Refresh();
+                // Create camera
+                EditorSceneManager.MoveGameObjectToScene(cameraObj, previewScene);
+                bakeCamera.fieldOfView = 30;
+                bakeCamera.nearClipPlane = 0.1f;
+                bakeCamera.farClipPlane = 1000f;
+                bakeCamera.clearFlags = CameraClearFlags.SolidColor;
+                bakeCamera.backgroundColor = backgroundColor;
+                
+                // Update camera transform
+                UpdateCameraTransform(bakeCamera, cameraPivot, cameraOrbit, cameraDistance);
+                
+                // Create light
+                lightObj = new GameObject("BakeLight");
+                EditorSceneManager.MoveGameObjectToScene(lightObj, previewScene);
+                Light bakeLight = lightObj.AddComponent<Light>();
+                bakeLight.type = LightType.Directional;
+                bakeLight.color = lightColor;
+                bakeLight.intensity = lightIntensity;
+                bakeLight.transform.rotation = Quaternion.Euler(lightRotation);
+                
+                // Create prefab instance
+                bakeInstance = Instantiate(selectedPrefab);
+                EditorSceneManager.MoveGameObjectToScene(bakeInstance, previewScene);
+                bakeInstance.transform.position = Vector3.zero;
+                bakeInstance.transform.rotation = Quaternion.identity;
+                bakeInstance.transform.localScale = Vector3.one;
+                
+                // Temporarily set ambient
+                var prevAmbientMode = RenderSettings.ambientMode;
+                var prevAmbientLight = RenderSettings.ambientLight;
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+                RenderSettings.ambientLight = ambientColor;
+                
+                // Create render texture
+                renderTexture = new RenderTexture(imageWidth, imageHeight, 24, RenderTextureFormat.ARGB32);
+                renderTexture.antiAliasing = 4;
+                
+                bakeCamera.targetTexture = renderTexture;
+                bakeCamera.aspect = (float)imageWidth / imageHeight;
+                
+                // Render
+                bakeCamera.Render();
+                
+                // Restore ambient
+                RenderSettings.ambientMode = prevAmbientMode;
+                RenderSettings.ambientLight = prevAmbientLight;
+                
+                // Read pixels
+                RenderTexture.active = renderTexture;
+                Texture2D texture = new Texture2D(imageWidth, imageHeight, TextureFormat.RGBA32, false);
+                texture.ReadPixels(new Rect(0, 0, imageWidth, imageHeight), 0, 0);
+                texture.Apply();
+                
+                // Save to file
+                byte[] bytes = texture.EncodeToPNG();
+                File.WriteAllBytes(path, bytes);
+                
+                DestroyImmediate(texture);
+                
+                if (path.StartsWith(Application.dataPath))
+                {
+                    AssetDatabase.Refresh();
+                }
+                
+                EditorUtility.DisplayDialog("Success", $"Image saved to:\n{path}", "OK");
             }
-            
-            EditorUtility.DisplayDialog("Success", $"Image saved to:\n{path}", "OK");
+            finally
+            {
+                if (renderTexture != null)
+                {
+                    bakeCamera.targetTexture = null;
+
+                    DestroyImmediate(renderTexture);
+                }
+                if (bakeInstance != null)
+                {
+                    DestroyImmediate(bakeInstance);
+                }
+                if (lightObj != null)
+                {
+                    DestroyImmediate(lightObj);
+                }
+                if (cameraObj != null)
+                {
+                    DestroyImmediate(cameraObj);
+                }
+                EditorSceneManager.ClosePreviewScene(previewScene);
+            }
         }
         
         private void OnDisable()
