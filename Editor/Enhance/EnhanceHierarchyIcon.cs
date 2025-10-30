@@ -97,7 +97,8 @@ namespace DataKeeper.Editor.Enhance
             typeof(TMP_InputField),
             typeof(TMP_Text),
             typeof(UnityEngine.UI.Image),
-            typeof(HideFlagsManager)
+            typeof(HideFlagsManager),
+            typeof(LifecycleEvents),
         };
 
         private static bool isEnabled => DataKeeperEditorPref.EnhanceHierarchy_Enabled.Value;
