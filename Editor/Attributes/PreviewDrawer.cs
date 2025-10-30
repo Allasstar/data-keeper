@@ -47,7 +47,7 @@ namespace DataKeeper.Editor.Attributes
                     Vector2 previewDimensions = GetPreviewDimensions(property.objectReferenceValue);
                     
                     Rect previewRect = new Rect(
-                        position.x + EditorGUIUtility.labelWidth,
+                        position.x + EditorGUIUtility.labelWidth + 4,
                         position.y + objectFieldHeight + _padding,
                         previewDimensions.x,
                         previewDimensions.y
