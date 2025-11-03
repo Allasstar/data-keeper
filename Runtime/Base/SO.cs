@@ -10,6 +10,7 @@ namespace DataKeeper.Base
         [ContextMenu("Save")]
         private void Save()
         {
+            UnityEditor.EditorUtility.SetDirty(this);
             UnityEditor.AssetDatabase.SaveAssets();
         }
 #endif
