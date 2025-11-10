@@ -14,7 +14,7 @@ namespace DataKeeper.Editor
 
             var fieldNames = path.Split('.');
             for (int i = 0; i < fieldNames.Length; i++) {
-                var info = type.GetField(fieldNames[i], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var info = GetFieldIncludingBaseTypes(type, fieldNames[i]);
                 if (info == null)
                     break;
 
@@ -23,6 +23,20 @@ namespace DataKeeper.Editor
             }
 
             return obj;
+        }
+
+        private static FieldInfo GetFieldIncludingBaseTypes(System.Type type, string fieldName)
+        {
+            FieldInfo fieldInfo = null;
+            var currentType = type;
+
+            while (currentType != null && fieldInfo == null)
+            {
+                fieldInfo = currentType.GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                currentType = currentType.BaseType;
+            }
+
+            return fieldInfo;
         }
     }
 }
