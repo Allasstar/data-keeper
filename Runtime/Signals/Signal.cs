@@ -38,12 +38,12 @@ namespace DataKeeper.Signals
     {
         public void AddListener(Action listener)
         {
-            AddListener((Action)listener);
+            base.AddListener(listener);
         }
 
         public void RemoveListener(Action listener)
         {
-            RemoveListener((Action)listener);
+            base.RemoveListener(listener);
         }
 
         public void Invoke()
@@ -72,12 +72,12 @@ namespace DataKeeper.Signals
     {
         public void AddListener(Action<T0> listener)
         {
-            AddListener(listener);
+            base.AddListener(listener);
         }
 
         public void RemoveListener(Action<T0> listener)
         {
-            RemoveListener(listener);
+            base.RemoveListener(listener);
         }
 
         public void Invoke(T0 value)
@@ -106,12 +106,12 @@ namespace DataKeeper.Signals
     {
         public void AddListener(Action<T0, T1> listener)
         {
-            AddListener(listener);
+            base.AddListener(listener);
         }
 
         public void RemoveListener(Action<T0, T1> listener)
         {
-            RemoveListener(listener);
+            base.RemoveListener(listener);
         }
 
         public void Invoke(T0 value0, T1 value1)
@@ -140,12 +140,12 @@ namespace DataKeeper.Signals
     {
         public void AddListener(Action<T0, T1, T2> listener)
         {
-            AddListener(listener);
+            base.AddListener(listener);
         }
 
         public void RemoveListener(Action<T0, T1, T2> listener)
         {
-            RemoveListener(listener);
+            base.RemoveListener(listener);
         }
 
         public void Invoke(T0 value0, T1 value1, T2 value2)
@@ -174,12 +174,12 @@ namespace DataKeeper.Signals
     {
         public void AddListener(Action<T0, T1, T2, T3> listener)
         {
-            AddListener(listener);
+            base.AddListener(listener);
         }
 
         public void RemoveListener(Action<T0, T1, T2, T3> listener)
         {
-            RemoveListener(listener);
+            base.RemoveListener(listener);
         }
 
         public void Invoke(T0 value0, T1 value1, T2 value2, T3 value3)
@@ -208,12 +208,12 @@ namespace DataKeeper.Signals
     {
         public void AddListener(Action<T0, T1, T2, T3, T4> listener)
         {
-            AddListener(listener);
+            base.AddListener(listener);
         }
 
         public void RemoveListener(Action<T0, T1, T2, T3, T4> listener)
         {
-            RemoveListener(listener);
+            base.RemoveListener(listener);
         }
 
         public void Invoke(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4)
