@@ -7,7 +7,7 @@ namespace DataKeeper.Signals
     public abstract class SignalBase<TDelegate> where TDelegate : Delegate
     {
         [field: NonSerialized]
-        protected List<TDelegate> Listeners { get; } = new List<TDelegate>();
+        public List<TDelegate> Listeners { get; } = new List<TDelegate>();
 
         public void RemoveAllListeners()
         {
