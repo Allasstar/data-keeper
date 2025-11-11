@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DataKeeper.Generic;
+using DataKeeper.Signals;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -18,6 +19,10 @@ namespace DataKeeper.PoolSystem
         private Transform _poolContainer;
         private List<T> _poolInactive  = new List<T>();
         private List<T> _poolActive  = new List<T>();
+
+        public Signal<T> OnObjectCreate = new Signal<T>();
+        public Signal<T> OnObjectGet = new Signal<T>();
+        public Signal<T> OnObjectRelease = new Signal<T>();
 
         public T GetPoolPrefab() => _poolPrefab;
         public Transform GetPoolContainer() => PoolContainer;
@@ -75,6 +80,7 @@ namespace DataKeeper.PoolSystem
        {
            var obj = Object.Instantiate(_poolPrefab, PoolContainer);
            obj.gameObject.name = $"{_poolPrefab.name} [{obj.GetInstanceID()}]";
+           OnObjectCreate?.Invoke(obj);
            obj.gameObject.SetActive(false);
            _poolInactive.Add(obj);
            return obj;
@@ -101,6 +107,7 @@ namespace DataKeeper.PoolSystem
            _poolInactive.Remove(poolObject);
            _poolActive.Add(poolObject);
            poolObject.gameObject.SetActive(true);
+           OnObjectGet?.Invoke(poolObject);
            return poolObject;
        }
        
@@ -113,6 +120,7 @@ namespace DataKeeper.PoolSystem
 
        public virtual void Release(T poolObject)
        {
+           OnObjectRelease?.Invoke(poolObject);
            poolObject.gameObject.SetActive(false);
            poolObject.transform.SetParent(PoolContainer);
            
