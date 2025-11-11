@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace DataKeeper.Editor.Drawer
 {
-    [CustomPropertyDrawer(typeof(Optional<,>))]
+    [CustomPropertyDrawer(typeof(Option<,>))]
     public class OptionalPropertyDrawer : PropertyDrawer
     {
         private const float _buttonWidth = 18f;
@@ -25,7 +25,7 @@ namespace DataKeeper.Editor.Drawer
             var localValueProperty = property.FindPropertyRelative("localValue");
             var globalProviderProperty = property.FindPropertyRelative("globalProvider");
             
-            var currentMode = (OptionalMode)modeProperty.enumValueIndex;
+            var currentMode = (OptionMode)modeProperty.enumValueIndex;
 
             // Calculate value field position (main content)
             Rect valuePosition = position;
@@ -34,17 +34,17 @@ namespace DataKeeper.Editor.Drawer
             // Draw the appropriate value field based on mode
             switch (currentMode)
             {
-                case OptionalMode.Disabled:
+                case OptionMode.Disabled:
                     EditorGUI.BeginDisabledGroup(true);
                     EditorGUI.PropertyField(valuePosition, localValueProperty, label);
                     EditorGUI.EndDisabledGroup();
                     break;
                 
-                case OptionalMode.LocalValue:
+                case OptionMode.LocalValue:
                     EditorGUI.PropertyField(valuePosition, localValueProperty, label);
                     break;
                 
-                case OptionalMode.GlobalValue:
+                case OptionMode.GlobalValue:
                     EditorGUI.PropertyField(valuePosition, globalProviderProperty, label);
                     break;
             }
@@ -57,16 +57,16 @@ namespace DataKeeper.Editor.Drawer
 
             string buttonLabel = currentMode switch
             {
-                OptionalMode.Disabled => "D",
-                OptionalMode.LocalValue => "L",
-                OptionalMode.GlobalValue => "G",
+                OptionMode.Disabled => "D",
+                OptionMode.LocalValue => "L",
+                OptionMode.GlobalValue => "G",
                 _ => "?"
             };
             
             if (GUI.Button(buttonPosition, new GUIContent(buttonLabel, "Change Optional Mode")))
             {
                 GenericMenu menu = new GenericMenu();
-                foreach (OptionalMode mode in System.Enum.GetValues(typeof(OptionalMode)))
+                foreach (OptionMode mode in System.Enum.GetValues(typeof(OptionMode)))
                 {
                     menu.AddItem(new GUIContent(mode.ToString()), currentMode == mode, () =>
                     {

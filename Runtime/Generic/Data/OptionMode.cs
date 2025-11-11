@@ -1,6 +1,6 @@
 namespace DataKeeper.Generic.Data
 {
-    public enum OptionalMode
+    public enum OptionMode
     {
         Disabled = 0,
         LocalValue = 1,

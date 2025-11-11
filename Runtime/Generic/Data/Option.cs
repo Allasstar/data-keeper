@@ -5,14 +5,14 @@ using UnityEngine;
 namespace DataKeeper.Generic.Data
 {
     [Serializable]
-    public class Optional<TValue, TProvider> where TProvider : ScriptableObject, IValueProvider<TValue>
+    public class Option<TValue, TProvider> where TProvider : ScriptableObject, IValueProvider<TValue>
     {
-        [SerializeField] private OptionalMode mode = OptionalMode.Disabled;
+        [SerializeField] private OptionMode mode = OptionMode.Disabled;
         [SerializeField] private TValue localValue = default(TValue);
         [SerializeField] private TProvider globalProvider = null;
 
-        [JsonIgnore] public bool Enabled => mode != OptionalMode.Disabled;
-        [JsonIgnore] public OptionalMode Mode => mode;
+        [JsonIgnore] public bool Enabled => mode != OptionMode.Disabled;
+        [JsonIgnore] public OptionMode Mode => mode;
         [JsonIgnore] public TValue LocalValue => localValue;
         [JsonIgnore] public TProvider GlobalProvider => globalProvider;
 
@@ -23,64 +23,64 @@ namespace DataKeeper.Generic.Data
             {
                 switch (mode)
                 {
-                    case OptionalMode.LocalValue:
+                    case OptionMode.LocalValue:
                         return localValue;
-                    case OptionalMode.GlobalValue:
+                    case OptionMode.GlobalValue:
                         return globalProvider != null ? globalProvider.GetValue() : default(TValue);
-                    case OptionalMode.Disabled:
+                    case OptionMode.Disabled:
                     default:
                         return default(TValue);
                 }
             }
         }
 
-        public Optional()
+        public Option()
         {
-            mode = OptionalMode.Disabled;
+            mode = OptionMode.Disabled;
             localValue = default(TValue);
             globalProvider = null;
         }
 
-        public Optional(TValue value)
+        public Option(TValue value)
         {
-            mode = OptionalMode.LocalValue;
+            mode = OptionMode.LocalValue;
             localValue = value;
             globalProvider = null;
         }
 
-        public Optional(TProvider provider)
+        public Option(TProvider provider)
         {
-            mode = OptionalMode.GlobalValue;
+            mode = OptionMode.GlobalValue;
             localValue = default(TValue);
             globalProvider = provider;
         }
 
         public void SetDisabled()
         {
-            mode = OptionalMode.Disabled;
+            mode = OptionMode.Disabled;
         }
 
         public void SetLocalValue(TValue value)
         {
-            mode = OptionalMode.LocalValue;
+            mode = OptionMode.LocalValue;
             localValue = value;
         }
 
         public void SetGlobalProvider(TProvider provider)
         {
-            mode = OptionalMode.GlobalValue;
+            mode = OptionMode.GlobalValue;
             globalProvider = provider;
         }
 
-        public static implicit operator TValue(Optional<TValue, TProvider> optional)
+        public static implicit operator TValue(Option<TValue, TProvider> option)
         {
-            return optional.Value;
+            return option.Value;
         }
  
         public bool TryGetValue(out TValue value)
         {
             value = Value;
-            return Enabled && (mode != OptionalMode.GlobalValue || globalProvider != null);
+            return Enabled && (mode != OptionMode.GlobalValue || globalProvider != null);
         }
 
         public override string ToString()
@@ -88,7 +88,7 @@ namespace DataKeeper.Generic.Data
             if (!Enabled)
                 return "Disabled";
         
-            return mode == OptionalMode.LocalValue 
+            return mode == OptionMode.LocalValue 
                 ? $"Local: {localValue}" 
                 : $"Global: {(globalProvider != null ? globalProvider.GetValue().ToString() : "null")}";
         }
