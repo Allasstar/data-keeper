@@ -8,8 +8,8 @@ namespace DataKeeper.ServiceLocatorPattern
     public static partial class ServiceLocator
     {
         private static BindingFlags _bindingFlags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
-        private static readonly Queue<(object Target, MemberInfo Member, InjectAttribute Attribute)> _unresolvedQueue
-            = new Queue<(object, MemberInfo, InjectAttribute)>();
+        private static readonly Queue<(object Target, MemberInfo Member, ResolveAttribute Attribute)> _unresolvedQueue
+            = new Queue<(object, MemberInfo, ResolveAttribute)>();
 
         public static void Resolve(object target)
         {
@@ -22,7 +22,7 @@ namespace DataKeeper.ServiceLocatorPattern
 
             foreach (var member in members)
             {
-                var injectAttribute = member.GetCustomAttribute<InjectAttribute>();
+                var injectAttribute = member.GetCustomAttribute<ResolveAttribute>();
                 if (injectAttribute == null) continue;
 
                 if (!TryResolveValue(target, member, injectAttribute))
@@ -32,7 +32,7 @@ namespace DataKeeper.ServiceLocatorPattern
             }
         }
 
-        private static bool TryResolveValue(object target, MemberInfo member, InjectAttribute attribute)
+        private static bool TryResolveValue(object target, MemberInfo member, ResolveAttribute attribute)
         {
             Type memberType = member is FieldInfo field ? field.FieldType : ((PropertyInfo)member).PropertyType;
             object value = null;
