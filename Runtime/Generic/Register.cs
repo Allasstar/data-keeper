@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DataKeeper.Signals;
 
 namespace DataKeeper.Generic
 {
@@ -10,10 +11,19 @@ namespace DataKeeper.Generic
 
         public int Count => _container.Count;
         public IReadOnlyDictionary<string, TValue> All => _container;
-
+        public Signal<TValue> OnRegister = new Signal<TValue>();
         
         public virtual bool Contains<T>() => _container.ContainsKey(typeof(T).Name);
         public virtual bool Contains(string id) => _container.ContainsKey(id);
+
+        public Register()
+        {
+        }
+        
+        public Register(Action<TValue> onRegister)
+        {
+            OnRegister.AddListener(onRegister);
+        }
         
         public T Find<T>(Func<T, bool> predicate) where T : class, TValue
         {
@@ -32,16 +42,19 @@ namespace DataKeeper.Generic
         public void Reg(TValue value, string id)
         {
             _container[id] = value;
+            OnRegister?.Invoke(value);
         }
     
         public void Reg<T>(TValue value) where T : TValue
         {
             _container[typeof(T).Name] = value;
+            OnRegister?.Invoke(value);
         }
         
         public void Reg(TValue value)
         {
             _container[value.GetType().Name] = value;
+            OnRegister?.Invoke(value);
         }
         
         public object Get(Type type, string id = "")

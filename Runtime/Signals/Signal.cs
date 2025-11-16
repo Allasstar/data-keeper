@@ -19,6 +19,11 @@ namespace DataKeeper.Signals
 
         protected void AddListener(TDelegate listener)
         {
+            if (listener == null)
+            {
+                throw new ArgumentNullException(nameof(listener), "Cannot add null listener.");
+            }
+
             lock (Listeners)
             {
                 Listeners.Add(listener);
@@ -30,6 +35,14 @@ namespace DataKeeper.Signals
             lock (Listeners)
             {
                 Listeners.Remove(listener);
+            }
+        }
+
+        protected void CleanupNullListeners()
+        {
+            lock (Listeners)
+            {
+                Listeners.RemoveAll(l => l == null);
             }
         }
     }
@@ -54,8 +67,15 @@ namespace DataKeeper.Signals
                 listenersSnapshot = Listeners.ToArray();
             }
 
+            bool hasNull = false;
             foreach (var listener in listenersSnapshot)
             {
+                if (listener == null)
+                {
+                    hasNull = true;
+                    continue;
+                }
+
                 try
                 {
                     listener();
@@ -64,6 +84,11 @@ namespace DataKeeper.Signals
                 {
                     Debug.LogError($"Listener invocation failed: {ex}");
                 }
+            }
+
+            if (hasNull)
+            {
+                CleanupNullListeners();
             }
         }
     }
@@ -88,8 +113,15 @@ namespace DataKeeper.Signals
                 listenersSnapshot = Listeners.ToArray();
             }
 
+            bool hasNull = false;
             foreach (var listener in listenersSnapshot)
             {
+                if (listener == null)
+                {
+                    hasNull = true;
+                    continue;
+                }
+
                 try
                 {
                     listener(value);
@@ -98,6 +130,11 @@ namespace DataKeeper.Signals
                 {
                     Debug.LogError($"Listener invocation failed: {ex}");
                 }
+            }
+
+            if (hasNull)
+            {
+                CleanupNullListeners();
             }
         }
     }
@@ -122,8 +159,15 @@ namespace DataKeeper.Signals
                 listenersSnapshot = Listeners.ToArray();
             }
 
+            bool hasNull = false;
             foreach (var listener in listenersSnapshot)
             {
+                if (listener == null)
+                {
+                    hasNull = true;
+                    continue;
+                }
+
                 try
                 {
                     listener(value0, value1);
@@ -132,6 +176,11 @@ namespace DataKeeper.Signals
                 {
                     Debug.LogError($"Listener invocation failed: {ex}");
                 }
+            }
+
+            if (hasNull)
+            {
+                CleanupNullListeners();
             }
         }
     }
@@ -156,8 +205,15 @@ namespace DataKeeper.Signals
                 listenersSnapshot = Listeners.ToArray();
             }
 
+            bool hasNull = false;
             foreach (var listener in listenersSnapshot)
             {
+                if (listener == null)
+                {
+                    hasNull = true;
+                    continue;
+                }
+
                 try
                 {
                     listener(value0, value1, value2);
@@ -166,6 +222,11 @@ namespace DataKeeper.Signals
                 {
                     Debug.LogError($"Listener invocation failed: {ex}");
                 }
+            }
+
+            if (hasNull)
+            {
+                CleanupNullListeners();
             }
         }
     }
@@ -190,8 +251,15 @@ namespace DataKeeper.Signals
                 listenersSnapshot = Listeners.ToArray();
             }
 
+            bool hasNull = false;
             foreach (var listener in listenersSnapshot)
             {
+                if (listener == null)
+                {
+                    hasNull = true;
+                    continue;
+                }
+
                 try
                 {
                     listener(value0, value1, value2, value3);
@@ -200,6 +268,11 @@ namespace DataKeeper.Signals
                 {
                     Debug.LogError($"Listener invocation failed: {ex}");
                 }
+            }
+
+            if (hasNull)
+            {
+                CleanupNullListeners();
             }
         }
     }
@@ -224,8 +297,15 @@ namespace DataKeeper.Signals
                 listenersSnapshot = Listeners.ToArray();
             }
 
+            bool hasNull = false;
             foreach (var listener in listenersSnapshot)
             {
+                if (listener == null)
+                {
+                    hasNull = true;
+                    continue;
+                }
+
                 try
                 {
                     listener(value0, value1, value2, value3, value4);
@@ -234,6 +314,11 @@ namespace DataKeeper.Signals
                 {
                     Debug.LogError($"Listener invocation failed: {ex}");
                 }
+            }
+
+            if (hasNull)
+            {
+                CleanupNullListeners();
             }
         }
     }

@@ -9,7 +9,7 @@ namespace DataKeeper.ServiceLocatorPattern
 {
     public static partial class ServiceLocator
     {
-        public static readonly Register<object> GlobalRegister = new Register<object>();
+        public static readonly Register<object> GlobalRegister = new Register<object>(OnRegister);
         public static readonly Dictionary<string, Register<object>> SceneRegisters = new Dictionary<string, Register<object>>();
         public static readonly Dictionary<GameObject, Register<object>> GameObjectRegisters = new Dictionary<GameObject, Register<object>>();
         public static readonly Dictionary<string, Register<object>> TableRegisters = new Dictionary<string, Register<object>>();
@@ -21,6 +21,11 @@ namespace DataKeeper.ServiceLocatorPattern
             SceneRegisters.Clear();
             GameObjectRegisters.Clear();
             TableRegisters.Clear();
+        }
+        
+        private static void OnRegister(object registered)
+        {
+            TryResolveQueue();
         }
         
         public static void Reg<T>(T value)
@@ -52,7 +57,7 @@ namespace DataKeeper.ServiceLocatorPattern
         {
             if (!SceneRegisters.ContainsKey(sceneName))
             {
-                SceneRegisters[sceneName] = new Register<object>();
+                SceneRegisters[sceneName] = new Register<object>(OnRegister);
                 
                 Act.OnSceneUnloadedEvent.AddListener(SceneUnloaded);
 
@@ -70,7 +75,7 @@ namespace DataKeeper.ServiceLocatorPattern
         {
             if (!TableRegisters.ContainsKey(tableName))
             {
-                TableRegisters[tableName] = new Register<object>();
+                TableRegisters[tableName] = new Register<object>(OnRegister);
             }
             
             return TableRegisters[tableName];
@@ -85,7 +90,7 @@ namespace DataKeeper.ServiceLocatorPattern
         {
             if (!GameObjectRegisters.ContainsKey(go))
             {
-                GameObjectRegisters[go] = new Register<object>();
+                GameObjectRegisters[go] = new Register<object>(OnRegister);
 
                 go.GetOrAddComponent<ServiceLocatorGameObjectListener>()
                     .OnDestroyAction(() => GameObjectRegisters.Remove(go));
