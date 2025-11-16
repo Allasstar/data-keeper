@@ -105,14 +105,21 @@ namespace DataKeeper.ServiceLocatorPattern
 
         private static void SetMemberValue(object target, MemberInfo member, object value)
         {
-            switch (member)
+            try
             {
-                case FieldInfo field:
-                    field.SetValue(target, value);
-                    break;
-                case PropertyInfo property:
-                    property.SetValue(target, value);
-                    break;
+                switch (member)
+                {
+                    case FieldInfo field:
+                        field.SetValue(target, value);
+                        break;
+                    case PropertyInfo property:
+                        property.SetValue(target, value);
+                        break;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Failed to set value for {member.Name} on {target.GetType().Name}: {e.Message}");
             }
         }
 
