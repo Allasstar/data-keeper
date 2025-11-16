@@ -9,6 +9,13 @@ namespace DataKeeper.ServiceLocatorPattern
         public string ID { get; }
         public string TableName { get; }
         
+        public ResolveAttribute()
+        {
+            Context = ContextType.Global;
+            ID = string.Empty;
+            TableName = string.Empty;
+        }
+        
         public ResolveAttribute(ContextType context = ContextType.Global)
         {
             Context = context;
