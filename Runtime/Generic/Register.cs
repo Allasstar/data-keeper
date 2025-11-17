@@ -47,11 +47,11 @@ namespace DataKeeper.Generic
             _container[value.GetType().Name] = value;
         }
         
-        public object Get(Type type, string id = "")
+        public TValue Get(Type type, string id = "")
         {
             if (!string.IsNullOrEmpty(id))
             {
-                return _container.TryGetValue(id, out var value) ? value : null;
+                return _container.GetValueOrDefault(id);
             }
 
             // Try get by exact type name first
@@ -60,23 +60,32 @@ namespace DataKeeper.Generic
                 return exactMatch;
             }
 
-            // If type is interface, look for implementation
-            if (type.IsInterface)
+            // If type is interface or abstract, look for implementation
+            if (type.IsInterface || type.IsAbstract)
             {
-                return _container.Values.FirstOrDefault(v => v != null && type.IsInstanceOfType(v));
+                TValue match = default;
+                foreach (var v in _container.Values)
+                {
+                    if (v != null && type.IsInstanceOfType(v))
+                    {
+                        match = v;
+                        break;
+                    }
+                }
+                return match;
             }
 
-            return null;
+            return default;
         }
 
         public T Get<T>() where T : class, TValue
         {
-            return (T)Get(typeof(T));
+            return Get(typeof(T)) as T;
         }
 
         public T Get<T>(string id) where T : class, TValue
         {
-            return (T)Get(typeof(T), id);
+            return Get(typeof(T), id) as T;
         }
 
         public UnityLazy<T> GetLazy<T>() where T : class, TValue
@@ -86,7 +95,7 @@ namespace DataKeeper.Generic
         
         public UnityLazy<T> GetLazy<T>(string id) where T : class, TValue
         {
-            return new UnityLazy<T>(() => (T)Get(typeof(T), id));
+            return new UnityLazy<T>(() => Get<T>(id));
         }
         
         public Register<TValue> Resolve<T>(out T outValue) where T : class, TValue
