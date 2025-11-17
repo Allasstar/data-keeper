@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DataKeeper.Signals;
 
 namespace DataKeeper.Generic
 {
@@ -11,18 +10,12 @@ namespace DataKeeper.Generic
 
         public int Count => _container.Count;
         public IReadOnlyDictionary<string, TValue> All => _container;
-        public Signal<TValue> OnRegister = new Signal<TValue>();
         
         public virtual bool Contains<T>() => _container.ContainsKey(typeof(T).Name);
         public virtual bool Contains(string id) => _container.ContainsKey(id);
 
         public Register()
         {
-        }
-        
-        public Register(Action<TValue> onRegister)
-        {
-            OnRegister.AddListener(onRegister);
         }
         
         public T Find<T>(Func<T, bool> predicate) where T : class, TValue
@@ -42,19 +35,16 @@ namespace DataKeeper.Generic
         public void Reg(TValue value, string id)
         {
             _container[id] = value;
-            OnRegister?.Invoke(value);
         }
     
         public void Reg<T>(TValue value) where T : TValue
         {
             _container[typeof(T).Name] = value;
-            OnRegister?.Invoke(value);
         }
         
         public void Reg(TValue value)
         {
             _container[value.GetType().Name] = value;
-            OnRegister?.Invoke(value);
         }
         
         public object Get(Type type, string id = "")
@@ -88,14 +78,24 @@ namespace DataKeeper.Generic
         {
             return (T)Get(typeof(T), id);
         }
+
+        public UnityLazy<T> GetLazy<T>() where T : class, TValue
+        {
+            return new UnityLazy<T>(Get<T>);
+        }
         
-        public Register<TValue> Get<T>(out T outValue) where T : class, TValue
+        public UnityLazy<T> GetLazy<T>(string id) where T : class, TValue
+        {
+            return new UnityLazy<T>(() => (T)Get(typeof(T), id));
+        }
+        
+        public Register<TValue> Resolve<T>(out T outValue) where T : class, TValue
         {
             outValue = _container.TryGetValue(typeof(T).Name, out var value) ? value as T : null;
             return this;
         }
         
-        public Register<TValue> Get<T>(string id, out T outValue) where T : class, TValue
+        public Register<TValue> Resolve<T>(out T outValue, string id) where T : class, TValue
         {
             outValue = _container.TryGetValue(id, out var value) ? value as T : null;
             return this;
@@ -107,7 +107,7 @@ namespace DataKeeper.Generic
             return outValue != null;
         }
         
-        public bool TryGet<T>(string id, out T outValue) where T : class, TValue
+        public bool TryGet<T>(out T outValue, string id) where T : class, TValue
         {
             outValue = _container.TryGetValue(id, out var value) ? value as T : null;
             return outValue != null;
