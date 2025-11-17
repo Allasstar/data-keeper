@@ -115,8 +115,7 @@ namespace DataKeeper.DynamicScene
 
 #if UNITY_EDITOR
         
-        [Header("Editor Only"), 
-         Header("Helps to preview addressable prefabs"), 
+         [Header("Editor Only\nHelps to preview addressable prefabs"), 
          SerializeField, TextArea(3, 10)] 
         private string _description;
         
