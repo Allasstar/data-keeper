@@ -1,5 +1,5 @@
 using System;
-using System.Linq;
+using System.Text;
 
 namespace DataKeeper.Extensions
 {
@@ -9,76 +9,97 @@ namespace DataKeeper.Extensions
         {
             if (string.IsNullOrEmpty(value) || value.Length < 2)
                 return value;
-            
-            value = value.ToLower();
-            return char.ToUpper(value[0]) + value.Substring(1);
+
+            // Only modify needed parts
+            char first = char.ToUpper(value[0]);
+            string rest = value.Substring(1).ToLower(); // unavoidable alloc
+
+            return first + rest;
         }
-        
+
         public static string ToCamelCase(this string value)
         {
-            if (string.IsNullOrEmpty(value))
+            if (string.IsNullOrWhiteSpace(value))
                 return value;
 
-            // Split the string into words
-            var words = value.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+            ReadOnlySpan<char> span = value.AsSpan();
+            Span<char> delimiters = stackalloc[] { ' ', '-', '_' };
 
-            if (words.Length == 0)
-                return value;
+            StringBuilder sb = new StringBuilder(value.Length);
 
-            // Capitalize the first letter of each word, except the first word
-            for (int i = 1; i < words.Length; i++)
+            bool capitalizeNext = false;
+            bool isFirstWord = true;
+
+            for (int i = 0; i < span.Length; i++)
             {
-                if (words[i].Length > 0)
+                char c = span[i];
+
+                // Delimiter triggers capitalization
+                if (delimiters.Contains(c))
                 {
-                    words[i] = char.ToUpper(words[i][0]) + words[i].Substring(1).ToLower();
+                    capitalizeNext = true;
+                    continue;
+                }
+
+                if (isFirstWord)
+                {
+                    sb.Append(char.ToLower(c));
+                    isFirstWord = false;
+                }
+                else if (capitalizeNext)
+                {
+                    sb.Append(char.ToUpper(c));
+                    capitalizeNext = false;
+                }
+                else
+                {
+                    sb.Append(char.ToLower(c));
                 }
             }
 
-            // Concatenate the words
-            string result = string.Concat(words);
-
-            // Make sure the first letter is lowercase
-            return char.ToLower(result[0]) + result.Substring(1);
+            return sb.ToString();
         }
-        
+
         public static string ToUpperCaseEachWord(this string value)
         {
             if (string.IsNullOrEmpty(value))
                 return value;
 
-            // Split the input string into words
-            string[] words = value.Split(' ');
+            StringBuilder sb = new StringBuilder(value.Length);
 
-            // Capitalize the first letter of each word
-            for (int i = 0; i < words.Length; i++)
+            bool capitalize = true;
+
+            foreach (char c in value)
             {
-                if (words[i].Length > 0)
+                if (char.IsWhiteSpace(c))
                 {
-                    // Capitalize the first character of the word
-                    words[i] = char.ToUpper(words[i][0]) + words[i].Substring(1);
+                    capitalize = true;
+                    sb.Append(c);
+                }
+                else
+                {
+                    sb.Append(capitalize ? char.ToUpper(c) : c);
+                    capitalize = false;
                 }
             }
 
-            // Join the words back together with a space separator
-            return string.Join(" ", words);
+            return sb.ToString();
         }
-        
+
         public static string RemoveWhitespace(this string value)
         {
             if (string.IsNullOrEmpty(value))
                 return value;
 
-            return new string(value.Where(c => !char.IsWhiteSpace(c)).ToArray());
-        }
-        
-        public static bool IsNullOrEmpty(this string value)
-        {
-            return string.IsNullOrEmpty(value);
-        }
-        
-        public static bool IsNullOrWhiteSpace(this string value)
-        {
-            return string.IsNullOrWhiteSpace(value);
+            StringBuilder sb = new StringBuilder(value.Length);
+
+            foreach (char c in value)
+            {
+                if (!char.IsWhiteSpace(c))
+                    sb.Append(c);
+            }
+
+            return sb.ToString();
         }
     }
 }
