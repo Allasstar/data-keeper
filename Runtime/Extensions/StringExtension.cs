@@ -5,6 +5,16 @@ namespace DataKeeper.Extensions
 {
     public static class StringExtension
     {
+        public static bool IsNullOrEmpty(this string value)
+        {
+            return string.IsNullOrEmpty(value);
+        }
+
+        public static bool IsNullOrWhiteSpace(this string value)
+        {
+            return string.IsNullOrWhiteSpace(value);
+        }
+        
         public static string ToTitleCase(this string value)
         {
             if (string.IsNullOrEmpty(value) || value.Length < 2)
@@ -23,7 +33,7 @@ namespace DataKeeper.Extensions
                 return value;
 
             ReadOnlySpan<char> span = value.AsSpan();
-            Span<char> delimiters = stackalloc[] { ' ', '-', '_' };
+            char[] delimiters = { ' ', '-', '_' };
 
             StringBuilder sb = new StringBuilder(value.Length);
 
@@ -34,8 +44,18 @@ namespace DataKeeper.Extensions
             {
                 char c = span[i];
 
-                // Delimiter triggers capitalization
-                if (delimiters.Contains(c))
+                // Manual check for delimiter
+                bool isDelimiter = false;
+                for (int d = 0; d < delimiters.Length; d++)
+                {
+                    if (c == delimiters[d])
+                    {
+                        isDelimiter = true;
+                        break;
+                    }
+                }
+
+                if (isDelimiter)
                 {
                     capitalizeNext = true;
                     continue;
@@ -59,6 +79,7 @@ namespace DataKeeper.Extensions
 
             return sb.ToString();
         }
+
 
         public static string ToUpperCaseEachWord(this string value)
         {
