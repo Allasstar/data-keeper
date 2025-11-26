@@ -1,76 +1,116 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace DataKeeper.Extensions
 {
     public static class ListExtension
     {
-        private static readonly System.Random _systemRandom = new System.Random();
+        private static readonly Random _systemRandom = new Random();
 
-        public static void Swap<T>(this List<T> list, int indexA, int indexB)
+        // --------------------------------------------------------
+        // SWAP
+        // --------------------------------------------------------
+        public static void Swap<T>(this List<T> list, int a, int b)
         {
-            if (indexA == indexB) return;
-            (list[indexA], list[indexB]) = (list[indexB], list[indexA]);
+            if ((uint)a >= (uint)list.Count || (uint)b >= (uint)list.Count) return;
+            if (a == b) return;
+
+            T temp = list[a];
+            list[a] = list[b];
+            list[b] = temp;
         }
 
+        // --------------------------------------------------------
+        // POP FIRST
+        // --------------------------------------------------------
         public static T Pop<T>(this List<T> list)
         {
             if (list.Count == 0) return default;
-
-            T item = list[0];
+            T value = list[0];
             list.RemoveAt(0);
-            return item;
+            return value;
         }
 
+        // --------------------------------------------------------
+        // POP LAST
+        // --------------------------------------------------------
         public static T PopLast<T>(this List<T> list)
         {
-            if (list.Count == 0) return default;
+            int count = list.Count;
+            if (count == 0) return default;
 
-            int lastIndex = list.Count - 1;
-            T item = list[lastIndex];
-            list.RemoveAt(lastIndex);
-            return item;
+            int last = count - 1;
+            T value = list[last];
+            list.RemoveAt(last);
+            return value;
         }
 
+        // --------------------------------------------------------
+        // RANDOM UNITY
+        // --------------------------------------------------------
         public static T Random<T>(this List<T> list)
         {
-            return list.Count == 0 ? default : list[UnityEngine.Random.Range(0, list.Count)];
+            int count = list.Count;
+            return count == 0 ? default : list[UnityEngine.Random.Range(0, count)];
+        }
+
+        // --------------------------------------------------------
+        // RANDOM SYSTEM
+        // --------------------------------------------------------
+        public static T RandomSystem<T>(this List<T> list)
+        {
+            int count = list.Count;
+            return count == 0 ? default : list[_systemRandom.Next(count)];
         }
 
         public static T RandomSystem<T>(this List<T> list, int seed)
         {
-            System.Random systemRandom = new System.Random(seed);
-            return list.Count == 0 ? default : list[systemRandom.Next(0, list.Count)];
+            int count = list.Count;
+            if (count == 0) return default;
+
+            Random rnd = new Random(seed);
+            return list[rnd.Next(count)];
         }
 
-        public static T RandomSystem<T>(this List<T> list)
-        {
-            return list.Count == 0 ? default : list[_systemRandom.Next(0, list.Count)];
-        }
-
+        // --------------------------------------------------------
+        // HAS INDEX
+        // --------------------------------------------------------
         public static bool HasIndex<T>(this List<T> list, int index)
         {
-            return index >= 0 && index < list.Count;
+            return (uint)index < (uint)list.Count;
         }
 
+        // --------------------------------------------------------
+        // GET / TRYGET
+        // --------------------------------------------------------
         public static T Get<T>(this List<T> list, int index)
         {
-            return list.HasIndex(index) ? list[index] : default;
+            return (uint)index < (uint)list.Count ? list[index] : default;
         }
 
         public static bool TryGet<T>(this List<T> list, int index, out T value)
         {
-            bool hasIndex = list.HasIndex(index);
-            value = hasIndex ? list[index] : default;
-            return hasIndex;
+            if ((uint)index < (uint)list.Count)
+            {
+                value = list[index];
+                return true;
+            }
+
+            value = default;
+            return false;
         }
 
+        // --------------------------------------------------------
+        // CLONE
+        // --------------------------------------------------------
         public static List<T> Clone<T>(this List<T> list)
         {
-            return new List<T>(list);
+            return new List<T>(list); // fast internal copy
         }
 
+        // --------------------------------------------------------
+        // SHUFFLE (FISHER-YATES)
+        // --------------------------------------------------------
         public static List<T> Shuffle<T>(this List<T> list)
         {
             PerformShuffle(list);
@@ -86,86 +126,83 @@ namespace DataKeeper.Extensions
 
         private static void PerformShuffle<T>(List<T> list)
         {
-            if (list.Count <= 1) return;
-    
-            // Fisher-Yates shuffle algorithm - iterate backwards from last element
-            for (int currentIndex = list.Count - 1; currentIndex > 0; currentIndex--)
+            int n = list.Count;
+            if (n <= 1) return;
+
+            for (int i = n - 1; i > 0; i--)
             {
-                int randomIndex = _systemRandom.Next(currentIndex + 1);
-                list.Swap(currentIndex, randomIndex);
+                int j = _systemRandom.Next(i + 1);
+                T tmp = list[i];
+                list[i] = list[j];
+                list[j] = tmp;
             }
         }
 
+        // --------------------------------------------------------
+        // FIND RANDOM MATCH (reservoir sampling)
+        // --------------------------------------------------------
         public static T FindRandom<T>(this List<T> list, Predicate<T> match)
         {
-            if (list.Count == 0) return default;
+            T selected = default;
+            int count = 0;
 
-            List<T> matchingItems = list.Where(item => match(item)).ToList();
-            return matchingItems.Count > 0 ? matchingItems[_systemRandom.Next(matchingItems.Count)] : default;
+            for (int i = 0; i < list.Count; i++)
+            {
+                T item = list[i];
+                if (!match(item)) continue;
+
+                count++;
+                if (_systemRandom.Next(count) == 0)
+                    selected = item;
+            }
+
+            return count > 0 ? selected : default;
         }
 
-        public static void RemoveAll<T>(this List<T> list, Predicate<T> match)
-        {
-            list.RemoveAll(match);
-        }
-
+        // --------------------------------------------------------
+        // INDEX OF MATCH
+        // --------------------------------------------------------
         public static int IndexOf<T>(this List<T> list, Predicate<T> match)
         {
             return list.FindIndex(match);
         }
 
-        /// <summary>
-        /// Returns the next index in a circular manner within the list.
-        /// </summary>
-        /// <param name="list">The list on which the operation is performed.</param>
-        /// <param name="index">The current index from which the next index is calculated.</param>
-        /// <typeparam name="T">The type of elements contained in the list.</typeparam>
-        /// <returns>The next index in the list. Returns -1 if the list is empty.</returns>
+        // --------------------------------------------------------
+        // CIRCULAR INDEXING
+        // --------------------------------------------------------
         public static int NextIndex<T>(this List<T> list, int index)
         {
-            if (list.Count == 0) return -1;
-            return (index + 1) % list.Count;
+            int count = list.Count;
+            if (count == 0) return -1;
+            return index + 1 < count ? index + 1 : 0;
         }
 
-        /// <summary>
-        /// Returns the previous index in a circular manner within the list.
-        /// </summary>
-        /// <param name="list">The list on which the operation is performed.</param>
-        /// <param name="index">The current index from which the previous index is calculated.</param>
-        /// <typeparam name="T">The type of elements contained in the list.</typeparam>
-        /// <returns>The previous index in the list. Returns -1 if the list is empty.</returns>
         public static int PreviousIndex<T>(this List<T> list, int index)
         {
-            if (list.Count == 0) return -1;
-            return (index + list.Count - 1) % list.Count;
+            int count = list.Count;
+            if (count == 0) return -1;
+            return index > 0 ? index - 1 : count - 1;
         }
 
-        /// <summary>
-        /// Retrieves the next element in the list relative to a given value, in a circular manner.
-        /// </summary>
-        /// <param name="list">The list to operate on.</param>
-        /// <param name="value">The current value for which the next value is being determined.</param>
-        /// <typeparam name="T">The type of elements contained in the list.</typeparam>
-        /// <returns>The next element in the list after the specified value, or default if the list is empty or if the value is not found.</returns>
+        // --------------------------------------------------------
+        // CIRCULAR NEXT/PREV VALUE
+        // --------------------------------------------------------
         public static T Next<T>(this List<T> list, T value)
         {
-            var index = list.IndexOf(value);
-            var nextIndex = list.NextIndex(index);
-            return list.Get(nextIndex);
+            int index = list.IndexOf(value);
+            if (index < 0) return default;
+
+            int next = index + 1 < list.Count ? index + 1 : 0;
+            return list[next];
         }
 
-        /// <summary>
-        /// Retrieves the previous element in the list relative to a given value, in a circular manner.
-        /// </summary>
-        /// <param name="list">The list on which the operation is performed.</param>
-        /// <param name="value">The value whose previous element is to be found.</param>
-        /// <typeparam name="T">The type of elements contained in the list.</typeparam>
-        /// <returns>The previous element in the list. Returns the default value for the type if the value is not found or the list is empty.</returns>
         public static T Previous<T>(this List<T> list, T value)
         {
-            var index = list.IndexOf(value);
-            var previousIndex = list.PreviousIndex(index);
-            return list.Get(previousIndex);
+            int index = list.IndexOf(value);
+            if (index < 0) return default;
+
+            int prev = index > 0 ? index - 1 : list.Count - 1;
+            return list[prev];
         }
     }
 }
