@@ -42,7 +42,7 @@ namespace DataKeeper.Editor.Windows
         public static void ShowWindow()
         {
             AssetTransferTool window = GetWindow<AssetTransferTool>();
-            window.titleContent = new GUIContent("Asset Transfer", EditorGUIUtility.IconContent("Prefab Icon").image);
+            window.titleContent = new GUIContent("Asset Transfer", EditorGUIUtility.IconContent("FilterByType").image);
             window.minSize = new Vector2(500, 650);
         }
 
@@ -254,6 +254,7 @@ namespace DataKeeper.Editor.Windows
 
             // Collect dependencies
             string rootPath = AssetDatabase.GetAssetPath(sourceObj);
+            string rootDir = Path.GetDirectoryName(rootPath).Replace("\\", "/");
             string[] deps = AssetDatabase.GetDependencies(rootPath, true);
 
             var assetsToMove = deps
@@ -281,8 +282,31 @@ namespace DataKeeper.Editor.Windows
                 }
                 else
                 {
-                    string relative = src.StartsWith("Assets/") ? src.Substring(7) : src;
-                    intendedPath = $"{targetRoot}/{relative}";
+                    // Keep folder structure relative to the source asset's directory
+                    string srcDir = Path.GetDirectoryName(src).Replace("\\", "/");
+                    
+                    // Calculate relative path from source asset's parent to this dependency
+                    string relativePath = "";
+                    if (srcDir.StartsWith(rootDir + "/"))
+                    {
+                        // Dependency is in a subfolder of the source
+                        relativePath = srcDir.Substring(rootDir.Length + 1);
+                    }
+                    else if (srcDir == rootDir)
+                    {
+                        // Dependency is in the same folder as source
+                        relativePath = "";
+                    }
+                    else
+                    {
+                        // Dependency is outside source folder - preserve its immediate parent folder name
+                        relativePath = Path.GetFileName(srcDir);
+                    }
+                    
+                    if (!string.IsNullOrEmpty(relativePath))
+                        intendedPath = $"{targetRoot}/{relativePath}/{fileName}";
+                    else
+                        intendedPath = $"{targetRoot}/{fileName}";
                 }
 
                 var op = new AssetMoveOperation
@@ -362,7 +386,7 @@ namespace DataKeeper.Editor.Windows
             return newPath;
         }
 
-        // --- FIX: Unity-safe folder creation ---
+        // --- FIXED: Unity-safe folder creation ---
         private void EnsureUnityFolder(string folder)
         {
             folder = folder.Replace("\\", "/");
@@ -370,13 +394,39 @@ namespace DataKeeper.Editor.Windows
             if (AssetDatabase.IsValidFolder(folder))
                 return;
 
-            string parent = Path.GetDirectoryName(folder).Replace("\\", "/");
-            string name = Path.GetFileName(folder);
+            // Build the complete path hierarchy
+            List<string> pathParts = new List<string>();
+            string current = folder;
 
-            if (!AssetDatabase.IsValidFolder(parent))
-                EnsureUnityFolder(parent);
+            while (!string.IsNullOrEmpty(current) && current != "Assets")
+            {
+                if (!AssetDatabase.IsValidFolder(current))
+                {
+                    pathParts.Insert(0, current);
+                }
+                else
+                {
+                    break;
+                }
 
-            AssetDatabase.CreateFolder(parent, name);
+                current = Path.GetDirectoryName(current)?.Replace("\\", "/");
+            }
+
+            // Create folders from top to bottom
+            foreach (string path in pathParts)
+            {
+                string parent = Path.GetDirectoryName(path)?.Replace("\\", "/");
+                string name = Path.GetFileName(path);
+
+                if (!string.IsNullOrEmpty(parent) && !string.IsNullOrEmpty(name))
+                {
+                    string guid = AssetDatabase.CreateFolder(parent, name);
+                    if (string.IsNullOrEmpty(guid))
+                    {
+                        Debug.LogError($"Failed to create folder: {path}");
+                    }
+                }
+            }
         }
 
         private void ExecuteTransfer()
@@ -395,7 +445,7 @@ namespace DataKeeper.Editor.Windows
 
                     string err = AssetDatabase.MoveAsset(op.SourcePath, op.DestinationPath);
                     if (!string.IsNullOrEmpty(err))
-                        Debug.LogError(err);
+                        Debug.LogError($"Failed to move {op.SourcePath} to {op.DestinationPath}: {err}");
                 }
             }
             finally
