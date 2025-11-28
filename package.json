@@ -1,6 +1,6 @@
 {
   "name": "com.micrarriors.data-keeper",
-  "version": "0.47.0",
+  "version": "0.48.0",
   "displayName": "DataKeeper",
   "description": "DataKeeper is a comprehensive package/Unity extension that enhances the functionality and convenience of Unity development.",
   "unity": "2021.3",
@@ -37,6 +37,7 @@
         }
     ]
 }
+
 
 
 
