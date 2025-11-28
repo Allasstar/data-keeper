@@ -8,11 +8,11 @@ namespace DataKeeper.ActCore
 {
     public class ActChain : CustomYieldInstruction
     {
-        private static readonly ObjectPool<ActChain> ChainPool = 
-            new ObjectPool<ActChain>(() => new ActChain(), chain => chain.Clear());
+        private static readonly PoolObject<ActChain> Chain = 
+            new PoolObject<ActChain>(() => new ActChain(), chain => chain.Clear());
         
-        private static readonly ObjectPool<ActChainStep> StepPool = 
-            new ObjectPool<ActChainStep>(() => new ActChainStep(), step => step.Clear());
+        private static readonly PoolObject<ActChainStep> Step = 
+            new PoolObject<ActChainStep>(() => new ActChainStep(), step => step.Clear());
 
         private Queue<ActChainStep> _stepQueue = new Queue<ActChainStep>();
         private bool _isRunning = true;
@@ -22,7 +22,7 @@ namespace DataKeeper.ActCore
 
         internal static ActChain Create(MonoBehaviour executor)
         {
-            var chain = ChainPool.Get();
+            var chain = Chain.Get();
             chain.Setup(executor);
             return chain;
         }
@@ -53,51 +53,51 @@ namespace DataKeeper.ActCore
                 if (coroutine != null)
                     yield return coroutine;
                 
-                StepPool.Release(step);
+                Step.Release(step);
             }
 
             _isRunning = false;
-            ChainPool.Release(this);
+            Chain.Release(this);
         }
 
         public ActChain Play(IEnumerator routine)
         {
-            var step = StepPool.Get().SetupCoroutine(routine);
+            var step = Step.Get().SetupCoroutine(routine);
             _stepQueue.Enqueue(step);
             return this;
         }
 
         public ActChain Wait(float seconds)
         {
-            var step = StepPool.Get().SetupWait(seconds);
+            var step = Step.Get().SetupWait(seconds);
             _stepQueue.Enqueue(step);
             return this;
         }
 
         public ActChain Call(Action action)
         {
-            var step = StepPool.Get().SetupAction(action);
+            var step = Step.Get().SetupAction(action);
             _stepQueue.Enqueue(step);
             return this;
         }
 
         public ActChain WaitWhile(Func<bool> condition)
         {
-            var step = StepPool.Get().SetupWaitWhile(condition);
+            var step = Step.Get().SetupWaitWhile(condition);
             _stepQueue.Enqueue(step);
             return this;
         }
 
         public ActChain WaitUntil(Func<bool> condition)
         {
-            var step = StepPool.Get().SetupWaitUntil(condition);
+            var step = Step.Get().SetupWaitUntil(condition);
             _stepQueue.Enqueue(step);
             return this;
         }
 
         public ActChain Parallel(params IEnumerator[] routines)
         {
-            var step = StepPool.Get().SetupParallel(routines);
+            var step = Step.Get().SetupParallel(routines);
             _stepQueue.Enqueue(step);
             return this;
         }
@@ -106,7 +106,7 @@ namespace DataKeeper.ActCore
         {
             foreach (var routine in routines)
             {
-                var step = StepPool.Get().SetupCoroutine(routine);
+                var step = Step.Get().SetupCoroutine(routine);
                 _stepQueue.Enqueue(step);
             }
             return this;
