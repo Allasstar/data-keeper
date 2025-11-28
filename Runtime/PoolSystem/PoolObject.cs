@@ -8,7 +8,7 @@ namespace DataKeeper.PoolSystem
         private readonly Stack<T> _inactive = new Stack<T>();
         private readonly HashSet<T> _active = new HashSet<T>();
 
-        private readonly Func<T> _create;
+        private readonly Func<T> _createFunc;
         private readonly Action<T> _onRelease;
         private readonly Action<T> _onGet;
 
@@ -18,9 +18,9 @@ namespace DataKeeper.PoolSystem
         public IEnumerable<T> ActiveItems => _active;
         public IEnumerable<T> InactiveItems => _inactive;
 
-        public PoolObject(Func<T> create, Action<T> onRelease = null, Action<T> onGet = null)
+        public PoolObject(Func<T> createFunc, Action<T> onRelease = null, Action<T> onGet = null)
         {
-            _create = create ?? throw new ArgumentNullException(nameof(create));
+            _createFunc = createFunc ?? throw new ArgumentNullException(nameof(createFunc));
             _onRelease = onRelease;
             _onGet = onGet;
         }
@@ -29,7 +29,7 @@ namespace DataKeeper.PoolSystem
         {
             T item = _inactive.Count > 0
                 ? _inactive.Pop()
-                : _create();
+                : _createFunc();
 
             _active.Add(item);
             _onGet?.Invoke(item);
@@ -52,7 +52,7 @@ namespace DataKeeper.PoolSystem
         public void Prewarm(int count)
         {
             for (int i = 0; i < count; i++)
-                _inactive.Push(_create());
+                _inactive.Push(_createFunc());
         }
 
         public void Clear()
