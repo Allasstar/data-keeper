@@ -95,7 +95,7 @@ namespace DataKeeper.Ease
                         ? (1f - Mathf.Sqrt(1f - Mathf.Pow(2f * t, 2f))) * 0.5f
                         : (Mathf.Sqrt(1f - Mathf.Pow(-2f * t + 2f, 2f)) + 1f) * 0.5f;
 
-                // ---------------------- BOUNCE (DOTween exact) ----------------------
+                // ---------------------- BOUNCE ----------------------
                 case EaseType.EaseInBounce:
                     return 1f - EaseOutBounce(1f - t);
 
@@ -107,7 +107,7 @@ namespace DataKeeper.Ease
                         ? (1f - EaseOutBounce(1f - t * 2f)) * 0.5f
                         : (1f + EaseOutBounce(t * 2f - 1f)) * 0.5f;
 
-                // ---------------------- BACK (DOTween exact) ----------------------
+                // ---------------------- BACK ----------------------
                 case EaseType.EaseInBack:
                 {
                     const float s = 1.70158f;
@@ -136,7 +136,7 @@ namespace DataKeeper.Ease
                     }
                 }
 
-                // ---------------------- ELASTIC (DOTween exact) ----------------------
+                // ---------------------- ELASTIC ----------------------
                 case EaseType.EaseInElastic:
                     if (Mathf.Approximately(t, 0f) || Mathf.Approximately(t, 1f)) return t;
                     return -Mathf.Pow(2f, 10f * (t - 1f)) *
