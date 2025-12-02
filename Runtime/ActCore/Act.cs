@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using DataKeeper.MathFunc;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -81,8 +82,8 @@ namespace DataKeeper.ActCore
 
         public static Coroutine Float(float from, float to, float duration, Action<float> value = null, Action onComplete = null) 
             => Engine.Float(from, to, duration, value, onComplete);
-        public static Coroutine Float(float from, float to, float duration, Func<float, float, float, FloatEase> ease, Action<float> value = null, Action onComplete = null) 
-            => Engine.Float(from, to, duration, ease, value, onComplete);
+        public static Coroutine Float(float from, float to, float duration, EaseType easeType, Action<float> value = null, Action onComplete = null) 
+            => Engine.Float(from, to, duration, easeType, value, onComplete);
         
         public static Coroutine Period(float from, float to, float duration, float callbackPeriod, Action<float> value = null, Action callback = null, Action onComplete = null) 
             => Engine.Period(from, to, duration, callbackPeriod, value, callback, onComplete);

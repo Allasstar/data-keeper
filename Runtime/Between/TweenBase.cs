@@ -1,5 +1,6 @@
 using System;
-using DataKeeper.Ease;
+using DataKeeper.Between.Core;
+using DataKeeper.MathFunc;
 using UnityEngine;
 
 namespace DataKeeper.Between

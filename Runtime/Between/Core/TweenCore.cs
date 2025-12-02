@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 
-namespace DataKeeper.Ease
+namespace DataKeeper.Between.Core
 {
     public static class TweenCore
     {

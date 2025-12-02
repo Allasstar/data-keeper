@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace DataKeeper.Ease
+namespace DataKeeper.MathFunc
 {
    public static class Easing
     {

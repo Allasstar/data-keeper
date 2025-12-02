@@ -1,4 +1,5 @@
 using System;
+using DataKeeper.MathFunc;
 using UnityEngine;
 
 namespace DataKeeper.ActCore
@@ -27,8 +28,8 @@ namespace DataKeeper.ActCore
         public static Coroutine Float(this MonoBehaviour monoBehaviour, float from, float to, float duration, Action<float> value = null, Action onComplete = null) 
             => monoBehaviour.StartCoroutine(ActEnumerator.Float(from, to, duration, value, onComplete));
         
-        public static Coroutine Float(this MonoBehaviour monoBehaviour, float from, float to, float duration, Func<float, float, float, FloatEase> ease, Action<float> value = null, Action onComplete = null) 
-            => monoBehaviour.StartCoroutine(ActEnumerator.Float(from, to, duration, ease, value, onComplete));
+        public static Coroutine Float(this MonoBehaviour monoBehaviour, float from, float to, float duration, EaseType easeType, Action<float> value = null, Action onComplete = null) 
+            => monoBehaviour.StartCoroutine(ActEnumerator.Float(from, to, duration, easeType, value, onComplete));
 
         public static Coroutine Period(this MonoBehaviour monoBehaviour, float from, float to, float duration, float callbackPeriod, Action<float> value = null, Action callback = null, Action onComplete = null) 
             => monoBehaviour.StartCoroutine(ActEnumerator.Period(from, to, duration, callbackPeriod, value, callback, onComplete));

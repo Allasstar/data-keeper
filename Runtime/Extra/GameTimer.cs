@@ -1,5 +1,6 @@
 using System;
 using DataKeeper.ActCore;
+using DataKeeper.MathFunc;
 using DataKeeper.Generic;
 using DataKeeper.Helpers;
 using Newtonsoft.Json;

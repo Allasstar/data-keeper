@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using DataKeeper.MathFunc;
 using UnityEngine;
 
 namespace DataKeeper.ActCore
@@ -158,7 +159,7 @@ namespace DataKeeper.ActCore
             onComplete?.Invoke();
         }
         
-        public static IEnumerator Float(float from, float to, float duration, Func<float, float, float, FloatEase> ease, Action<float> value, Action onComplete)
+        public static IEnumerator Float(float from, float to, float duration, EaseType easeType, Action<float> value, Action onComplete)
         {
             var time = 0f;
             value?.Invoke(from);
@@ -168,7 +169,7 @@ namespace DataKeeper.ActCore
                 yield return null;
                 time += Time.deltaTime;
                 
-                value?.Invoke(ease(time / duration, from, to));
+                value?.Invoke(Lerp.Float(from, to, Easing.Apply(time / duration, easeType)));
             }
             
             value?.Invoke(to);
