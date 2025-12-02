@@ -1,6 +1,6 @@
 using System;
 using System.Text;
-using DataKeeper.Between.Core;
+using DataKeeper.Ease;
 using UnityEngine;
 
 namespace DataKeeper.Between
@@ -99,7 +99,7 @@ namespace DataKeeper.Between
             currentTime += Time.deltaTime;
             float progress = Mathf.Clamp01(currentTime / DurationValue);
             
-            currentValue = Mathf.Lerp(FromValue, ToValue, TweenCore.ApplyEasing(progress, EaseType));
+            currentValue = Mathf.Lerp(FromValue, ToValue, Easing.Apply(progress, EaseType));
             
             OnValueCallback ?.Invoke(currentValue);
             OnProgressCallback ?.Invoke(progress);

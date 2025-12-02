@@ -1,5 +1,5 @@
 using System;
-using DataKeeper.Between.Core;
+using DataKeeper.Ease;
 using UnityEngine;
 
 namespace DataKeeper.Between
@@ -106,7 +106,7 @@ namespace DataKeeper.Between
                 return;
             }
 
-            t = TweenCore.ApplyEasing(t, easeType);
+            t = Easing.Apply(t, easeType);
         
             if (loopType == LoopType.PingPong && isReverse)
             {
