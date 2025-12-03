@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using DataKeeper.MathFunc;
+using UnityEngine;
 
 namespace DataKeeper.Between
 {
@@ -27,7 +28,7 @@ namespace DataKeeper.Between
 
         protected override void LerpValueAndSetTargetValue(float value)
         {
-            SetTargetValue(Vector3.Lerp(startValue, endValue, value));
+            SetTargetValue(Lerp.LerpVector3Unclamped(startValue, endValue, value));
         }
 
         protected override void HandleIncrementLoop(Vector3 start, Vector3 end)

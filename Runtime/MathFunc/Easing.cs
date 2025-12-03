@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace DataKeeper.MathFunc
 {
-   public static class Easing
+   public struct Easing
     {
         public static float Apply(float t, EaseType easeType)
         {

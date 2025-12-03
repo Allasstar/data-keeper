@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using DataKeeper.MathFunc;
+using UnityEngine;
 
 namespace DataKeeper.Between
 {
@@ -28,7 +29,7 @@ namespace DataKeeper.Between
 
         protected override void LerpValueAndSetTargetValue(float value)
         {
-            SetTargetValue(Quaternion.Lerp(startValue, endValue, value));
+            SetTargetValue(Lerp.LerpQuaternionUnclamped(startValue, endValue, value));
         }
 
         protected override void HandleIncrementLoop(Quaternion start, Quaternion end)

@@ -169,7 +169,7 @@ namespace DataKeeper.ActCore
                 yield return null;
                 time += Time.deltaTime;
                 
-                value?.Invoke(Lerp.Float(from, to, Easing.Apply(time / duration, easeType)));
+                value?.Invoke(Lerp.FloatUnclamped(from, to, Easing.Apply(time / duration, easeType)));
             }
             
             value?.Invoke(to);

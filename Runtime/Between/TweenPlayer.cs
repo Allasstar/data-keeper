@@ -100,7 +100,7 @@ namespace DataKeeper.Between
             currentTime += Time.deltaTime;
             float progress = Mathf.Clamp01(currentTime / DurationValue);
             
-            currentValue = Mathf.Lerp(FromValue, ToValue, Easing.Apply(progress, EaseType));
+            currentValue = Lerp.FloatUnclamped(FromValue, ToValue, Easing.Apply(progress, EaseType));
             
             OnValueCallback ?.Invoke(currentValue);
             OnProgressCallback ?.Invoke(progress);
