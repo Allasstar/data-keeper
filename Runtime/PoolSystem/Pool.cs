@@ -60,10 +60,15 @@ namespace DataKeeper.PoolSystem
             _maxActive = new Optional<int>(maxActive, maxActive > 0);
         }
         
-       public virtual void Initialize()
+       public virtual void Initialize(Transform container = null)
        {
            if(_isInitialized) return;
            _isInitialized = true;
+
+           if (container != null)
+           { 
+               _poolContainer = container;
+           }
            
            if (!_prewarm.Enabled) return;
 
