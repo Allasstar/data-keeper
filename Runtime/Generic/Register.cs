@@ -1,15 +1,25 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Object = System.Object;
 
 namespace DataKeeper.Generic
 {
     public class Register<TValue>
     {
+        public struct PendingResolution
+        {
+            public Object target;
+            public Type targetType;
+            public string id;
+        }
+        
         protected readonly Dictionary<string, TValue> _container = new Dictionary<string, TValue>();
+        protected List<PendingResolution> _pendingResolutionList = new List<PendingResolution>();
 
         public int Count => _container.Count;
         public IReadOnlyDictionary<string, TValue> All => _container;
+        public IReadOnlyList<PendingResolution> AllPendingResolution => _pendingResolutionList;
         
         public virtual bool Contains<T>() => _container.ContainsKey(typeof(T).Name);
         public virtual bool Contains(string id) => _container.ContainsKey(id);
@@ -35,16 +45,38 @@ namespace DataKeeper.Generic
         public void Reg(TValue value, string id)
         {
             _container[id] = value;
+            Resolver();
+        }
+        
+        public void Reg<T>(TValue value, string id) where T : TValue
+        {
+            _container[id] = value;
+            Resolver();
         }
     
         public void Reg<T>(TValue value) where T : TValue
         {
             _container[typeof(T).Name] = value;
+            Resolver();
         }
         
         public void Reg(TValue value)
         {
             _container[value.GetType().Name] = value;
+            Resolver();
+        }
+
+        private void Resolver()
+        {
+            for (var i = _pendingResolutionList.Count - 1; i >= 0; i--)
+            {
+                var pending = _pendingResolutionList[i];
+                if (_container.TryGetValue(pending.id, out var value))
+                {
+                    pending.target = value;
+                    _pendingResolutionList.RemoveAt(i);
+                }
+            }
         }
         
         public TValue Get(Type type, string id = "")
@@ -98,15 +130,28 @@ namespace DataKeeper.Generic
             return new UnityLazy<T>(() => Get<T>(id));
         }
         
-        public Register<TValue> Resolve<T>(out T outValue) where T : class, TValue
+        public Register<TValue> Resolve<T>(ref T outValue) where T : class, TValue
         {
-            outValue = _container.TryGetValue(typeof(T).Name, out var value) ? value as T : null;
+            Resolve(ref outValue, typeof(T).Name);
             return this;
         }
         
-        public Register<TValue> Resolve<T>(out T outValue, string id) where T : class, TValue
+        public Register<TValue> Resolve<T>(ref T outValue, string id) where T : class, TValue
         {
-            outValue = _container.TryGetValue(id, out var value) ? value as T : null;
+            if (_container.TryGetValue(id, out var value))
+            {
+                outValue = value as T;
+            }
+            else
+            {
+                _pendingResolutionList.Add(new PendingResolution()
+                {
+                    target = outValue,
+                    targetType = typeof(T),
+                    id = id
+                });
+            }
+            
             return this;
         }
         
