@@ -1,7 +1,7 @@
 using DataKeeper.Base;
 using UnityEngine;
 
-namespace DataKeeper.Init
+namespace DataKeeper.ServiceLocatorPattern
 {
     public static class Initializator
     {
