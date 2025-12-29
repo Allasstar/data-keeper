@@ -1,12 +1,11 @@
-using System;
+ using System;
 using System.Collections.Generic;
-using DataKeeper.UIToolkit;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
 
-namespace DataKeeper.Editor.Windows
+namespace DataKeeper.Editor.Windows     
 {
     public class TableView : VisualElement
     {
