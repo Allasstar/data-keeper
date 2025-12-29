@@ -373,7 +373,7 @@ namespace DataKeeper.Editor.Windows
 
             var tableToolbar = new Toolbar {
                 style = {
-                    backgroundColor = new Color(0.2f, 0.2f, 0.2f),
+                    backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0),
                     borderBottomWidth = 2,
                     borderBottomColor = new Color(0.3f, 0.7f, 1f),
                     marginBottom = 4
@@ -381,11 +381,12 @@ namespace DataKeeper.Editor.Windows
             };
             tableToolbar.Add(new Label($"📊 {tabData.CurrentList.displayName}") {
                 style = {
-                    fontSize = 12,
+                    fontSize = 14,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     color = new Color(0.8f, 0.9f, 1f)
                 }
             });
+            tableToolbar.SetMargin(4);
 
             var spacer = new VisualElement { style = { flexGrow = 1 } };
             tableToolbar.Add(spacer);
@@ -411,6 +412,8 @@ namespace DataKeeper.Editor.Windows
                     backgroundColor = new Color(0.18f, 0.18f, 0.18f)
                 }
             };
+
+            mclv.SetMargin(4);
 
             // Generate columns and set up column bindingPath so the list view can manage header/cell interactions properly
             GenerateColumns(mclv, tabData.CurrentList, tabData.PrivateToggle.value, tabData.ShowPropertiesToggle.value);
