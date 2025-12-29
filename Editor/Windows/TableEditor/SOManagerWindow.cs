@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using DataKeeper.UIToolkit;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -51,9 +50,9 @@ namespace DataKeeper.Editor.Windows
             topToolbar.style.borderBottomWidth = 2;
             topToolbar.style.borderBottomColor = new Color(0.1f, 0.5f, 0.8f);
 
-            var addTabBtn = new ToolbarButton(() => AddEmptyTab()) { 
+            var addTabBtn = new ToolbarButton(() => AddEmptyTab()) {
                 text = "➕ New Tab",
-                style = { 
+                style = {
                     backgroundColor = new Color(0.2f, 0.6f, 0.9f),
                     color = Color.white,
                     unityFontStyleAndWeight = FontStyle.Bold,
@@ -68,7 +67,7 @@ namespace DataKeeper.Editor.Windows
                 }
             };
 
-            var helpBtn = new ToolbarButton(() => ShowHelp()) { 
+            var helpBtn = new ToolbarButton(() => ShowHelp()) {
                 text = "❓ Help",
                 style = { marginLeft = 4 }
             };
@@ -103,8 +102,8 @@ namespace DataKeeper.Editor.Windows
             container.Add(controlPanel);
 
             // Table Container
-            tabData.TableContainer = new VisualElement { 
-                style = { 
+            tabData.TableContainer = new VisualElement {
+                style = {
                     flexGrow = 1,
                     backgroundColor = new Color(0.15f, 0.15f, 0.15f),
                     borderTopLeftRadius = 6,
@@ -153,7 +152,7 @@ namespace DataKeeper.Editor.Windows
                 style = { flexDirection = FlexDirection.Row }
             };
 
-            // Properties Toggle - better explanation
+            // Properties Toggle - keep tooltip but remove inline hint label (moved to Help)
             tabData.ShowPropertiesToggle = new Toggle("Show Auto-Properties") {
                 value = true,
                 tooltip = "Show properties declared as: [field: SerializeField] public Type PropName { get; set; }",
@@ -168,16 +167,6 @@ namespace DataKeeper.Editor.Windows
 
             toggleRow.Add(tabData.ShowPropertiesToggle);
             toggleRow.Add(tabData.PrivateToggle);
-
-            // Info label
-            var infoLabel = new Label("💡 Auto-Properties: Properties with [field: SerializeField] like: public int Health { get; set; }") {
-                style = {
-                    fontSize = 10,
-                    color = new Color(0.6f, 0.7f, 0.8f),
-                    marginTop = 4,
-                    whiteSpace = WhiteSpace.Normal
-                }
-            };
 
             soField.RegisterValueChangedCallback(evt => {
                 if (evt.newValue is ScriptableObject so) {
@@ -196,7 +185,7 @@ namespace DataKeeper.Editor.Windows
 
             configBox.Add(soField);
             configBox.Add(toggleRow);
-            configBox.Add(infoLabel);
+            // Note: auto-properties hint intentionally removed from here and placed inside the Help dialog
 
             return configBox;
         }
@@ -284,7 +273,7 @@ namespace DataKeeper.Editor.Windows
             var rowSizeLabel = new Label("📏 Row Height:") {
                 style = { marginRight = 4, fontSize = 11 }
             };
-            tabData.RowSizeSlider = new Slider(20, 100, SliderDirection.Horizontal) {
+            tabData.RowSizeSlider = new Slider(28, 150, SliderDirection.Horizontal) {
                 value = 28,
                 style = { width = 120, marginRight = 4 }
             };
@@ -332,13 +321,13 @@ namespace DataKeeper.Editor.Windows
         private void RefreshTable(TabData tabData)
         {
             if (tabData.SO == null) return;
-            
+
             // Force update serialized object
             tabData.SerializedObject.Update();
-            
+
             // Rebuild table completely
             RebuildTable(tabData);
-            
+
             Debug.Log("Table refreshed");
         }
 
@@ -356,7 +345,7 @@ namespace DataKeeper.Editor.Windows
             if (tabData.AvailableLists.Count == 0) {
                 tabData.TableContainer.Clear();
                 tabData.TableContainer.Add(new Label("⚠️ No List/Array found in this ScriptableObject.") {
-                    style = { 
+                    style = {
                         unityTextAlign = TextAnchor.MiddleCenter,
                         fontSize = 14,
                         color = new Color(1f, 0.7f, 0.3f)
@@ -391,7 +380,7 @@ namespace DataKeeper.Editor.Windows
                 }
             };
             tableToolbar.Add(new Label($"📊 {tabData.CurrentList.displayName}") {
-                style = { 
+                style = {
                     fontSize = 12,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     color = new Color(0.8f, 0.9f, 1f)
@@ -403,7 +392,7 @@ namespace DataKeeper.Editor.Windows
             tabData.TableContainer.Add(tableToolbar);
 
             BuildListView(tabData);
-            
+
             // Update item count
             tabData.ItemCountLabel.text = $"{tabData.CurrentList.arraySize} items";
         }
@@ -417,13 +406,29 @@ namespace DataKeeper.Editor.Windows
                 reorderable = true,
                 showAddRemoveFooter = true,
                 selectionType = SelectionType.Multiple,
-                style = { 
+                style = {
                     flexGrow = 1,
                     backgroundColor = new Color(0.18f, 0.18f, 0.18f)
                 }
             };
 
+            // Generate columns and set up column bindingPath so the list view can manage header/cell interactions properly
             GenerateColumns(mclv, tabData.CurrentList, tabData.PrivateToggle.value, tabData.ShowPropertiesToggle.value);
+
+            // Bind the MultiColumnListView directly to the serialized object.
+            // Binding the container is not enough for full multi-column header behaviors (resize/reorder),
+            // so bind the list view itself as recommended in Unity documentation examples.
+            try {
+                mclv.Bind(tabData.SerializedObject);
+            }
+            catch (Exception) {
+                // Older Unity versions may not support Bind(SerializedObject) on MultiColumnListView.
+                // Fall back to binding the container so the window still functions.
+                tabData.TableContainer.Bind(tabData.SerializedObject);
+            }
+
+            // Ensure layout is recalculated (helps column header to show correct sizes)
+            mclv.Rebuild();
 
             // Register callbacks to keep serialization in sync
             mclv.itemsAdded += (indices) => {
@@ -439,8 +444,31 @@ namespace DataKeeper.Editor.Windows
             };
 
             tabData.TableContainer.Add(mclv);
-            tabData.TableContainer.Bind(tabData.SerializedObject);
             tabData.ListView = mclv;
+        }
+        
+        VisualElement MakeValueField(SerializedProperty prop)
+        {
+            switch (prop.propertyType)
+            {
+                case SerializedPropertyType.Integer:
+                    return new IntegerField { isDelayed = true };
+
+                case SerializedPropertyType.Float:
+                    return new FloatField { isDelayed = true };
+
+                case SerializedPropertyType.Boolean:
+                    return new Toggle();
+
+                case SerializedPropertyType.String:
+                    return new TextField();
+
+                case SerializedPropertyType.Enum:
+                    return new EnumField();
+
+                default:
+                    return new PropertyField(prop, "");
+            }
         }
 
         private void GenerateColumns(MultiColumnListView mclv, SerializedProperty listProp, bool includePrivate, bool showProperties)
@@ -470,15 +498,24 @@ namespace DataKeeper.Editor.Windows
                 var col = new Column {
                     title = fieldInfo.DisplayName,
                     name = fieldInfo.FieldPath,
-                    stretchable = true,
-                    minWidth = 100,
+                    // Set bindingPath so the list view can use internal binding path logic for columns (header/cell)
+                    bindingPath = fieldInfo.FieldPath,
+                    resizable = true,
+                    stretchable = false,
+                    minWidth = 75,
+                    maxWidth = 300,
                     width = 150
                 };
 
+                // create a simple template cell (PropertyField) and bind in bindCell using the element's relative property
                 col.makeCell = () => {
                     var field = new PropertyField { label = "" };
                     field.style.marginTop = 2;
                     field.style.marginBottom = 2;
+                    // allow the field to grow horizontally to match column width
+                    field.style.flexGrow = 1;
+                    field.style.minWidth = 50;
+                   
                     return field;
                 };
 
@@ -517,7 +554,7 @@ namespace DataKeeper.Editor.Windows
 
                     string fieldPath = childProp.propertyPath.Replace(element.propertyPath + ".", "");
                     string displayName = childProp.displayName;
-                    
+
                     // Check if this is a property backing field
                     bool isProperty = fieldPath.Contains("<") && fieldPath.Contains(">k__BackingField");
 
@@ -550,7 +587,7 @@ namespace DataKeeper.Editor.Windows
         {
             var lists = new List<SerializedProperty>();
             var prop = so.GetIterator();
-            
+
             if (prop.NextVisible(true))
             {
                 do {
@@ -559,7 +596,7 @@ namespace DataKeeper.Editor.Windows
                     }
                 } while (prop.NextVisible(false));
             }
-            
+
             return lists;
         }
 
@@ -573,7 +610,7 @@ namespace DataKeeper.Editor.Windows
             try {
                 var fields = GetFieldsAndProperties(tabData.CurrentList.GetArrayElementAtIndex(0), 
                     tabData.PrivateToggle.value, tabData.ShowPropertiesToggle.value);
-                
+
                 var csv = new System.Text.StringBuilder();
                 csv.AppendLine(string.Join(",", fields.Select(f => $"\"{f.DisplayName}\"")));
 
