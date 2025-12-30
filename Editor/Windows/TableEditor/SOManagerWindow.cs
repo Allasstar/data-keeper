@@ -31,13 +31,13 @@ namespace DataKeeper.Editor.Windows
             public Label ItemCountLabel;
         }
 
-        [MenuItem("Tools/Windows/SO Manager")]
+        [MenuItem("Tools/Windows/List Table (Beta Unity 6)", priority = 4)]
         public static void Open()
         {
             var icon = EditorGUIUtility.IconContent("d_ScriptableObject Icon").image as Texture2D;
             var window = GetWindow<SOManagerWindow>();
             window.minSize = new Vector2(600, 400);
-            window.titleContent = new GUIContent("SO Manager", icon);
+            window.titleContent = new GUIContent("List Table", icon);
         }
 
         public void CreateGUI()

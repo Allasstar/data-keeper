@@ -57,6 +57,23 @@ namespace DataKeeper.Helpers
                 .Where(prop => prop.GetCustomAttributes(attribute, true).Length > 0)
                 .ToArray();
         }
+        
+        public static MemberInfo GetFieldOrProperty(Type type, string name)
+        {
+            const BindingFlags flags =
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+            var field = type.GetField(name, flags);
+            if (field != null)
+                return field;
+
+            var prop = type.GetProperty(name, flags);
+            if (prop != null)
+                return prop;
+
+            var backingField = type.GetField($"<{name}>k__BackingField", flags);
+            return backingField;
+        }
     
         public static object GetMemberValue(object source, string memberName)
         {

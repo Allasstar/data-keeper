@@ -283,7 +283,16 @@ namespace DataKeeper.Editor.Windows
         {
             _tableView.ClearTable();
             _selectedField = newValue;
-            _selectedObject = ReflectionHelper.GetMemberField(_selectedSO, newValue);
+
+            var member = ReflectionHelper.GetFieldOrProperty(
+                _selectedSO.GetType(),
+                newValue
+            );
+
+            if (member == null)
+                return false;
+
+            _selectedObject = ReflectionHelper.GetValue(_selectedSO, member);
             return _selectedObject != null;
         }
 
