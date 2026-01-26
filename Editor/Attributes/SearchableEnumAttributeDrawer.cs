@@ -63,6 +63,16 @@ namespace DataKeeper.Editor.Attributes
 
     public class SearchableEnumDropdown : AdvancedDropdown
     {
+        private sealed class EnumItem : AdvancedDropdownItem
+        {
+            public int Value { get; }
+
+            public EnumItem(string name, int value) : base(name)
+            {
+                Value = value;
+            }
+        }
+
         private readonly string[] names;
         private readonly int[] values;
         private readonly bool showValue;
@@ -90,8 +100,7 @@ namespace DataKeeper.Editor.Attributes
             for (int i = 0; i < names.Length; i++)
             {
                 string display = GenerateEnumLabel(showValue, i, names, values);
-
-                var item = new AdvancedDropdownItem(display) { id = values[i] };
+                var item = new EnumItem(display, values[i]) { id = i };
                 root.AddChild(item);
             }
 
@@ -100,7 +109,8 @@ namespace DataKeeper.Editor.Attributes
 
         protected override void ItemSelected(AdvancedDropdownItem item)
         {
-            onSelected?.Invoke(item.id);
+            int selectedValue = item is EnumItem enumItem ? enumItem.Value : item.id;
+            onSelected?.Invoke(selectedValue);
         }
         
         public static string GenerateEnumLabel(bool showIndex, int currentIndex, string[] enumNames,  int[] enumValues)
