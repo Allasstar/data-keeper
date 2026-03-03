@@ -111,6 +111,15 @@ namespace DataKeeper.Extensions
         // --------------------------------------------------------
         // SHUFFLE (FISHER-YATES)
         // --------------------------------------------------------
+        public static void Shuffle<T>(this T[] array)
+        {
+            for (int i = array.Length - 1; i > 0; i--)
+            {
+                int j = Random.Range(0, i + 1);
+                (array[i], array[j]) = (array[j], array[i]);
+            }
+        }
+        
         public static List<T> Shuffle<T>(this List<T> list)
         {
             PerformShuffle(list);
