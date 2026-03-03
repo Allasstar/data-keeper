@@ -119,6 +119,16 @@ namespace DataKeeper.Extensions
                 (array[i], array[j]) = (array[j], array[i]);
             }
         }
+
+        public static void Shuffle<T>(this T[] array, int size)
+        {
+            size = Mathf.Min(size, array.Length);
+            for (int i = size - 1; i > 0; i--)
+            {
+                int j = UnityEngine.Random.Range(0, i + 1);
+                (array[i], array[j]) = (array[j], array[i]);
+            }
+        }
         
         public static List<T> Shuffle<T>(this List<T> list)
         {
