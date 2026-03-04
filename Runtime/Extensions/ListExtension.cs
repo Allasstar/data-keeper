@@ -1,11 +1,19 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
+using Random = System.Random;
 
 namespace DataKeeper.Extensions
 {
     public static class ListExtension
     {
-        private static readonly Random _systemRandom = new Random();
+        private static Random _systemRandom = new Random();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void Reset()
+        {
+            _systemRandom = new Random();
+        }
 
         // --------------------------------------------------------
         // SWAP
@@ -15,9 +23,7 @@ namespace DataKeeper.Extensions
             if ((uint)a >= (uint)list.Count || (uint)b >= (uint)list.Count) return;
             if (a == b) return;
 
-            T temp = list[a];
-            list[a] = list[b];
-            list[b] = temp;
+            (list[a], list[b]) = (list[b], list[a]);
         }
 
         // --------------------------------------------------------
@@ -123,6 +129,8 @@ namespace DataKeeper.Extensions
         public static void Shuffle<T>(this T[] array, int size)
         {
             size = Mathf.Min(size, array.Length);
+            if (size <= 1) return;
+            
             for (int i = size - 1; i > 0; i--)
             {
                 int j = UnityEngine.Random.Range(0, i + 1);
@@ -151,9 +159,7 @@ namespace DataKeeper.Extensions
             for (int i = n - 1; i > 0; i--)
             {
                 int j = _systemRandom.Next(i + 1);
-                T tmp = list[i];
-                list[i] = list[j];
-                list[j] = tmp;
+                (list[i], list[j]) = (list[j], list[i]);
             }
         }
 
