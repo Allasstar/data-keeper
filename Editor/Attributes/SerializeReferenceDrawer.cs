@@ -82,7 +82,7 @@ namespace DataKeeper.Editor.Attributes
 
             if (GUI.Button(popupRect, buttonContent, EditorStyles.popup))
             {
-                var dropdown = new TypeDropdown(s_DropdownState, validTypes, baseType, popupRect.width, selectedType =>
+                var dropdown = new TypeDropdown(s_DropdownState, validTypes, baseType, selectedType =>
                 {
                     foreach (var target in property.serializedObject.targetObjects)
                     {
@@ -198,13 +198,13 @@ namespace DataKeeper.Editor.Attributes
             private readonly Type _baseType;
             private readonly Action<Type> _onSelected;
 
-            public TypeDropdown(AdvancedDropdownState state, Type[] validTypes, Type baseType, float width, Action<Type> onSelected)
+            public TypeDropdown(AdvancedDropdownState state, Type[] validTypes, Type baseType, Action<Type> onSelected)
                 : base(state)
             {
                 _validTypes = validTypes;
                 _baseType = baseType;
                 _onSelected = onSelected;
-                minimumSize = new Vector2(width, 200);
+                minimumSize = new Vector2(200, 200);
             }
 
             protected override AdvancedDropdownItem BuildRoot()
