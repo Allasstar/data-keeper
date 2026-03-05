@@ -17,31 +17,31 @@ namespace DataKeeper.Editor.Attributes
         private static Dictionary<Type, Type[]> s_TypeCache = new Dictionary<Type, Type[]>();
         private static AdvancedDropdownState s_DropdownState = new AdvancedDropdownState();
 
+        // Cache for script icons: Type -> Texture2D (null means script asset not found)
+        private static Dictionary<Type, Texture2D> s_IconCache = new Dictionary<Type, Texture2D>();
+
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             EditorGUI.BeginProperty(position, label, property);
 
             if (property.propertyType == SerializedPropertyType.ManagedReference)
             {
-                // Handle single SerializeReference field
                 DrawSerializeReferenceField(position, property, label);
             }
             else if (property.propertyType == SerializedPropertyType.Generic &&
                      property.isArray &&
                      property.arrayElementType.StartsWith(MANAGED_REFERENCE))
             {
-                // Draw the default property for arrays
                 EditorGUI.PropertyField(position, property, label, true);
             }
             else
             {
-                // For any other property type, just draw the default property field
                 EditorGUI.PropertyField(position, property, label, true);
             }
 
             EditorGUI.EndProperty();
         }
-        
+
         private void DrawSerializeReferenceField(Rect position, SerializedProperty property, GUIContent label)
         {
             SerializeReferenceSelectorAttribute attribute = (SerializeReferenceSelectorAttribute)this.attribute;
@@ -55,19 +55,34 @@ namespace DataKeeper.Editor.Attributes
 
             Type[] validTypes = GetValidTypes(baseType);
 
+            // Determine current type and its icon
             string currentTypeName = NULL_TYPE_NAME;
+            Texture2D currentIcon = null;
+
             if (property.managedReferenceValue != null)
             {
                 Type currentType = property.managedReferenceValue.GetType();
-                currentTypeName = currentType.Name;
+                currentTypeName = ObjectNames.NicifyVariableName(currentType.Name);
+                currentIcon = GetScriptIcon(currentType);
             }
 
             Rect popupRect = EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
             popupRect.height = EditorGUIUtility.singleLineHeight;
-            
-            if (GUI.Button(popupRect, $"<{currentTypeName}>", EditorStyles.popup))
+
+            // Build button label with icon if one exists
+            GUIContent buttonContent;
+            if (currentIcon != null)
             {
-                var dropdown = new TypeDropdown(s_DropdownState, validTypes, baseType, selectedType =>
+                buttonContent = new GUIContent($" {currentTypeName}", currentIcon);
+            }
+            else
+            {
+                buttonContent = new GUIContent($"{currentTypeName}");
+            }
+
+            if (GUI.Button(popupRect, buttonContent, EditorStyles.popup))
+            {
+                var dropdown = new TypeDropdown(s_DropdownState, validTypes, baseType, popupRect.width, selectedType =>
                 {
                     foreach (var target in property.serializedObject.targetObjects)
                     {
@@ -97,48 +112,85 @@ namespace DataKeeper.Editor.Attributes
                 EditorGUI.PropertyField(contentRect, property, GUIContent.none, true);
             }
         }
-     
-        private Type[] GetValidTypes(Type baseType)
+
+        /// <summary>
+        /// Returns the icon for the given type's MonoScript.
+        /// Uses the custom icon if one is assigned, otherwise falls back to
+        /// the default Unity C# script icon so something is always shown.
+        /// </summary>
+        private static Texture2D GetScriptIcon(Type type)
         {
-            // Check the cache first
-            if (s_TypeCache.TryGetValue(baseType, out Type[] types))
+            if (type == null) return null;
+
+            if (s_IconCache.TryGetValue(type, out Texture2D cachedIcon))
+                return cachedIcon;
+
+            Texture2D icon = null;
+
+            MonoScript script = FindMonoScript(type);
+            if (script != null)
             {
-                return types;
+                // Returns a custom icon if one was assigned in the importer, null otherwise
+                icon = EditorGUIUtility.GetIconForObject(script) as Texture2D;
             }
 
-            // Get all types that derive from the base type
+            // Fall back to the default C# script icon so it's never blank
+            if (icon == null)
+                icon = EditorGUIUtility.FindTexture("cs Script Icon")
+                    ?? EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D;
+
+            s_IconCache[type] = icon;
+            return icon;
+        }
+
+        /// <summary>
+        /// Finds the MonoScript asset for the given C# type.
+        /// </summary>
+        private static MonoScript FindMonoScript(Type type)
+        {
+            // Fast path: use the type name to locate the script asset
+            string typeName = type.Name;
+            string[] guids = AssetDatabase.FindAssets($"t:MonoScript {typeName}");
+
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                MonoScript script = AssetDatabase.LoadAssetAtPath<MonoScript>(path);
+                if (script != null && script.GetClass() == type)
+                    return script;
+            }
+
+            return null;
+        }
+
+        private Type[] GetValidTypes(Type baseType)
+        {
+            if (s_TypeCache.TryGetValue(baseType, out Type[] types))
+                return types;
+
             List<Type> derivedTypes = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(assembly => 
+                .SelectMany(assembly =>
                 {
-                    try
-                    {
-                        return assembly.GetTypes();
-                    }
-                    catch (Exception)
-                    {
-                        // Handle reflection exceptions gracefully
-                        return Type.EmptyTypes;
-                    }
+                    try { return assembly.GetTypes(); }
+                    catch (Exception) { return Type.EmptyTypes; }
                 })
                 .Where(type => baseType.IsAssignableFrom(type) && !type.IsAbstract && !type.IsInterface)
-                .OrderBy(type => type.Name) // Sort alphabetically
+                .OrderBy(type => type.Name)
                 .ToList();
 
-            // Cache the result
             s_TypeCache[baseType] = derivedTypes.ToArray();
-
             return s_TypeCache[baseType];
         }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             if (property.propertyType != SerializedPropertyType.ManagedReference)
-            {
                 return EditorGUI.GetPropertyHeight(property, GUIContent.none, true);
-            }
 
             return EditorGUI.GetPropertyHeight(property, label, true);
         }
+
+        // ─── Dropdown ────────────────────────────────────────────────────────────
 
         private class TypeDropdown : AdvancedDropdown
         {
@@ -146,55 +198,58 @@ namespace DataKeeper.Editor.Attributes
             private readonly Type _baseType;
             private readonly Action<Type> _onSelected;
 
-            public TypeDropdown(AdvancedDropdownState state, Type[] validTypes, Type baseType, Action<Type> onSelected) 
+            public TypeDropdown(AdvancedDropdownState state, Type[] validTypes, Type baseType, float width, Action<Type> onSelected)
                 : base(state)
             {
                 _validTypes = validTypes;
                 _baseType = baseType;
                 _onSelected = onSelected;
-                minimumSize = new Vector2(200, 200);
+                minimumSize = new Vector2(width, 200);
             }
 
             protected override AdvancedDropdownItem BuildRoot()
             {
                 var root = new AdvancedDropdownItem("Types");
 
-                // Add null option
-                var nullItem = new TypeDropdownItem(NULL_TYPE_NAME, null);
-                root.AddChild(nullItem);
+                root.AddChild(new TypeDropdownItem(NULL_TYPE_NAME, null));
 
-                // Group types by namespace
-                var typesWithNamespace = _validTypes.Where(t => !string.IsNullOrEmpty(t.Namespace))
+                var typesWithNamespace = _validTypes
+                    .Where(t => !string.IsNullOrEmpty(t.Namespace))
                     .GroupBy(t => t.Namespace)
                     .OrderBy(g => g.Key);
-                
-                // Add types without namespace directly to root
-                foreach (var type in _validTypes.Where(t => string.IsNullOrEmpty(t.Namespace)).OrderBy(t => t.Name))
-                {
-                    root.AddChild(new TypeDropdownItem(type.Name, type));
-                }
 
-                // Add namespaced types to their respective groups
+                foreach (var type in _validTypes.Where(t => string.IsNullOrEmpty(t.Namespace)).OrderBy(t => t.Name))
+                    root.AddChild(BuildTypeItem(type));
+
                 foreach (var namespaceGroup in typesWithNamespace)
                 {
                     var namespaceItem = new AdvancedDropdownItem(namespaceGroup.Key);
                     root.AddChild(namespaceItem);
-                    
+
                     foreach (var type in namespaceGroup.OrderBy(t => t.Name))
-                    {
-                        namespaceItem.AddChild(new TypeDropdownItem(type.Name, type));
-                    }
+                        namespaceItem.AddChild(BuildTypeItem(type));
                 }
 
                 return root;
             }
 
+            private static TypeDropdownItem BuildTypeItem(Type type)
+            {
+                string niceName = ObjectNames.NicifyVariableName(type.Name);
+                var item = new TypeDropdownItem(niceName, type);
+
+                // Assign icon to the dropdown item if the script has a custom one
+                Texture2D icon = GetScriptIcon(type);
+                if (icon != null)
+                    item.icon = icon;
+
+                return item;
+            }
+
             protected override void ItemSelected(AdvancedDropdownItem item)
             {
                 if (item is TypeDropdownItem typeItem)
-                {
                     _onSelected?.Invoke(typeItem.Type);
-                }
             }
         }
 
