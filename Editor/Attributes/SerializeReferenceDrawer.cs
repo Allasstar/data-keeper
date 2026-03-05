@@ -239,9 +239,9 @@ namespace DataKeeper.Editor.Attributes
                 var item = new TypeDropdownItem(niceName, type);
 
                 // Assign icon to the dropdown item if the script has a custom one
-                Texture2D icon = GetScriptIcon(type);
-                if (icon != null)
-                    item.icon = icon;
+                // Texture2D icon = GetScriptIcon(type);
+                // if (icon != null)
+                //     item.icon = icon;
 
                 return item;
             }
