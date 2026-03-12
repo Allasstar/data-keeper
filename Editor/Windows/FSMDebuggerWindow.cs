@@ -9,7 +9,7 @@ namespace DataKeeper.Editor.FSM
         private Vector2 scrollPosition;
         private bool isLocked = false;
 
-        [MenuItem("Tools/Windows/FSM Debugger")]
+        [MenuItem("Tools/Windows/FSM Debugger (Beta)")]
         public static void ShowWindow()
         {
             var window = GetWindow<FSMDebuggerWindow>("FSM Debugger");

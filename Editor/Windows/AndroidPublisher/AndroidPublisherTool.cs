@@ -18,7 +18,7 @@ namespace DataKeeper.Editor.AndroidPublisher
         private string aliasPass;
         private bool autoApply;
 
-        [MenuItem("Tools/Windows/Android Publisher Settings")]
+        [MenuItem("Tools/Windows/Android Publisher Settings", priority = 13)]
         public static void Open()
         {
             GetWindow<AndroidPublisherTool>("Android Publisher");

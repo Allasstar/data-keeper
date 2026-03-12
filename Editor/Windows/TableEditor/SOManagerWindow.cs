@@ -31,7 +31,7 @@ namespace DataKeeper.Editor.Windows
             public Label ItemCountLabel;
         }
 
-        [MenuItem("Tools/Windows/List Table (Beta Unity 6)", priority = 4)]
+        [MenuItem("Tools/Windows/List Table (Beta Unity 6)")]
         public static void Open()
         {
             var icon = EditorGUIUtility.IconContent("d_ScriptableObject Icon").image as Texture2D;

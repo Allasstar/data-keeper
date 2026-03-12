@@ -23,7 +23,7 @@ namespace DataKeeper.Editor.Windows
         private bool hasChanges = false;
         private Vector2 jsonScrollPosition;
 
-        [MenuItem("Tools/Windows/Static Class Inspector (Beta)", priority = 3)]
+        [MenuItem("Tools/Windows/Static Class Inspector (Beta)")]
         public static void ShowWindow()
         {
             Texture2D icon = EditorGUIUtility.FindTexture("d_UnityEditor.DebugInspectorWindow");

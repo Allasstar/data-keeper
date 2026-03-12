@@ -40,7 +40,7 @@ namespace DataKeeper.Editor.Windows
         private ToolbarMenu _importToolbarMenu;
 
 
-        [MenuItem("Tools/Windows/Table Editor (Beta)", priority = 4)]
+        [MenuItem("Tools/Windows/Table Editor (Beta)")]
         public static void ShowExample()
         {
             Texture2D icon = EditorGUIUtility.FindTexture("d_winbtn_win_max@2x");

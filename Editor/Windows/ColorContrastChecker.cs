@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -8,294 +9,340 @@ namespace DataKeeper.Editor.Windows
     {
         private Color backgroundColor = Color.white;
         private Color foregroundColor = Color.black;
-        private Vector2 scrollPosition;
-    
-        // Contrast thresholds (WCAG standards)
+
+        private Vector2 scroll;
+        private bool showSuggestions = true;
+
+        private enum PreviewMode
+        {
+            Light,
+            Dark,
+            Custom
+        }
+
+        private PreviewMode previewMode = PreviewMode.Light;
+        private Color customPreview = new Color(.15f,.15f,.15f);
+
         private const float AA_NORMAL = 4.5f;
         private const float AA_LARGE = 3.0f;
         private const float AAA_NORMAL = 7.0f;
         private const float AAA_LARGE = 4.5f;
-    
+
         [MenuItem("Tools/Windows/Color Contrast Checker", priority = 5)]
         public static void ShowWindow()
         {
-            GetWindow<ColorContrastChecker>("Color Contrast Checker");
+            var window = GetWindow<ColorContrastChecker>();
+            window.titleContent = new GUIContent("Contrast Checker");
+            window.minSize = new Vector2(520, 400);
         }
-    
-        private void OnGUI()
+
+        void OnGUI()
         {
-            GUILayout.Space(10);
-        
-            // Title
-            GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
-            titleStyle.fontSize = 16;
-            titleStyle.fontStyle = FontStyle.Bold;
-            titleStyle.alignment = TextAnchor.MiddleCenter;
-            GUILayout.Label("Color Contrast Checker", titleStyle);
-        
-            GUILayout.Space(10);
-        
-            // Color Pickers
-            EditorGUILayout.BeginHorizontal();
-        
-            EditorGUILayout.BeginVertical();
-            GUILayout.Label("Background Color", EditorStyles.boldLabel);
-            backgroundColor = EditorGUILayout.ColorField(backgroundColor);
-            EditorGUILayout.EndVertical();
-        
-            GUILayout.Space(20);
-        
-            EditorGUILayout.BeginVertical();
-            GUILayout.Label("Foreground Color", EditorStyles.boldLabel);
-            foregroundColor = EditorGUILayout.ColorField(foregroundColor);
-            EditorGUILayout.EndVertical();
-        
-            EditorGUILayout.EndHorizontal();
-        
-            GUILayout.Space(10);
-        
-            // Preview Section
-            DrawPreviewSection();
-        
-            GUILayout.Space(10);
-        
-            // Contrast Results
+            GUILayout.Space(8);
+
             float contrast = CalculateContrast(backgroundColor, foregroundColor);
-            DrawContrastResults(contrast);
-        
+
+            DrawStatusBanner(contrast);
+
+            GUILayout.Space(8);
+
+            EditorGUILayout.BeginHorizontal();
+
+            DrawLeftPanel();
+
+            GUILayout.Space(12);
+
+            DrawRightPanel(contrast);
+
+            EditorGUILayout.EndHorizontal();
+
             GUILayout.Space(10);
-        
-            // Suggestions
-            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-            DrawSuggestions();
-            EditorGUILayout.EndScrollView();
+
+            DrawSuggestionsSection(contrast);
         }
-    
-        private void DrawPreviewSection()
+
+        void DrawLeftPanel()
+        {
+            EditorGUILayout.BeginVertical(GUILayout.Width(200));
+
+            GUILayout.Label("Colors", EditorStyles.boldLabel);
+
+            backgroundColor = EditorGUILayout.ColorField("Background", backgroundColor);
+            foregroundColor = EditorGUILayout.ColorField("Foreground", foregroundColor);
+
+            GUILayout.Space(8);
+
+            if (GUILayout.Button("Swap Colors"))
+            {
+                (backgroundColor, foregroundColor) = (foregroundColor, backgroundColor);
+            }
+
+            if (GUILayout.Button("Reset"))
+            {
+                backgroundColor = Color.white;
+                foregroundColor = Color.black;
+            }
+
+            GUILayout.Space(20);
+
+            GUILayout.Label("Preview Background", EditorStyles.boldLabel);
+
+            previewMode = (PreviewMode)EditorGUILayout.EnumPopup("Mode", previewMode);
+
+            if (previewMode == PreviewMode.Custom)
+            {
+                customPreview = EditorGUILayout.ColorField("Custom", customPreview);
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+        void DrawRightPanel(float contrast)
+        {
+            EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
+
+            DrawPreview();
+
+            GUILayout.Space(12);
+
+            DrawContrastResult(contrast);
+
+            GUILayout.Space(6);
+
+            DrawWcagResults(contrast);
+
+            EditorGUILayout.EndVertical();
+        }
+
+        void DrawStatusBanner(float contrast)
+        {
+            Rect rect = GUILayoutUtility.GetRect(0, 28, GUILayout.ExpandWidth(true));
+
+            bool pass = contrast >= AA_NORMAL;
+
+            Color color = pass
+                ? new Color(.25f, .55f, .25f)
+                : new Color(.55f, .25f, .25f);
+
+            EditorGUI.DrawRect(rect, color);
+
+            GUIStyle style = new GUIStyle(EditorStyles.boldLabel);
+            style.alignment = TextAnchor.MiddleCenter;
+            style.normal.textColor = Color.white;
+
+            GUI.Label(rect,
+                pass ? "Accessible Contrast (WCAG AA)" : "Low Contrast",
+                style);
+        }
+
+        void DrawPreview()
         {
             GUILayout.Label("Preview", EditorStyles.boldLabel);
-        
-            // Create a rect for the preview
-            Rect previewRect = GUILayoutUtility.GetRect(0, 80, GUILayout.ExpandWidth(true));
-        
-            // Draw background
-            EditorGUI.DrawRect(previewRect, backgroundColor);
-        
-            // Draw text preview
-            GUIStyle textStyle = new GUIStyle(GUI.skin.label);
-            textStyle.normal.textColor = foregroundColor;
-            textStyle.fontSize = 14;
-            textStyle.alignment = TextAnchor.MiddleCenter;
-        
-            GUI.Label(previewRect, "Sample Text Preview\nAaBbCc 123", textStyle);
-        
-            // Draw border
-            EditorGUI.DrawRect(new Rect(previewRect.x, previewRect.y, previewRect.width, 1), Color.gray);
-            EditorGUI.DrawRect(new Rect(previewRect.x, previewRect.y + previewRect.height - 1, previewRect.width, 1), Color.gray);
-            EditorGUI.DrawRect(new Rect(previewRect.x, previewRect.y, 1, previewRect.height), Color.gray);
-            EditorGUI.DrawRect(new Rect(previewRect.x + previewRect.width - 1, previewRect.y, 1, previewRect.height), Color.gray);
-        }
-    
-        private void DrawContrastResults(float contrast)
-        {
-            GUILayout.Label("Contrast Analysis", EditorStyles.boldLabel);
-        
-            // Contrast ratio
-            GUILayout.Label($"Contrast Ratio: {contrast:F2}:1");
-        
-            // WCAG compliance
-            GUIStyle passStyle = new GUIStyle(GUI.skin.label);
-            GUIStyle failStyle = new GUIStyle(GUI.skin.label);
-            passStyle.normal.textColor = Color.green;
-            failStyle.normal.textColor = Color.red;
-        
-            GUILayout.Label($"AA Normal Text (4.5:1): {(contrast >= AA_NORMAL ? "PASS" : "FAIL")}", 
-                contrast >= AA_NORMAL ? passStyle : failStyle);
-            GUILayout.Label($"AA Large Text (3.0:1): {(contrast >= AA_LARGE ? "PASS" : "FAIL")}", 
-                contrast >= AA_LARGE ? passStyle : failStyle);
-            GUILayout.Label($"AAA Normal Text (7.0:1): {(contrast >= AAA_NORMAL ? "PASS" : "FAIL")}", 
-                contrast >= AAA_NORMAL ? passStyle : failStyle);
-            GUILayout.Label($"AAA Large Text (4.5:1): {(contrast >= AAA_LARGE ? "PASS" : "FAIL")}", 
-                contrast >= AAA_LARGE ? passStyle : failStyle);
-        }
-    
-        private void DrawSuggestions()
-        {
-            GUILayout.Label("Suggested Improvements", EditorStyles.boldLabel);
-        
-            float currentContrast = CalculateContrast(backgroundColor, foregroundColor);
-        
-            if (currentContrast < AA_NORMAL)
+
+            Color previewBg =
+                previewMode == PreviewMode.Light ? Color.white :
+                previewMode == PreviewMode.Dark ? new Color(.07f,.07f,.07f) :
+                customPreview;
+
+            Rect rect = GUILayoutUtility.GetRect(0, 90, GUILayout.ExpandWidth(true));
+
+            EditorGUI.DrawRect(rect, previewBg);
+
+            Rect textRect = new Rect(rect.x + 10, rect.y + 10, rect.width - 20, rect.height - 20);
+
+            EditorGUI.DrawRect(textRect, backgroundColor);
+
+            GUIStyle text = new GUIStyle(EditorStyles.label);
+            text.fontSize = 16;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.normal.textColor = foregroundColor;
+
+            GUI.Label(textRect, "Sample Text AaBbCc 123", text);
+
+            if (Event.current.type == EventType.MouseDown && rect.Contains(Event.current.mousePosition))
             {
-                GUILayout.Label("Background Suggestions:", EditorStyles.boldLabel);
-                DrawColorSuggestions(GenerateBackgroundSuggestions(), true);
-            
-                GUILayout.Space(5);
-            
-                GUILayout.Label("Foreground Suggestions:", EditorStyles.boldLabel);
-                DrawColorSuggestions(GenerateForegroundSuggestions(), false);
+                (backgroundColor, foregroundColor) = (foregroundColor, backgroundColor);
+                Repaint();
+            }
+        }
+
+        void DrawContrastResult(float contrast)
+        {
+            GUIStyle label = new GUIStyle(EditorStyles.boldLabel);
+            label.fontSize = 22;
+            label.alignment = TextAnchor.MiddleCenter;
+
+            GUILayout.Label($"Contrast Ratio\n{contrast:F2}:1", label);
+        }
+
+        void DrawWcagResults(float contrast)
+        {
+            GUILayout.Label("WCAG Compliance", EditorStyles.boldLabel);
+
+            DrawWcagRow("AA Normal (4.5)", contrast >= AA_NORMAL);
+            DrawWcagRow("AA Large (3.0)", contrast >= AA_LARGE);
+            DrawWcagRow("AAA Normal (7.0)", contrast >= AAA_NORMAL);
+            DrawWcagRow("AAA Large (4.5)", contrast >= AAA_LARGE);
+        }
+
+        void DrawWcagRow(string label, bool pass)
+        {
+            Rect r = EditorGUILayout.GetControlRect();
+
+            Color c = pass
+                ? new Color(.2f,.8f,.2f)
+                : new Color(.8f,.2f,.2f);
+
+            EditorGUI.DrawRect(new Rect(r.x, r.y + 3, 12, 12), c);
+
+            EditorGUI.LabelField(new Rect(r.x + 20, r.y, r.width, r.height), label);
+        }
+
+        void DrawSuggestionsSection(float contrast)
+        {
+            showSuggestions = EditorGUILayout.Foldout(showSuggestions, "Suggestions", true);
+
+            if (!showSuggestions)
+                return;
+
+            scroll = EditorGUILayout.BeginScrollView(scroll);
+
+            if (contrast >= AA_NORMAL)
+            {
+                EditorGUILayout.HelpBox("Current colors already meet WCAG AA.", MessageType.Info);
             }
             else
             {
-                GUILayout.Label("Current colors meet accessibility standards!", EditorStyles.helpBox);
+                GUILayout.Label("Background Suggestions", EditorStyles.boldLabel);
+                DrawSuggestionGrid(GenerateBackgroundSuggestions(), true);
+
+                GUILayout.Space(6);
+
+                GUILayout.Label("Foreground Suggestions", EditorStyles.boldLabel);
+                DrawSuggestionGrid(GenerateForegroundSuggestions(), false);
             }
+
+            EditorGUILayout.EndScrollView();
         }
-    
-        private void DrawColorSuggestions(List<Color> suggestions, bool isBackground)
+
+        void DrawSuggestionGrid(List<Color> colors, bool background)
         {
-            int itemsPerRow = 4;
-            for (int i = 0; i < suggestions.Count; i += itemsPerRow)
+            int columns = 8;
+            int index = 0;
+
+            GUIStyle transparentButton = new GUIStyle(GUI.skin.button);
+            transparentButton.normal.background = Texture2D.whiteTexture;
+            transparentButton.border = new RectOffset(0,0,0,0);
+
+            while (index < colors.Count)
             {
                 EditorGUILayout.BeginHorizontal();
-            
-                for (int j = 0; j < itemsPerRow && i + j < suggestions.Count; j++)
+
+                for (int i = 0; i < columns && index < colors.Count; i++)
                 {
-                    Color suggestedColor = suggestions[i + j];
-                    Color testBg = isBackground ? suggestedColor : backgroundColor;
-                    Color testFg = isBackground ? foregroundColor : suggestedColor;
-                    float contrast = CalculateContrast(testBg, testFg);
-                
-                    EditorGUILayout.BeginVertical();
-                
-                    // Color swatch
-                    Rect swatchRect = GUILayoutUtility.GetRect(60, 40);
-                    EditorGUI.DrawRect(swatchRect, suggestedColor);
-                
-                    // Mini preview
-                    GUIStyle miniTextStyle = new GUIStyle(GUI.skin.label);
-                    miniTextStyle.normal.textColor = isBackground ? foregroundColor : suggestedColor;
-                    miniTextStyle.fontSize = 8;
-                    miniTextStyle.alignment = TextAnchor.MiddleCenter;
-                
-                    Rect miniPreviewRect = GUILayoutUtility.GetRect(60, 20);
-                    EditorGUI.DrawRect(miniPreviewRect, isBackground ? suggestedColor : backgroundColor);
-                    GUI.Label(miniPreviewRect, "Text", miniTextStyle);
-                
-                    // Contrast info
-                    GUILayout.Label($"{contrast:F1}:1", EditorStyles.miniLabel);
-                
-                    // Use button
-                    if (GUILayout.Button("Use", GUILayout.Width(60)))
+                    Color c = colors[index++];
+
+                    Rect r = GUILayoutUtility.GetRect(28, 28);
+
+                    // draw color
+                    EditorGUI.DrawRect(r, c);
+
+                    // invisible clickable button
+                    if (GUI.Button(r, GUIContent.none, GUIStyle.none))
                     {
-                        if (isBackground)
-                            backgroundColor = suggestedColor;
+                        if (background)
+                            backgroundColor = c;
                         else
-                            foregroundColor = suggestedColor;
+                            foregroundColor = c;
+
                         Repaint();
                     }
-                
-                    EditorGUILayout.EndVertical();
+
+                    // draw border so colors are visible on white
+                    EditorGUI.DrawRect(new Rect(r.x, r.y, r.width, 1), Color.black);
+                    EditorGUI.DrawRect(new Rect(r.x, r.yMax-1, r.width, 1), Color.black);
+                    EditorGUI.DrawRect(new Rect(r.x, r.y, 1, r.height), Color.black);
+                    EditorGUI.DrawRect(new Rect(r.xMax-1, r.y, 1, r.height), Color.black);
                 }
-            
+
                 EditorGUILayout.EndHorizontal();
-                GUILayout.Space(5);
             }
         }
-    
-        private List<Color> GenerateBackgroundSuggestions()
+
+        List<Color> GenerateBackgroundSuggestions()
         {
-            List<Color> suggestions = new List<Color>();
-        
-            // Generate lighter and darker versions of current background
-            for (float factor = 0.2f; factor <= 1.8f; factor += 0.2f)
+            List<Color> list = new List<Color>();
+
+            for (float f = .2f; f <= 1.8f; f += .2f)
             {
-                if (Mathf.Approximately(factor, 1.0f)) continue; // Skip current color
-            
-                Color suggested = new Color(
-                    Mathf.Clamp01(backgroundColor.r * factor),
-                    Mathf.Clamp01(backgroundColor.g * factor),
-                    Mathf.Clamp01(backgroundColor.b * factor),
-                    backgroundColor.a
-                );
-            
-                if (CalculateContrast(suggested, foregroundColor) >= AA_NORMAL)
-                {
-                    suggestions.Add(suggested);
-                }
+                if (Mathf.Approximately(f,1)) continue;
+
+                Color c = new Color(
+                    Mathf.Clamp01(backgroundColor.r * f),
+                    Mathf.Clamp01(backgroundColor.g * f),
+                    Mathf.Clamp01(backgroundColor.b * f));
+
+                if (CalculateContrast(c, foregroundColor) >= AA_NORMAL)
+                    list.Add(c);
             }
-        
-            // Add some standard safe colors
-            Color[] standardColors = {
-                Color.white, Color.black, Color.gray,
-                new Color(0.95f, 0.95f, 0.95f), // Light gray
-                new Color(0.1f, 0.1f, 0.1f), // Dark gray
-                new Color(0.2f, 0.3f, 0.4f), // Dark blue-gray
-                new Color(0.9f, 0.9f, 0.85f)  // Cream
-            };
-        
-            foreach (Color color in standardColors)
+
+            list.AddRange(new[]
             {
-                if (CalculateContrast(color, foregroundColor) >= AA_NORMAL)
-                {
-                    suggestions.Add(color);
-                }
-            }
-        
-            return suggestions;
+                Color.white,
+                Color.black,
+                Color.gray,
+                new Color(.1f,.1f,.1f),
+                new Color(.9f,.9f,.9f)
+            });
+
+            return list.Distinct().Take(16).ToList();
         }
-    
-        private List<Color> GenerateForegroundSuggestions()
+
+        List<Color> GenerateForegroundSuggestions()
         {
-            List<Color> suggestions = new List<Color>();
-        
-            // Generate variations of current foreground
-            for (float factor = 0.2f; factor <= 1.8f; factor += 0.2f)
+            List<Color> list = new List<Color>();
+
+            for (float f = .2f; f <= 1.8f; f += .2f)
             {
-                if (Mathf.Approximately(factor, 1.0f)) continue; // Skip current color
-            
-                Color suggested = new Color(
-                    Mathf.Clamp01(foregroundColor.r * factor),
-                    Mathf.Clamp01(foregroundColor.g * factor),
-                    Mathf.Clamp01(foregroundColor.b * factor),
-                    foregroundColor.a
-                );
-            
-                if (CalculateContrast(backgroundColor, suggested) >= AA_NORMAL)
-                {
-                    suggestions.Add(suggested);
-                }
+                if (Mathf.Approximately(f,1)) continue;
+
+                Color c = new Color(
+                    Mathf.Clamp01(foregroundColor.r * f),
+                    Mathf.Clamp01(foregroundColor.g * f),
+                    Mathf.Clamp01(foregroundColor.b * f));
+
+                if (CalculateContrast(backgroundColor, c) >= AA_NORMAL)
+                    list.Add(c);
             }
-        
-            // Add standard safe text colors
-            Color[] standardColors = {
-                Color.black, Color.white,
-                new Color(0.1f, 0.1f, 0.1f), // Very dark gray
-                new Color(0.9f, 0.9f, 0.9f), // Very light gray
-                new Color(0.2f, 0.2f, 0.2f), // Dark gray
-                new Color(0.0f, 0.0f, 0.5f), // Dark blue
-                new Color(0.5f, 0.0f, 0.0f)  // Dark red
-            };
-        
-            foreach (Color color in standardColors)
+
+            list.AddRange(new[]
             {
-                if (CalculateContrast(backgroundColor, color) >= AA_NORMAL)
-                {
-                    suggestions.Add(color);
-                }
-            }
-        
-            return suggestions;
+                Color.black,
+                Color.white,
+                new Color(.1f,.1f,.1f),
+                new Color(.9f,.9f,.9f)
+            });
+
+            return list.Distinct().Take(16).ToList();
         }
-    
-        private float CalculateContrast(Color bg, Color fg)
+
+        float CalculateContrast(Color bg, Color fg)
         {
-            float bgLuminance = GetRelativeLuminance(bg);
-            float fgLuminance = GetRelativeLuminance(fg);
-        
-            float lighter = Mathf.Max(bgLuminance, fgLuminance);
-            float darker = Mathf.Min(bgLuminance, fgLuminance);
-        
+            float bgL = GetRelativeLuminance(bg);
+            float fgL = GetRelativeLuminance(fg);
+
+            float lighter = Mathf.Max(bgL, fgL);
+            float darker = Mathf.Min(bgL, fgL);
+
             return (lighter + 0.05f) / (darker + 0.05f);
         }
-    
-        private float GetRelativeLuminance(Color color)
+
+        float GetRelativeLuminance(Color c)
         {
-            // Convert to linear RGB
-            float r = color.r <= 0.03928f ? color.r / 12.92f : Mathf.Pow((color.r + 0.055f) / 1.055f, 2.4f);
-            float g = color.g <= 0.03928f ? color.g / 12.92f : Mathf.Pow((color.g + 0.055f) / 1.055f, 2.4f);
-            float b = color.b <= 0.03928f ? color.b / 12.92f : Mathf.Pow((color.b + 0.055f) / 1.055f, 2.4f);
-        
-            // Calculate luminance using the formula: 0.2126 * R + 0.7152 * G + 0.0722 * B
+            float r = c.r <= 0.03928f ? c.r / 12.92f : Mathf.Pow((c.r + 0.055f) / 1.055f, 2.4f);
+            float g = c.g <= 0.03928f ? c.g / 12.92f : Mathf.Pow((c.g + 0.055f) / 1.055f, 2.4f);
+            float b = c.b <= 0.03928f ? c.b / 12.92f : Mathf.Pow((c.b + 0.055f) / 1.055f, 2.4f);
+
             return 0.2126f * r + 0.7152f * g + 0.0722f * b;
         }
     }
