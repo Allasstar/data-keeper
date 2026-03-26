@@ -27,8 +27,17 @@ namespace DataKeeper.BeeTween
             Play();
         }
         
-        public void Play() => _ = RunAsync();
-        public void Stop() => _cts?.Cancel();
+        [ContextMenu(nameof(Play))]
+        public void Play()
+        {
+            _ = RunAsync();
+        }
+
+        [ContextMenu(nameof(Stop))]
+        public void Stop()
+        {
+            _cts?.Cancel();
+        }
 
         public async Awaitable RunAsync()
         {
@@ -56,7 +65,7 @@ namespace DataKeeper.BeeTween
                 if (RestartOnFail.Enabled)
                 {
                     await Awaitable.WaitForSecondsAsync(RestartOnFail.Value, _cts.Token);
-                    _ = RunAsync();
+                    Play();
                 }
             }
         }
@@ -179,7 +188,7 @@ namespace DataKeeper.BeeTween
         public bool IsValid() => target != null && rootNode != null;
     }
 
-    // ============== GAMEOBJECT NODES ==============
+    // ============== TRANSFORM NODES ==============
 
     /// <summary>
     /// Sequence node - executes multiple nodes in sequence
@@ -239,13 +248,21 @@ namespace DataKeeper.BeeTween
     {
         public Vector3 TargetPosition;
         public float Duration;
-        public AnimationCurve EaseCurve = AnimationCurve.Linear(0, 0, 1, 1);
+        
+        [field: SerializeReference, SerializeReferenceSelector]
+        public EaseProvider Ease { get; set; }
+
+        public MoveNode()
+        {
+            Ease = new EaseValueProvider();
+        }
 
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
-            if (context is not IBeeTweenContext<GameObject> goContext || goContext.Target == null) return;
+            if (context is not IBeeTweenContext<Transform> trContext || trContext.Target == null) return;
             
-            var startPosition = goContext.Target.transform.position;
+            var easeProvider = Ease ?? new EaseValueProvider();
+            var startPosition = trContext.Target.position;
             var elapsedTime = 0f;
 
             while (elapsedTime < Duration)
@@ -254,11 +271,11 @@ namespace DataKeeper.BeeTween
                 elapsedTime += Time.deltaTime;
                 
                 var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = EaseCurve.Evaluate(t);
-                goContext.Target.transform.position = Vector3.Lerp(startPosition, TargetPosition, easeT);
+                var easeT = easeProvider.Evaluate(context, t);
+                trContext.Target.position = MathFunc.Lerp.LerpVector3Unclamped(startPosition, TargetPosition, easeT);
             }
 
-            goContext.Target.transform.position = TargetPosition;
+            trContext.Target.position = TargetPosition;
         }
     }
 

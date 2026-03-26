@@ -103,7 +103,7 @@ namespace DataKeeper.Examples
             {
                 TargetPosition = new Vector3(5, 5, 0),
                 Duration = 2f,
-                EaseCurve = AnimationCurve.Linear(0, 0, 1, 1)
+                Ease = new EaseValueProvider()
             };
 
             var scaleNode = new ScaleNode

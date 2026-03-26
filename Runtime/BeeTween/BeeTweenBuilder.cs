@@ -59,7 +59,7 @@ namespace DataKeeper.BeeTween
         /// <summary>
         /// Add a move animation (GameObject only)
         /// </summary>
-        public BeeTweenSequenceBuilder<T> Move(Vector3 targetPosition, float duration, AnimationCurve easing = null)
+        public BeeTweenSequenceBuilder<T> Move(Vector3 targetPosition, float duration, EaseProvider easing = null)
         {
             if (_target is not GameObject)
                 throw new InvalidOperationException("Move is only available for GameObject targets");
@@ -68,7 +68,7 @@ namespace DataKeeper.BeeTween
             {
                 TargetPosition = targetPosition,
                 Duration = duration,
-                EaseCurve = easing ?? AnimationCurve.Linear(0, 0, 1, 1)
+                Ease = easing ?? new EaseValueProvider()
             });
             return this;
         }
