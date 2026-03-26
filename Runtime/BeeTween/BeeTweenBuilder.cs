@@ -56,15 +56,100 @@ namespace DataKeeper.BeeTween
             return this;
         }
 
-        /// <summary>
-        /// Add a move animation (GameObject only)
-        /// </summary>
-        public BeeTweenSequenceBuilder<T> Move(Vector3 targetPosition, float duration, EaseProvider easing = null)
-        {
-            if (_target is not GameObject)
-                throw new InvalidOperationException("Move is only available for GameObject targets");
+    /// <summary>
+    /// Add a move animation (Transform only)
+    /// </summary>
+    public BeeTweenSequenceBuilder<T> Move(Vector3 targetPosition, float duration, EaseProvider easing = null)
+    {
+        if (_target is not Transform)
+            throw new InvalidOperationException("Move is only available for Transform targets");
 
-            _nodes.Add(new MoveNode
+        _nodes.Add(new MoveNode
+        {
+            TargetPosition = targetPosition,
+            Duration = duration,
+            Ease = easing ?? new EaseValueProvider()
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Add a rotation animation (Transform only)
+    /// </summary>
+    public BeeTweenSequenceBuilder<T> Rotate(Quaternion targetRotation, float duration, EaseProvider easing = null)
+    {
+        if (_target is not Transform)
+            throw new InvalidOperationException("Rotate is only available for Transform targets");
+
+        _nodes.Add(new RotateNode
+        {
+            TargetRotation = targetRotation,
+            Duration = duration,
+            Ease = easing ?? new EaseValueProvider()
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Add a scale animation (Transform only)
+    /// </summary>
+    public BeeTweenSequenceBuilder<T> Scale(Vector3 targetScale, float duration, EaseProvider easing = null)
+    {
+        if (_target is not Transform)
+            throw new InvalidOperationException("Scale is only available for Transform targets");
+
+        _nodes.Add(new ScaleNode
+        {
+            TargetScale = targetScale,
+            Duration = duration,
+            Ease = easing ?? new EaseValueProvider()
+        });
+        return this;
+    }
+
+        /// <summary>
+        /// Add a fade animation (Image only)
+        /// </summary>
+        public BeeTweenSequenceBuilder<T> Fade(float targetAlpha, float duration, EaseProvider easing = null)
+        {
+            if (_target is not Image)
+                throw new InvalidOperationException("Fade is only available for Image targets");
+
+            _nodes.Add(new FadeNode
+            {
+                TargetAlpha = targetAlpha,
+                Duration = duration,
+                Ease = easing ?? new EaseValueProvider()
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Add a color animation (Image only)
+        /// </summary>
+        public BeeTweenSequenceBuilder<T> Color(Color targetColor, float duration, EaseProvider easing = null)
+        {
+            if (_target is not Image)
+                throw new InvalidOperationException("Color is only available for Image targets");
+
+            _nodes.Add(new ColorNode
+            {
+                TargetColor = targetColor,
+                Duration = duration,
+                Ease = easing ?? new EaseValueProvider()
+            });
+            return this;
+        }
+
+        /// <summary>
+        /// Add an anchor position animation (RectTransform only)
+        /// </summary>
+        public BeeTweenSequenceBuilder<T> AnchorPosition(Vector2 targetPosition, float duration, EaseProvider easing = null)
+        {
+            if (_target is not RectTransform)
+                throw new InvalidOperationException("AnchorPosition is only available for RectTransform targets");
+
+            _nodes.Add(new AnchorPositionNode
             {
                 TargetPosition = targetPosition,
                 Duration = duration,
@@ -74,94 +159,9 @@ namespace DataKeeper.BeeTween
         }
 
         /// <summary>
-        /// Add a rotation animation (GameObject only)
-        /// </summary>
-        public BeeTweenSequenceBuilder<T> Rotate(Quaternion targetRotation, float duration, AnimationCurve easing = null)
-        {
-            if (_target is not GameObject)
-                throw new InvalidOperationException("Rotate is only available for GameObject targets");
-
-            _nodes.Add(new RotateNode
-            {
-                TargetRotation = targetRotation,
-                Duration = duration,
-                EaseCurve = easing ?? AnimationCurve.Linear(0, 0, 1, 1)
-            });
-            return this;
-        }
-
-        /// <summary>
-        /// Add a scale animation (GameObject only)
-        /// </summary>
-        public BeeTweenSequenceBuilder<T> Scale(Vector3 targetScale, float duration, AnimationCurve easing = null)
-        {
-            if (_target is not GameObject)
-                throw new InvalidOperationException("Scale is only available for GameObject targets");
-
-            _nodes.Add(new ScaleNode
-            {
-                TargetScale = targetScale,
-                Duration = duration,
-                EaseCurve = easing ?? AnimationCurve.Linear(0, 0, 1, 1)
-            });
-            return this;
-        }
-
-        /// <summary>
-        /// Add a fade animation (Image only)
-        /// </summary>
-        public BeeTweenSequenceBuilder<T> Fade(float targetAlpha, float duration, AnimationCurve easing = null)
-        {
-            if (_target is not Image)
-                throw new InvalidOperationException("Fade is only available for Image targets");
-
-            _nodes.Add(new FadeNode
-            {
-                TargetAlpha = targetAlpha,
-                Duration = duration,
-                EaseCurve = easing ?? AnimationCurve.Linear(0, 0, 1, 1)
-            });
-            return this;
-        }
-
-        /// <summary>
-        /// Add a color animation (Image only)
-        /// </summary>
-        public BeeTweenSequenceBuilder<T> Color(Color targetColor, float duration, AnimationCurve easing = null)
-        {
-            if (_target is not Image)
-                throw new InvalidOperationException("Color is only available for Image targets");
-
-            _nodes.Add(new ColorNode
-            {
-                TargetColor = targetColor,
-                Duration = duration,
-                EaseCurve = easing ?? AnimationCurve.Linear(0, 0, 1, 1)
-            });
-            return this;
-        }
-
-        /// <summary>
-        /// Add an anchor position animation (RectTransform only)
-        /// </summary>
-        public BeeTweenSequenceBuilder<T> AnchorPosition(Vector2 targetPosition, float duration, AnimationCurve easing = null)
-        {
-            if (_target is not RectTransform)
-                throw new InvalidOperationException("AnchorPosition is only available for RectTransform targets");
-
-            _nodes.Add(new AnchorPositionNode
-            {
-                TargetPosition = targetPosition,
-                Duration = duration,
-                EaseCurve = easing ?? AnimationCurve.Linear(0, 0, 1, 1)
-            });
-            return this;
-        }
-
-        /// <summary>
         /// Add a size delta animation (RectTransform only)
         /// </summary>
-        public BeeTweenSequenceBuilder<T> SizeDelta(Vector2 targetSize, float duration, AnimationCurve easing = null)
+        public BeeTweenSequenceBuilder<T> SizeDelta(Vector2 targetSize, float duration, EaseProvider easing = null)
         {
             if (_target is not RectTransform)
                 throw new InvalidOperationException("SizeDelta is only available for RectTransform targets");
@@ -170,7 +170,7 @@ namespace DataKeeper.BeeTween
             {
                 TargetSize = targetSize,
                 Duration = duration,
-                EaseCurve = easing ?? AnimationCurve.Linear(0, 0, 1, 1)
+                Ease = easing ?? new EaseValueProvider()
             });
             return this;
         }
@@ -205,7 +205,7 @@ namespace DataKeeper.BeeTween
         /// </summary>
         public static void AnimatePosition(this Transform target, Vector3 targetPosition, float duration, BeeTweenPlayer player)
         {
-            var context = new TransformContext(target, new MoveNode { TargetPosition = targetPosition, Duration = duration });
+            var context = new TransformContext(target, new MoveNode { TargetPosition = targetPosition, Duration = duration, Ease = new EaseValueProvider() });
             player.Context = context;
         }
 
@@ -214,7 +214,7 @@ namespace DataKeeper.BeeTween
         /// </summary>
         public static void AnimateFade(this Image target, float targetAlpha, float duration, BeeTweenPlayer player)
         {
-            var context = new ImageContext(target, new FadeNode { TargetAlpha = targetAlpha, Duration = duration });
+            var context = new ImageContext(target, new FadeNode { TargetAlpha = targetAlpha, Duration = duration, Ease = new EaseValueProvider() });
             player.Context = context;
         }
 
@@ -223,7 +223,7 @@ namespace DataKeeper.BeeTween
         /// </summary>
         public static void AnimateAnchorPosition(this RectTransform target, Vector2 targetPosition, float duration, BeeTweenPlayer player)
         {
-            var context = new RectTransformContext(target, new AnchorPositionNode { TargetPosition = targetPosition, Duration = duration });
+            var context = new RectTransformContext(target, new AnchorPositionNode { TargetPosition = targetPosition, Duration = duration, Ease = new EaseValueProvider() });
             player.Context = context;
         }
     }

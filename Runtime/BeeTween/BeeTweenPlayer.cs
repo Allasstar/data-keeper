@@ -287,12 +287,20 @@ namespace DataKeeper.BeeTween
     {
         public Quaternion TargetRotation;
         public float Duration;
-        public AnimationCurve EaseCurve = AnimationCurve.Linear(0, 0, 1, 1);
+        
+        [field: SerializeReference, SerializeReferenceSelector]
+        public EaseProvider Ease { get; set; }
+
+        public RotateNode()
+        {
+            Ease = new EaseValueProvider();
+        }
 
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
             if (context is not IBeeTweenContext<GameObject> goContext || goContext.Target == null) return;
 
+            var easeProvider = Ease ?? new EaseValueProvider();
             var startRotation = goContext.Target.transform.rotation;
             var elapsedTime = 0f;
 
@@ -302,8 +310,8 @@ namespace DataKeeper.BeeTween
                 elapsedTime += Time.deltaTime;
                 
                 var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = EaseCurve.Evaluate(t);
-                goContext.Target.transform.rotation = Quaternion.Lerp(startRotation, TargetRotation, easeT);
+                var easeT = easeProvider.Evaluate(context, t);
+                goContext.Target.transform.rotation = MathFunc.Lerp.LerpQuaternionUnclamped(startRotation, TargetRotation, easeT);
             }
 
             goContext.Target.transform.rotation = TargetRotation;
@@ -318,12 +326,20 @@ namespace DataKeeper.BeeTween
     {
         public Vector3 TargetScale;
         public float Duration;
-        public AnimationCurve EaseCurve = AnimationCurve.Linear(0, 0, 1, 1);
+        
+        [field: SerializeReference, SerializeReferenceSelector]
+        public EaseProvider Ease { get; set; }
+
+        public ScaleNode()
+        {
+            Ease = new EaseValueProvider();
+        }
 
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
             if (context is not IBeeTweenContext<GameObject> goContext || goContext.Target == null) return;
 
+            var easeProvider = Ease ?? new EaseValueProvider();
             var startScale = goContext.Target.transform.localScale;
             var elapsedTime = 0f;
 
@@ -333,8 +349,8 @@ namespace DataKeeper.BeeTween
                 elapsedTime += Time.deltaTime;
                 
                 var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = EaseCurve.Evaluate(t);
-                goContext.Target.transform.localScale = Vector3.Lerp(startScale, TargetScale, easeT);
+                var easeT = easeProvider.Evaluate(context, t);
+                goContext.Target.transform.localScale = MathFunc.Lerp.LerpVector3Unclamped(startScale, TargetScale, easeT);
             }
 
             goContext.Target.transform.localScale = TargetScale;
@@ -365,7 +381,14 @@ namespace DataKeeper.BeeTween
     {
         public float TargetAlpha;
         public float Duration;
-        public AnimationCurve EaseCurve = AnimationCurve.Linear(0, 0, 1, 1);
+        
+        [field: SerializeReference, SerializeReferenceSelector]
+        public EaseProvider Ease { get; set; }
+
+        public FadeNode()
+        {
+            Ease = new EaseValueProvider();
+        }
 
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
@@ -378,6 +401,7 @@ namespace DataKeeper.BeeTween
 
             if (image == null) return;
 
+            var easeProvider = Ease ?? new EaseValueProvider();
             var startAlpha = image.color.a;
             var elapsedTime = 0f;
 
@@ -387,9 +411,9 @@ namespace DataKeeper.BeeTween
                 elapsedTime += Time.deltaTime;
                 
                 var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = EaseCurve.Evaluate(t);
+                var easeT = easeProvider.Evaluate(context, t);
                 var color = image.color;
-                color.a = Mathf.Lerp(startAlpha, TargetAlpha, easeT);
+                color.a = MathFunc.Lerp.FloatUnclamped(startAlpha, TargetAlpha, easeT);
                 image.color = color;
             }
 
@@ -407,7 +431,14 @@ namespace DataKeeper.BeeTween
     {
         public Color TargetColor;
         public float Duration;
-        public AnimationCurve EaseCurve = AnimationCurve.Linear(0, 0, 1, 1);
+        
+        [field: SerializeReference, SerializeReferenceSelector]
+        public EaseProvider Ease { get; set; }
+
+        public ColorNode()
+        {
+            Ease = new EaseValueProvider();
+        }
 
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
@@ -420,6 +451,7 @@ namespace DataKeeper.BeeTween
 
             if (image == null) return;
 
+            var easeProvider = Ease ?? new EaseValueProvider();
             var startColor = image.color;
             var elapsedTime = 0f;
 
@@ -429,8 +461,13 @@ namespace DataKeeper.BeeTween
                 elapsedTime += Time.deltaTime;
                 
                 var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = EaseCurve.Evaluate(t);
-                image.color = Color.Lerp(startColor, TargetColor, easeT);
+                var easeT = easeProvider.Evaluate(context, t);
+                image.color = new Color(
+                    MathFunc.Lerp.FloatUnclamped(startColor.r, TargetColor.r, easeT),
+                    MathFunc.Lerp.FloatUnclamped(startColor.g, TargetColor.g, easeT),
+                    MathFunc.Lerp.FloatUnclamped(startColor.b, TargetColor.b, easeT),
+                    MathFunc.Lerp.FloatUnclamped(startColor.a, TargetColor.a, easeT)
+                );
             }
 
             image.color = TargetColor;
@@ -447,7 +484,14 @@ namespace DataKeeper.BeeTween
     {
         public Vector2 TargetPosition;
         public float Duration;
-        public AnimationCurve EaseCurve = AnimationCurve.Linear(0, 0, 1, 1);
+        
+        [field: SerializeReference, SerializeReferenceSelector]
+        public EaseProvider Ease { get; set; }
+
+        public AnchorPositionNode()
+        {
+            Ease = new EaseValueProvider();
+        }
 
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
@@ -460,6 +504,7 @@ namespace DataKeeper.BeeTween
 
             if (rectTransform == null) return;
 
+            var easeProvider = Ease ?? new EaseValueProvider();
             var startPosition = rectTransform.anchoredPosition;
             var elapsedTime = 0f;
 
@@ -469,8 +514,8 @@ namespace DataKeeper.BeeTween
                 elapsedTime += Time.deltaTime;
                 
                 var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = EaseCurve.Evaluate(t);
-                rectTransform.anchoredPosition = Vector2.Lerp(startPosition, TargetPosition, easeT);
+                var easeT = easeProvider.Evaluate(context, t);
+                rectTransform.anchoredPosition = MathFunc.Lerp.LerpVector2Unclamped(startPosition, TargetPosition, easeT);
             }
 
             rectTransform.anchoredPosition = TargetPosition;
@@ -485,7 +530,14 @@ namespace DataKeeper.BeeTween
     {
         public Vector2 TargetSize;
         public float Duration;
-        public AnimationCurve EaseCurve = AnimationCurve.Linear(0, 0, 1, 1);
+        
+        [field: SerializeReference, SerializeReferenceSelector]
+        public EaseProvider Ease { get; set; }
+
+        public SizeDeltaNode()
+        {
+            Ease = new EaseValueProvider();
+        }
 
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
@@ -498,6 +550,7 @@ namespace DataKeeper.BeeTween
 
             if (rectTransform == null) return;
 
+            var easeProvider = Ease ?? new EaseValueProvider();
             var startSize = rectTransform.sizeDelta;
             var elapsedTime = 0f;
 
@@ -507,8 +560,8 @@ namespace DataKeeper.BeeTween
                 elapsedTime += Time.deltaTime;
                 
                 var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = EaseCurve.Evaluate(t);
-                rectTransform.sizeDelta = Vector2.Lerp(startSize, TargetSize, easeT);
+                var easeT = easeProvider.Evaluate(context, t);
+                rectTransform.sizeDelta = MathFunc.Lerp.LerpVector2Unclamped(startSize, TargetSize, easeT);
             }
 
             rectTransform.sizeDelta = TargetSize;
