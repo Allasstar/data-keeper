@@ -36,12 +36,6 @@ namespace DataKeeper.Editor.Attributes
             {
                 DrawSerializeReferenceField(position, property, label);
             }
-            else if (property.propertyType == SerializedPropertyType.Generic &&
-                     property.isArray &&
-                     property.arrayElementType.StartsWith(MANAGED_REFERENCE))
-            {
-                EditorGUI.PropertyField(position, property, label, true);
-            }
             else
             {
                 EditorGUI.PropertyField(position, property, label, true);
@@ -58,6 +52,8 @@ namespace DataKeeper.Editor.Attributes
 
             if (baseType.IsGenericType && baseType.GetGenericTypeDefinition() == typeof(List<>))
                 baseType = baseType.GetGenericArguments()[0];
+            else if (baseType.IsArray)
+                baseType = baseType.GetElementType();
 
             Type[] validTypes = GetValidTypes(baseType);
 
