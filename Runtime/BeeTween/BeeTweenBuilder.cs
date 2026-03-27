@@ -68,7 +68,7 @@ namespace DataKeeper.BeeTween
         {
             TargetPosition = targetPosition,
             Duration = duration,
-            Ease = easing ?? new EaseValueProvider()
+            Ease = easing ?? new EaseFuncProvider()
         });
         return this;
     }
@@ -85,7 +85,7 @@ namespace DataKeeper.BeeTween
         {
             TargetRotation = targetRotation,
             Duration = duration,
-            Ease = easing ?? new EaseValueProvider()
+            Ease = easing ?? new EaseFuncProvider()
         });
         return this;
     }
@@ -102,7 +102,7 @@ namespace DataKeeper.BeeTween
         {
             TargetScale = targetScale,
             Duration = duration,
-            Ease = easing ?? new EaseValueProvider()
+            Ease = easing ?? new EaseFuncProvider()
         });
         return this;
     }
@@ -119,7 +119,7 @@ namespace DataKeeper.BeeTween
             {
                 TargetAlpha = targetAlpha,
                 Duration = duration,
-                Ease = easing ?? new EaseValueProvider()
+                Ease = easing ?? new EaseFuncProvider()
             });
             return this;
         }
@@ -136,7 +136,7 @@ namespace DataKeeper.BeeTween
             {
                 TargetColor = targetColor,
                 Duration = duration,
-                Ease = easing ?? new EaseValueProvider()
+                Ease = easing ?? new EaseFuncProvider()
             });
             return this;
         }
@@ -153,7 +153,7 @@ namespace DataKeeper.BeeTween
             {
                 TargetPosition = targetPosition,
                 Duration = duration,
-                Ease = easing ?? new EaseValueProvider()
+                Ease = easing ?? new EaseFuncProvider()
             });
             return this;
         }
@@ -170,7 +170,7 @@ namespace DataKeeper.BeeTween
             {
                 TargetSize = targetSize,
                 Duration = duration,
-                Ease = easing ?? new EaseValueProvider()
+                Ease = easing ?? new EaseFuncProvider()
             });
             return this;
         }
@@ -205,7 +205,7 @@ namespace DataKeeper.BeeTween
         /// </summary>
         public static void AnimatePosition(this Transform target, Vector3 targetPosition, float duration, BeeTweenPlayer player)
         {
-            var context = new TransformContext(target, new MoveNode { TargetPosition = targetPosition, Duration = duration, Ease = new EaseValueProvider() });
+            var context = new TransformContext(target, new MoveNode { TargetPosition = targetPosition, Duration = duration, Ease = new EaseFuncProvider() });
             player.Context = context;
         }
 
@@ -214,7 +214,7 @@ namespace DataKeeper.BeeTween
         /// </summary>
         public static void AnimateFade(this Image target, float targetAlpha, float duration, BeeTweenPlayer player)
         {
-            var context = new ImageContext(target, new FadeNode { TargetAlpha = targetAlpha, Duration = duration, Ease = new EaseValueProvider() });
+            var context = new ImageContext(target, new FadeNode { TargetAlpha = targetAlpha, Duration = duration, Ease = new EaseFuncProvider() });
             player.Context = context;
         }
 
@@ -223,7 +223,7 @@ namespace DataKeeper.BeeTween
         /// </summary>
         public static void AnimateAnchorPosition(this RectTransform target, Vector2 targetPosition, float duration, BeeTweenPlayer player)
         {
-            var context = new RectTransformContext(target, new AnchorPositionNode { TargetPosition = targetPosition, Duration = duration, Ease = new EaseValueProvider() });
+            var context = new RectTransformContext(target, new AnchorPositionNode { TargetPosition = targetPosition, Duration = duration, Ease = new EaseFuncProvider() });
             player.Context = context;
         }
     }
