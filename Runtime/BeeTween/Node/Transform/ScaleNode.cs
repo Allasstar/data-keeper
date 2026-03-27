@@ -24,7 +24,7 @@ namespace DataKeeper.BeeTween
 
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
-            if (context is not IBeeTweenContext<GameObject> goContext || goContext.Target == null) return;
+            if (context is not IBeeTweenContext<Transform> goContext || goContext.Target == null) return;
 
             var easeProvider = Ease ?? new EaseFuncProvider();
             var startScale = goContext.Target.transform.localScale;
