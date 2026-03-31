@@ -1,39 +1,36 @@
-using UnityEngine;
-
 namespace DataKeeper.DebugPrinter
 {
+    using UnityEngine;
+
     public struct DebugPrintStyle
     {
-        public float Duration;
+        public float Duration;      // fully visible time
+        public float FadeOutTime;   // fade duration
+
         public Color Color;
         public int FontSize;
 
         public bool UseBackground;
         public Color BackgroundColor;
 
-        public bool UseShadow;
-        public Color ShadowColor;
-
         public static DebugPrintStyle DefaultLog => new DebugPrintStyle
         {
             Duration = 3f,
+            FadeOutTime = 2f,
             Color = Color.white,
             FontSize = 25,
             UseBackground = true,
             BackgroundColor = new Color(0f, 0f, 0f, 0.3f),
-            UseShadow = true,
-            ShadowColor = Color.black
         };
 
         public static DebugPrintStyle DefaultError => new DebugPrintStyle
         {
             Duration = 6f,
-            Color = Color.crimson,
+            FadeOutTime = 2f,
+            Color = Color.orange,
             FontSize = 25,
             UseBackground = true,
-            BackgroundColor = new Color(0.5f, 0f, 0f, 0.3f),
-            UseShadow = true,
-            ShadowColor = Color.black
+            BackgroundColor = new Color(0.3f, 0f, 0f, 0.3f),
         };
     }
 }

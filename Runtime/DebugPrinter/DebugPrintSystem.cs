@@ -8,17 +8,17 @@ namespace DataKeeper.DebugPrinter
         private class Message
         {
             public string Text;
+
             public float TimeLeft;
             public float Duration;
+            public float FadeOutTime;
+
             public Color Color;
             public int FontSize;
             public bool IsError;
 
             public bool UseBackground;
             public Color BackgroundColor;
-
-            public bool UseShadow;
-            public Color ShadowColor;
         }
 
         private static DebugPrintSystem _instance;
@@ -60,15 +60,16 @@ namespace DataKeeper.DebugPrinter
             _messages.Add(new Message
             {
                 Text = text,
-                TimeLeft = style.Duration,
                 Duration = style.Duration,
+                FadeOutTime = style.FadeOutTime,
+                TimeLeft = style.Duration + style.FadeOutTime,
+
                 Color = style.Color,
                 FontSize = style.FontSize,
                 IsError = isError,
+
                 UseBackground = style.UseBackground,
                 BackgroundColor = style.BackgroundColor,
-                UseShadow = style.UseShadow,
-                ShadowColor = style.ShadowColor
             });
         }
 
@@ -97,28 +98,27 @@ namespace DataKeeper.DebugPrinter
                 {
                     alignment = TextAnchor.MiddleLeft,
                     padding = new RectOffset(6, 6, 4, 4),
-                    wordWrap = true,
-                    richText = false
+                    wordWrap = true
                 };
             }
 
             float y = 10f;
             float maxWidth = Mathf.Min(Screen.width - 20f, 800f);
 
-            for (int i = 0; i < _messages.Count; i++)
+            for (int i = _messages.Count - 1; i >= 0; i--)
             {
                 var msg = _messages[i];
 
-                float alpha = msg.TimeLeft / msg.Duration;
+                float alpha = CalculateAlpha(msg);
 
                 _labelStyle.fontSize = msg.FontSize;
 
                 float textHeight = _labelStyle.CalcHeight(new GUIContent(msg.Text), maxWidth);
                 float height = Mathf.Max(textHeight, 24f);
 
-                Rect rect = new Rect(10f, y, maxWidth, height);
+                Rect rect = new Rect(Screen.safeArea.xMin + 10f, Screen.safeArea.yMin + y, maxWidth, height);
 
-                // --- Background ---
+                // Background
                 if (msg.UseBackground)
                 {
                     var prev = GUI.color;
@@ -131,17 +131,20 @@ namespace DataKeeper.DebugPrinter
                 float contentX = rect.x;
                 float contentWidth = rect.width;
 
-                // --- Copy button (LEFT for errors) ---
+                // Copy button (left)
                 if (msg.IsError)
                 {
                     float buttonWidth = 50f;
 
                     Rect buttonRect = new Rect(rect.x + 4, rect.y + 2, buttonWidth, height - 4);
 
+                    var prevColor = GUI.color;
+                    GUI.color = new Color(1f, 1f, 1f, alpha);
+
                     if (GUI.Button(buttonRect, "Copy"))
-                    {
                         GUIUtility.systemCopyBuffer = msg.Text;
-                    }
+
+                    GUI.color = prevColor;
 
                     contentX += buttonWidth + 8f;
                     contentWidth -= buttonWidth + 8f;
@@ -151,23 +154,30 @@ namespace DataKeeper.DebugPrinter
 
                 var textColor = new Color(msg.Color.r, msg.Color.g, msg.Color.b, alpha);
 
-                if (msg.UseShadow)
-                {
-                    DrawShadowLabel(textRect, msg.Text, _labelStyle, textColor, msg.ShadowColor, alpha);
-                }
-                else
-                {
-                    var prev = GUI.color;
-                    GUI.color = textColor;
-                    GUI.Label(textRect, msg.Text, _labelStyle);
-                    GUI.color = prev;
-                }
+                var preserve = GUI.color;
+                GUI.color = textColor;
+                GUI.Label(textRect, msg.Text, _labelStyle);
+                GUI.color = preserve;
 
                 y += height + 4f;
             }
         }
 
-        private static void DrawShadowLabel(Rect rect, string text, GUIStyle style, Color textColor, Color shadowColor, float alpha)
+        private static float CalculateAlpha(Message msg)
+        {
+            // Still in visible phase
+            if (msg.TimeLeft > msg.FadeOutTime)
+                return 1f;
+
+            // Fade phase
+            if (msg.FadeOutTime <= 0f)
+                return 0f;
+
+            return msg.TimeLeft / msg.FadeOutTime;
+        }
+
+        private static void DrawShadowLabel(Rect rect, string text, GUIStyle style, Color textColor, Color shadowColor,
+            float alpha)
         {
             var prev = GUI.color;
 
