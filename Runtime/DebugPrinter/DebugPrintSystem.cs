@@ -103,7 +103,7 @@ namespace DataKeeper.DebugPrinter
             }
 
             float y = 10f;
-            float maxWidth = Mathf.Min(Screen.width - 20f, 800f);
+            float maxWidth = Mathf.Min(Screen.safeArea.width - 10f, 720f);
 
             for (int i = _messages.Count - 1; i >= 0; i--)
             {

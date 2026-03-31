@@ -4,8 +4,8 @@ namespace DataKeeper.DebugPrinter
 
     public struct DebugPrintStyle
     {
-        public float Duration;      // fully visible time
-        public float FadeOutTime;   // fade duration
+        public float Duration;
+        public float FadeOutTime;
 
         public Color Color;
         public int FontSize;
@@ -16,7 +16,7 @@ namespace DataKeeper.DebugPrinter
         public static DebugPrintStyle DefaultLog => new DebugPrintStyle
         {
             Duration = 3f,
-            FadeOutTime = 2f,
+            FadeOutTime = 1f,
             Color = Color.white,
             FontSize = 25,
             UseBackground = true,
@@ -26,11 +26,11 @@ namespace DataKeeper.DebugPrinter
         public static DebugPrintStyle DefaultError => new DebugPrintStyle
         {
             Duration = 6f,
-            FadeOutTime = 2f,
+            FadeOutTime = 1f,
             Color = Color.orange,
             FontSize = 25,
             UseBackground = true,
-            BackgroundColor = new Color(0.3f, 0f, 0f, 0.3f),
+            BackgroundColor = new Color(0f, 0f, 0f, 0.3f),
         };
     }
 }
