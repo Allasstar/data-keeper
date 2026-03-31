@@ -4,15 +4,15 @@ namespace DataKeeper.DebugPrinter
 {
     public static class DebugPrint
     {
-        public static bool IsEnabled = true;
+        public static bool IsEnabledPrint = true;
 
-        private static bool _isEnabledListenErrors = true;
-        public static bool IsEnabledListenErrors
+        private static bool _isEnabledLogMessageReceived = false;
+        public static bool IsEnabledLogMessageReceived
         {
-            get => _isEnabledListenErrors;
+            get => _isEnabledLogMessageReceived;
             set
             {
-                _isEnabledListenErrors = value; 
+                _isEnabledLogMessageReceived = value; 
                 Initialize();
             }
         }
@@ -21,29 +21,29 @@ namespace DataKeeper.DebugPrinter
         private static void Initialize()
         {
             Application.logMessageReceived -= LogListener;
-            if(!_isEnabledListenErrors) return;
+            if(!_isEnabledLogMessageReceived) return;
             Application.logMessageReceived += LogListener;
         }
 
         private static void LogListener(string condition, string stackTrace, LogType type)
         {
-            if(!_isEnabledListenErrors) return;
+            if(!_isEnabledLogMessageReceived) return;
             if (type == LogType.Error || type == LogType.Exception)
             {
-                if (IsEnabledListenErrors)
+                if (IsEnabledLogMessageReceived)
                     Error(condition);
             }
         }
         
         public static void Log(string message, DebugPrintStyle? style = null)
         {
-            if (!IsEnabled || !Application.isPlaying) return;
+            if (!IsEnabledPrint || !Application.isPlaying) return;
             DebugPrintSystem.Instance.Add(message, false, style);
         }
 
         public static void Error(string message, DebugPrintStyle? style = null)
         {
-            if (!IsEnabled || !Application.isPlaying) return;
+            if (!IsEnabledPrint || !Application.isPlaying) return;
             DebugPrintSystem.Instance.Add(message, true, style);
         }
     }
