@@ -31,7 +31,7 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class Vector3ValueProvider : Vector3Provider
     {
-        [field: SerializeField] public Vector3 Value { get; private set; }
+        [field: SerializeField] public Vector3 Value { get; set; }
         
         public Vector3 GetValue(IBeeTweenContext context)
         {
@@ -42,10 +42,10 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class TargetVector3Provider : Vector3Provider
     {
-        [field: SerializeField] public Optional<Transform> OverrideTarget { get; private set; } = new Optional<Transform>(null, false);
-        [field: SerializeField] public Vector3Type Vector3Type { get; private set; }
-        [field: SerializeField] public SpaceType SpaceType { get; private set; }
-        [field: SerializeField] public Vector3 Offset { get; private set; }
+        [field: SerializeField] public Optional<Transform> OverrideTarget { get; set; } = new Optional<Transform>(null, false);
+        [field: SerializeField] public Vector3Type Vector3Type { get; set; }
+        [field: SerializeField] public SpaceType SpaceType { get; set; }
+        [field: SerializeField] public Vector3 Offset { get; set; }
         
         public Vector3 GetValue(IBeeTweenContext context)
         {
@@ -125,10 +125,10 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class DirectionProvider : Vector3Provider
     {
-        [field: SerializeField] public Optional<Transform> OverrideTarget { get; private set; } = new Optional<Transform>(null, false);
-        [field: SerializeField] public Transform OtherTransform { get; private set; }
-        [field: SerializeField] public LookAtType LookAtType { get; private set; }
-        [field: SerializeField] public bool IsNormalized { get; private set; }
+        [field: SerializeField] public Optional<Transform> OverrideTarget { get; set; } = new Optional<Transform>(null, false);
+        [field: SerializeField] public Transform OtherTransform { get; set; }
+        [field: SerializeField] public LookAtType LookAtType { get; set; }
+        [field: SerializeField] public bool IsNormalized { get; set; }
         
         public Vector3 GetValue(IBeeTweenContext context)
         {

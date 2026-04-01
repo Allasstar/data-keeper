@@ -12,7 +12,7 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class FloatValueProvider : FloatProvider
     {
-        [field: SerializeField] public float Value { get; private set; }
+        [field: SerializeField] public float Value { get; set; }
         
         public float GetValue(IBeeTweenContext context)
         {
@@ -77,8 +77,8 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class DistanceProvider : FloatProvider
     {
-        [field: SerializeField] public Optional<Transform> OverrideTarget { get; private set; } = new Optional<Transform>(null, false);
-        [field: SerializeField] public Transform OtherTarget { get; private set; }
+        [field: SerializeField] public Optional<Transform> OverrideTarget { get; set; } = new Optional<Transform>(null, false);
+        [field: SerializeField] public Transform OtherTarget { get; set; }
         
         public float GetValue(IBeeTweenContext context)
         {

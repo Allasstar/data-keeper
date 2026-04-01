@@ -11,7 +11,7 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class IntValueProvider : IntProvider
     {
-        [field: SerializeField] public int Value { get; private set; }
+        [field: SerializeField] public int Value { get; set; }
         
         public int GetValue(IBeeTweenContext context)
         {
