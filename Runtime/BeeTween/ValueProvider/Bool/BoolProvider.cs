@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
@@ -7,6 +8,7 @@ namespace DataKeeper.BeeTween
         bool GetValue(IBeeTweenContext context);
     }
     
+    [Serializable]
     public class BoolValueProvider : BoolProvider
     {
         [field: SerializeField] public bool Value { get; private set; }
@@ -17,6 +19,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class TargetNotNullProvider : BoolProvider
     {
         public bool GetValue(IBeeTweenContext context)

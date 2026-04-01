@@ -1,3 +1,4 @@
+using System;
 using DataKeeper.Generic;
 using UnityEngine;
 
@@ -8,6 +9,7 @@ namespace DataKeeper.BeeTween
         float GetValue(IBeeTweenContext context);
     }
     
+    [Serializable]
     public class FloatValueProvider : FloatProvider
     {
         [field: SerializeField] public float Value { get; private set; }
@@ -18,6 +20,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class DeltaTimeProvider : FloatProvider
     {
         public float GetValue(IBeeTweenContext context)
@@ -26,6 +29,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class FixedDeltaTimeProvider : FloatProvider
     {
         public float GetValue(IBeeTweenContext context)
@@ -34,6 +38,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class TimeProvider : FloatProvider
     {
         public float GetValue(IBeeTweenContext context)
@@ -42,6 +47,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class TimeScaleProvider : FloatProvider
     {
         public float GetValue(IBeeTweenContext context)
@@ -50,6 +56,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class SinTimeProvider : FloatProvider
     {
         public float GetValue(IBeeTweenContext context)
@@ -58,6 +65,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class CosTimeProvider : FloatProvider
     {
         public float GetValue(IBeeTweenContext context)
@@ -66,6 +74,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class DistanceProvider : FloatProvider
     {
         [field: SerializeField] public Optional<Transform> OverrideTarget { get; private set; } = new Optional<Transform>(null, false);

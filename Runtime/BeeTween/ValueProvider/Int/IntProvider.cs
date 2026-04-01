@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
@@ -7,6 +8,7 @@ namespace DataKeeper.BeeTween
         int GetValue(IBeeTweenContext context);
     }
     
+    [Serializable]
     public class IntValueProvider : IntProvider
     {
         [field: SerializeField] public int Value { get; private set; }
@@ -17,6 +19,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class FrameCountProvider : IntProvider
     {
         public int GetValue(IBeeTweenContext context)

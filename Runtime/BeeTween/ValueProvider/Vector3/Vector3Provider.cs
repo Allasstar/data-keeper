@@ -1,3 +1,4 @@
+using System;
 using DataKeeper.Generic;
 using UnityEngine;
 
@@ -27,6 +28,7 @@ namespace DataKeeper.BeeTween
         Vector3 GetValue(IBeeTweenContext context);
     }
     
+    [Serializable]
     public class Vector3ValueProvider : Vector3Provider
     {
         [field: SerializeField] public Vector3 Value { get; private set; }
@@ -37,6 +39,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class TargetVector3Provider : Vector3Provider
     {
         [field: SerializeField] public Optional<Transform> OverrideTarget { get; private set; } = new Optional<Transform>(null, false);
@@ -119,6 +122,7 @@ namespace DataKeeper.BeeTween
         }
     }
     
+    [Serializable]
     public class DirectionProvider : Vector3Provider
     {
         [field: SerializeField] public Optional<Transform> OverrideTarget { get; private set; } = new Optional<Transform>(null, false);
