@@ -11,14 +11,19 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class MoveNode : IBeeTweenNode
     {
-        public Vector3 TargetPosition;
-        public float Duration;
+        [field: SerializeReference, SerializeReferenceSelector]
+        public Vector3Provider EndPositionProvider { get; set; }
+        
+        [field: SerializeReference, SerializeReferenceSelector]
+        public FloatProvider DurationProvider { get; set; }
         
         [field: SerializeReference, SerializeReferenceSelector]
         public EaseProvider Ease { get; set; }
 
         public MoveNode()
         {
+            EndPositionProvider = new Vector3ValueProvider();
+            DurationProvider = new FloatValueProvider();
             Ease = new EaseFuncProvider();
         }
 
@@ -30,17 +35,18 @@ namespace DataKeeper.BeeTween
             var startPosition = trContext.Target.position;
             var elapsedTime = 0f;
 
-            while (elapsedTime < Duration)
+            while (elapsedTime < DurationProvider.GetValue(context))
             {
                 await Awaitable.EndOfFrameAsync(cancellationToken.Token);
                 elapsedTime += Time.deltaTime;
                 
-                var t = Mathf.Clamp01(elapsedTime / Duration);
+                var t = Mathf.Clamp01(elapsedTime / DurationProvider.GetValue(context));
                 var easeT = easeProvider.Evaluate(context, t);
-                trContext.Target.position = MathFunc.Lerp.LerpVector3Unclamped(startPosition, TargetPosition, easeT);
+                trContext.Target.position = MathFunc.Lerp.LerpVector3Unclamped(startPosition, EndPositionProvider.GetValue(context), easeT);
             }
 
-            trContext.Target.position = TargetPosition;
+            trContext.Target.position = EndPositionProvider.GetValue(context);
         }
     }
+    
 }
