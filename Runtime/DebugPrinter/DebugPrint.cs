@@ -6,13 +6,13 @@ namespace DataKeeper.DebugPrinter
     {
         public static bool IsEnabledPrint = true;
 
-        private static bool _isEnabledLogMessageReceived = false;
-        public static bool IsEnabledLogMessageReceived
+        private static bool _isEnabledSystemErrors = false;
+        public static bool IsEnabledSystemErrors
         {
-            get => _isEnabledLogMessageReceived;
+            get => _isEnabledSystemErrors;
             set
             {
-                _isEnabledLogMessageReceived = value; 
+                _isEnabledSystemErrors = value; 
                 Initialize();
             }
         }
@@ -21,16 +21,16 @@ namespace DataKeeper.DebugPrinter
         private static void Initialize()
         {
             Application.logMessageReceived -= LogListener;
-            if(!_isEnabledLogMessageReceived) return;
+            if(!_isEnabledSystemErrors) return;
             Application.logMessageReceived += LogListener;
         }
 
         private static void LogListener(string condition, string stackTrace, LogType type)
         {
-            if(!_isEnabledLogMessageReceived) return;
+            if(!_isEnabledSystemErrors) return;
             if (type == LogType.Error || type == LogType.Exception)
             {
-                if (IsEnabledLogMessageReceived)
+                if (IsEnabledSystemErrors)
                     Error(condition);
             }
         }

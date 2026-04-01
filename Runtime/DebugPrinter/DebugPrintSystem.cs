@@ -19,6 +19,8 @@ namespace DataKeeper.DebugPrinter
 
             public bool UseBackground;
             public Color BackgroundColor;
+            
+            public bool HasCopyButton;
         }
 
         private static DebugPrintSystem _instance;
@@ -70,6 +72,7 @@ namespace DataKeeper.DebugPrinter
 
                 UseBackground = style.UseBackground,
                 BackgroundColor = style.BackgroundColor,
+                HasCopyButton = style.HasCopyButton,
             });
         }
 
@@ -132,7 +135,7 @@ namespace DataKeeper.DebugPrinter
                 float contentWidth = rect.width;
 
                 // Copy button (left)
-                if (msg.IsError)
+                if (msg.HasCopyButton)
                 {
                     float buttonWidth = 50f;
 
