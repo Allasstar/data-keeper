@@ -47,6 +47,7 @@ namespace DataKeeper.DebugPrinter
         private readonly List<Message> _messages = new List<Message>(64);
 
         private const int MaxMessages = 50;
+        private const float BUTTON_WIDTH = 50f;
 
         private GUIStyle _labelStyle;
 
@@ -106,15 +107,14 @@ namespace DataKeeper.DebugPrinter
             }
 
             float y = 10f;
-            float maxWidth = Mathf.Min(Screen.safeArea.width - 10f, 720f);
+            // float maxWidth = Mathf.Min(Screen.safeArea.width - 10f, 720f);
 
             for (int i = _messages.Count - 1; i >= 0; i--)
             {
                 var msg = _messages[i];
-
+                
+                var maxWidth = CalculateWidth(msg);
                 float alpha = CalculateAlpha(msg);
-
-                _labelStyle.fontSize = msg.FontSize;
 
                 float textHeight = _labelStyle.CalcHeight(new GUIContent(msg.Text), maxWidth);
                 float height = Mathf.Max(textHeight, 24f);
@@ -137,9 +137,7 @@ namespace DataKeeper.DebugPrinter
                 // Copy button (left)
                 if (msg.HasCopyButton)
                 {
-                    float buttonWidth = 50f;
-
-                    Rect buttonRect = new Rect(rect.x + 4, rect.y + 2, buttonWidth, height - 4);
+                    Rect buttonRect = new Rect(rect.x + 4, rect.y + 2, BUTTON_WIDTH, height - 4);
 
                     var prevColor = GUI.color;
                     GUI.color = new Color(1f, 1f, 1f, alpha);
@@ -149,8 +147,8 @@ namespace DataKeeper.DebugPrinter
 
                     GUI.color = prevColor;
 
-                    contentX += buttonWidth + 8f;
-                    contentWidth -= buttonWidth + 8f;
+                    contentX += BUTTON_WIDTH + 8f;
+                    contentWidth -= BUTTON_WIDTH + 8f;
                 }
 
                 Rect textRect = new Rect(contentX, rect.y, contentWidth, height);
@@ -164,6 +162,18 @@ namespace DataKeeper.DebugPrinter
 
                 y += height + 4f;
             }
+        }
+
+        private float CalculateWidth(Message msg)
+        {
+            _labelStyle.fontSize = msg.FontSize;
+            Vector2 textSize = _labelStyle.CalcSize(new GUIContent(msg.Text));
+            float maxAllowedWidth = Screen.safeArea.width - 20f;
+            
+            var padding = msg.HasCopyButton ? BUTTON_WIDTH + 12f : 12f;
+
+            float maxWidth = Mathf.Min(textSize.x + padding, maxAllowedWidth);
+            return maxWidth;
         }
 
         private static float CalculateAlpha(Message msg)
