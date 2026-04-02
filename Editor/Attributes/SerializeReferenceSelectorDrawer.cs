@@ -137,7 +137,6 @@ namespace DataKeeper.Editor.Attributes
             }
         }
 
-        // ✅ ONLY THIS METHOD CHANGED
         private static void ApplyToAllTargets(SerializedProperty property, Func<object> valueFactory, string undoLabel)
         {
             var targets = property.serializedObject.targetObjects;
@@ -292,7 +291,17 @@ namespace DataKeeper.Editor.Attributes
             }
 
             private static TypeDropdownItem BuildTypeItem(Type type)
-                => new TypeDropdownItem(ObjectNames.NicifyVariableName(type.Name), type);
+            {
+                Texture2D currentIcon = GetScriptIcon(type);
+                GUIContent buttonContent = currentIcon != null
+                    ? new GUIContent(currentIcon)
+                    : new GUIContent();
+                
+                var tdi = new TypeDropdownItem(ObjectNames.NicifyVariableName(type.Name), type);
+                tdi.icon = buttonContent.image as Texture2D;
+                
+                return tdi;
+            }
 
             protected override void ItemSelected(AdvancedDropdownItem item)
             {
