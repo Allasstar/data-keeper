@@ -275,16 +275,25 @@ namespace DataKeeper.Editor.Attributes
                 var root = new AdvancedDropdownItem("Types");
                 root.AddChild(new TypeDropdownItem(NULL_TYPE_NAME, null));
 
-                foreach (var type in _validTypes.Where(t => string.IsNullOrEmpty(t.Namespace)).OrderBy(t => t.Name))
-                    root.AddChild(BuildTypeItem(type));
+                var noNamespaceTypes = _validTypes.Where(t => string.IsNullOrEmpty(t.Namespace)).OrderBy(t => t.Name).ToList();
+                if (noNamespaceTypes.Count > 0)
+                {
+                    var baseTypeItem = new AdvancedDropdownItem("Default");
+                    root.AddChild(baseTypeItem);
+                    foreach (var type in noNamespaceTypes)
+                    {
+                        baseTypeItem.AddChild(BuildTypeItem(type));
+                    }
+                }
 
-                foreach (var ns in _validTypes.Where(t => !string.IsNullOrEmpty(t.Namespace))
-                             .GroupBy(t => t.Namespace).OrderBy(g => g.Key))
+                foreach (var ns in _validTypes.Where(t => !string.IsNullOrEmpty(t.Namespace)).GroupBy(t => t.Namespace).OrderBy(g => g.Key))
                 {
                     var nsItem = new AdvancedDropdownItem(ns.Key);
                     root.AddChild(nsItem);
                     foreach (var type in ns.OrderBy(t => t.Name))
+                    {
                         nsItem.AddChild(BuildTypeItem(type));
+                    }
                 }
 
                 return root;
