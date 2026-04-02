@@ -8,7 +8,7 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class FlipFlopNode : IBeeTweenNode
     {
-        [SerializeReference, SerializeReferenceSelector] public BoolProvider ISA;
+        [SerializeReference, SerializeReferenceSelector] public BoolProvider IsA;
         [SerializeReference, SerializeReferenceSelector] public IBeeTweenNode ANode;
         [SerializeReference, SerializeReferenceSelector] public IBeeTweenNode BNode;
         
@@ -17,11 +17,11 @@ namespace DataKeeper.BeeTween
         
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
-            if(ANode == null || BNode == null) return;
+            if(ANode == null || BNode == null || IsA == null) return;
             
             if (!_isInitialized)
             {
-                _curState = ISA.GetValue(context);
+                _curState = IsA.GetValue(context);
                 _isInitialized = true;
             }
             
