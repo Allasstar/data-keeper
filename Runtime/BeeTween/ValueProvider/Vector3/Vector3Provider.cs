@@ -63,17 +63,15 @@ namespace DataKeeper.BeeTween
             if (OverrideTarget.Enabled && OverrideTarget.Value != null)
             {
                 return SpaceType == SpaceType.Global 
-                    ? OverrideTarget.Value.position 
-                    : OverrideTarget.Value.localPosition
-                    + Offset;
+                    ? OverrideTarget.Value.position + Offset
+                    : OverrideTarget.Value.localPosition + Offset;
             } 
             
             if (context.Target is Transform transform)
             {
                 return SpaceType == SpaceType.Global 
-                    ? transform.position 
-                    : transform.localPosition
-                      + Offset;
+                    ? transform.position + Offset
+                    : transform.localPosition + Offset;
             }
             
             return Vector3.zero;
@@ -84,17 +82,15 @@ namespace DataKeeper.BeeTween
             if (OverrideTarget.Enabled && OverrideTarget.Value != null)
             {
                 return SpaceType == SpaceType.Global 
-                    ? OverrideTarget.Value.eulerAngles 
-                    : OverrideTarget.Value.localEulerAngles
-                    + Offset;
+                    ? OverrideTarget.Value.eulerAngles + Offset
+                    : OverrideTarget.Value.localEulerAngles + Offset;
             } 
             
             if (context.Target is Transform transform)
             {
                 return SpaceType == SpaceType.Global 
-                    ? transform.eulerAngles 
-                    : transform.localEulerAngles
-                      + Offset;
+                    ? transform.eulerAngles + Offset
+                    : transform.localEulerAngles + Offset;
             }
             
             return Vector3.zero;
@@ -105,17 +101,15 @@ namespace DataKeeper.BeeTween
             if (OverrideTarget.Enabled && OverrideTarget.Value != null)
             {
                 return SpaceType == SpaceType.Global 
-                    ? OverrideTarget.Value.lossyScale 
-                    : OverrideTarget.Value.localScale
-                    + Offset;
+                    ? OverrideTarget.Value.lossyScale + Offset
+                    : OverrideTarget.Value.localScale + Offset;
             } 
             
             if (context.Target is Transform transform)
             {
                 return SpaceType == SpaceType.Global 
-                    ? transform.lossyScale 
-                    : transform.localScale
-                      + Offset;
+                    ? transform.lossyScale + Offset
+                    : transform.localScale + Offset;
             }
             
             return Vector3.zero;

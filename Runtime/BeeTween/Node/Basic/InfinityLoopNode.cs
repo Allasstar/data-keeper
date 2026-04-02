@@ -6,16 +6,17 @@ using UnityEngine;
 namespace DataKeeper.BeeTween
 {
     [Serializable]
-    public class UpdateNode : IBeeTweenNode
+    public class InfinityLoopNode : IBeeTweenNode
     {
         [SerializeReference, SerializeReferenceSelector] public IBeeTweenNode updateNode;
         
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
+            if(updateNode == null) return;
+            
             while (cancellationToken.Token.IsCancellationRequested == false)
             {
-                updateNode?.ExecuteAsync(context, cancellationToken);
-                await Awaitable.EndOfFrameAsync(cancellationToken.Token);
+                await updateNode.ExecuteAsync(context, cancellationToken);
             }
         }
     }

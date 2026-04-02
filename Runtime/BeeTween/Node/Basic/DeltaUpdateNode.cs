@@ -8,15 +8,15 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class DeltaUpdateNode : IBeeTweenNode
     {
-        [SerializeReference, SerializeReferenceSelector] private FloatProvider DeltaTimeProvider = new DeltaTimeProvider();
-        [SerializeReference, SerializeReferenceSelector] private IBeeTweenNode updateNode;
+        [SerializeReference, SerializeReferenceSelector] public FloatProvider deltaTimeProvider = new DeltaTimeProvider();
+        [SerializeReference, SerializeReferenceSelector] public IBeeTweenNode updateNode;
         
         public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
         {
             while (cancellationToken.Token.IsCancellationRequested == false)
             {
                 updateNode?.ExecuteAsync(context, cancellationToken);
-                await Awaitable.WaitForSecondsAsync(DeltaTimeProvider.GetValue(context), cancellationToken.Token);
+                await Awaitable.WaitForSecondsAsync(deltaTimeProvider.GetValue(context), cancellationToken.Token);
             }
         }
     }

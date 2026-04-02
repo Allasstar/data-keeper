@@ -61,9 +61,7 @@ namespace DataKeeper.BeeTween
 
             try
             {
-                Debug.Log($"Start > FC: {Time.frameCount}", this);
                 await Context.RootNode.ExecuteAsync(Context, _cts);
-                Debug.Log($"End > FC: {Time.frameCount}", this);
 
                 if (restartOnEnd)
                 {
@@ -77,7 +75,6 @@ namespace DataKeeper.BeeTween
             }
             catch (Exception e)
             {
-                Debug.Log($"Fail > FC: {Time.frameCount}", this);
                 Debug.LogError(e, this);
 
                 if (RestartOnFail.Enabled)
