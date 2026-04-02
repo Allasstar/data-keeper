@@ -292,13 +292,13 @@ namespace DataKeeper.Editor.Attributes
 
             private static TypeDropdownItem BuildTypeItem(Type type)
             {
-                Texture2D currentIcon = GetScriptIcon(type);
-                GUIContent buttonContent = currentIcon != null
-                    ? new GUIContent(currentIcon)
-                    : new GUIContent();
-                
                 var tdi = new TypeDropdownItem(ObjectNames.NicifyVariableName(type.Name), type);
-                tdi.icon = buttonContent.image as Texture2D;
+                
+                Texture2D currentIcon = GetScriptIcon(type);
+                if(currentIcon != null)
+                {
+                    tdi.icon = currentIcon;
+                }
                 
                 return tdi;
             }
