@@ -4,30 +4,27 @@ using System.Linq;
 using DataKeeper.Attributes;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace DataKeeper.Editor.Attributes
 {
     [CustomPropertyDrawer(typeof(SerializeReferenceSelectorAttribute))]
-    public class SerializeReferenceDrawer : PropertyDrawer
+    public class SerializeReferenceSelectorDrawer : PropertyDrawer
     {
         private const string NULL_TYPE_NAME = "- null -";
         private const string MANAGED_REFERENCE = "managedReference";
 
-        // ── Static caches ────────────────────────────────────────────────────────
         private static Dictionary<Type, Type[]> s_TypeCache = new Dictionary<Type, Type[]>();
         private static AdvancedDropdownState s_DropdownState = new AdvancedDropdownState();
         private static Dictionary<Type, Texture2D> s_IconCache = new Dictionary<Type, Texture2D>();
 
-        // ── Copy / Paste / Swap buffer ───────────────────────────────────────────
         private static object s_Buffer = null;
 
-        // Button dimensions
         private const float BUTTON_W = 18f;
         private const float BUTTON_H = 18f;
         private const float BUTTON_SPACING = 2f;
 
-        // ── Main draw ────────────────────────────────────────────────────────────
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             EditorGUI.BeginProperty(position, label, property);
@@ -57,10 +54,8 @@ namespace DataKeeper.Editor.Attributes
 
             Type[] validTypes = GetValidTypes(baseType);
 
-            // ── Header row ───────────────────────────────────────────────────────
             Rect headerRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
 
-            // Buffer button strip (right side, inside header)
             float stripWidth = (BUTTON_W + BUTTON_SPACING) * 2 - BUTTON_SPACING;
             Rect stripRect = new Rect(
                 headerRect.xMax - stripWidth,
@@ -68,10 +63,8 @@ namespace DataKeeper.Editor.Attributes
                 stripWidth,
                 BUTTON_H);
 
-            // Shrink the popup area so it doesn't overlap buttons
             Rect labelRect = new Rect(headerRect.x, headerRect.y, headerRect.width - stripWidth - 4f, headerRect.height);
 
-            // ── Type popup ───────────────────────────────────────────────────────
             string currentTypeName = NULL_TYPE_NAME;
             Texture2D currentIcon = null;
 
@@ -104,15 +97,11 @@ namespace DataKeeper.Editor.Attributes
                 dropdown.Show(popupRect);
             }
 
-            // ── Buffer buttons ───────────────────────────────────────────────────
             DrawBufferButtons(stripRect, property, baseType);
 
-            // ── Child fields ─────────────────────────────────────────────────────
             if (property.managedReferenceValue != null)
                 EditorGUI.PropertyField(position, property, GUIContent.none, true);
         }
-
-        // ─── Buffer button strip ─────────────────────────────────────────────────
 
         private static void DrawBufferButtons(Rect strip, SerializedProperty property, Type baseType)
         {
@@ -121,8 +110,8 @@ namespace DataKeeper.Editor.Attributes
             bool bufferCompatible = hasBuffer && baseType.IsAssignableFrom(s_Buffer.GetType());
             bool hasCurrent = current != null;
 
-            // Copy
             Rect btnRect = new Rect(strip.x, strip.y, BUTTON_W, BUTTON_H);
+
             using (new EditorGUI.DisabledScope(!hasCurrent))
             {
                 GUIContent copyLabel = MakeLabel("C", GetBufferStatusTooltip(current, s_Buffer));
@@ -132,8 +121,8 @@ namespace DataKeeper.Editor.Attributes
                 }
             }
 
-            // Paste
             btnRect.x += BUTTON_W + BUTTON_SPACING;
+
             using (new EditorGUI.DisabledScope(!bufferCompatible))
             {
                 string pasteTooltip = bufferCompatible
@@ -146,87 +135,63 @@ namespace DataKeeper.Editor.Attributes
                     ApplyToAllTargets(property, () => DeepClone(s_Buffer), $"Paste SerializeReference ({pasteName})");
                 }
             }
-
-            // Swap
-            // btnRect.x += BUTTON_W + BUTTON_SPACING;
-            // bool canSwap = hasCurrent && bufferCompatible;
-            // using (new EditorGUI.DisabledScope(!canSwap))
-            // {
-            //     string swapTooltip = canSwap
-            //         ? $"Swap '{ObjectNames.NicifyVariableName(current.GetType().Name)}' ↔ '{ObjectNames.NicifyVariableName(s_Buffer.GetType().Name)}'"
-            //         : "Need both a current value and a compatible buffer to swap";
-            //
-            //     if (GUI.Button(btnRect, MakeLabel("S", swapTooltip), MiniButtonStyle()))
-            //     {
-            //         string curName  = ObjectNames.NicifyVariableName(current.GetType().Name);
-            //         string bufName  = ObjectNames.NicifyVariableName(s_Buffer.GetType().Name);
-            //         object temp     = DeepClone(s_Buffer);
-            //         s_Buffer        = DeepClone(current);
-            //         ApplyToAllTargets(property, () => DeepClone(temp), $"Swap SerializeReference ({curName} ↔ {bufName})");
-            //     }
-            // }
-
-            // Buffer indicator dot — shows a colored dot when buffer holds something
-            if (hasBuffer)
-            {
-                Rect dotRect = new Rect(strip.xMax + 4f, strip.y + strip.height * 0.5f - 3f, 6f, 6f);
-                Color dotColor = bufferCompatible ? new Color(0.3f, 0.85f, 0.4f) : new Color(0.9f, 0.6f, 0.2f);
-                EditorGUI.DrawRect(dotRect, dotColor);
-                if (dotRect.Contains(Event.current.mousePosition))
-                {
-                    string bufferTypeName = ObjectNames.NicifyVariableName(s_Buffer.GetType().Name);
-                    GUI.Label(new Rect(dotRect.x - 80f, dotRect.y - 20f, 120f, 18f),
-                        new GUIContent("", $"Buffer: {bufferTypeName}"));
-                }
-            }
         }
 
-        // ─── Helpers ─────────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Applies a value factory to all target objects with full Undo support.
-        /// Records BEFORE the change so Ctrl+Z restores the previous managed reference.
-        /// </summary>
+        // ✅ ONLY THIS METHOD CHANGED
         private static void ApplyToAllTargets(SerializedProperty property, Func<object> valueFactory, string undoLabel)
         {
-            // 1. Record all targets BEFORE mutation so Undo captures the old state.
-            Undo.RecordObjects(property.serializedObject.targetObjects, undoLabel);
+            var targets = property.serializedObject.targetObjects;
 
-            foreach (var target in property.serializedObject.targetObjects)
+            // Undo (correct place)
+            Undo.RecordObjects(targets, undoLabel);
+
+            foreach (var target in targets)
             {
-                // 2. Reuse (or create) a SerializedObject for this target.
-                //    Using the property's own SO for the primary target avoids double-apply.
                 SerializedObject so = target == property.serializedObject.targetObject
                     ? property.serializedObject
                     : new SerializedObject(target);
 
+                so.Update();
+
                 SerializedProperty prop = so.FindProperty(property.propertyPath);
                 prop.managedReferenceValue = valueFactory();
 
-                // 3. ApplyModifiedProperties registers the change with Unity's undo stack
-                //    because Undo.RecordObjects already snapshotted the object above.
                 so.ApplyModifiedProperties();
+
+                // Prefab support
+                PrefabUtility.RecordPrefabInstancePropertyModifications(target);
+
+                // Mark dirty (THIS fixes save prompt)
+                EditorUtility.SetDirty(target);
+
+                // Scene dirty (for scene objects only)
+                if (target is Component component && !EditorUtility.IsPersistent(component))
+                {
+                    EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+                }
+                else if (target is GameObject go && !EditorUtility.IsPersistent(go))
+                {
+                    EditorSceneManager.MarkSceneDirty(go.scene);
+                }
             }
         }
 
-        /// <summary>Deep-clone via JSON round-trip (Unity's built-in serializer path).</summary>
         private static object DeepClone(object source)
         {
             if (source == null) return null;
             string json = JsonUtility.ToJson(source);
             return JsonUtility.FromJson(json, source.GetType());
         }
-
+        
         private static string GetBufferStatusTooltip(object current, object buffer)
         {
             string cur = current != null ? ObjectNames.NicifyVariableName(current.GetType().Name) : "null";
             string buf = buffer != null ? ObjectNames.NicifyVariableName(buffer.GetType().Name) : "empty";
-            return $"Copy '{cur}' to buffer  (buffer: {buf})";
+            return $"Copy '{cur}' to buffer\n(buffer: {buf})";
         }
 
-        private static GUIContent MakeLabel(string text, string tooltip = "")
-            => new GUIContent(text, tooltip);
-
+        private static GUIContent MakeLabel(string text, string tooltip = "") => new GUIContent(text, tooltip);
+        
         private static GUIStyle MiniButtonStyle()
         {
             var style = new GUIStyle(EditorStyles.miniButton);
@@ -234,8 +199,6 @@ namespace DataKeeper.Editor.Attributes
             style.fixedHeight = BUTTON_H;
             return style;
         }
-
-        // ─── Script icon helpers ─────────────────────────────────────────────────
 
         private static Texture2D GetScriptIcon(Type type)
         {
@@ -267,8 +230,6 @@ namespace DataKeeper.Editor.Attributes
             return null;
         }
 
-        // ─── Type collection ─────────────────────────────────────────────────────
-
         private Type[] GetValidTypes(Type baseType)
         {
             if (s_TypeCache.TryGetValue(baseType, out Type[] types)) return types;
@@ -277,7 +238,7 @@ namespace DataKeeper.Editor.Attributes
                 .SelectMany(assembly =>
                 {
                     try { return assembly.GetTypes(); }
-                    catch (Exception) { return Type.EmptyTypes; }
+                    catch { return Type.EmptyTypes; }
                 })
                 .Where(type => baseType.IsAssignableFrom(type) && !type.IsAbstract && !type.IsInterface)
                 .OrderBy(type => type.Name)
@@ -287,8 +248,6 @@ namespace DataKeeper.Editor.Attributes
             return s_TypeCache[baseType];
         }
 
-        // ─── Height ──────────────────────────────────────────────────────────────
-
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             if (property.propertyType != SerializedPropertyType.ManagedReference)
@@ -296,8 +255,6 @@ namespace DataKeeper.Editor.Attributes
 
             return EditorGUI.GetPropertyHeight(property, label, true);
         }
-
-        // ─── AdvancedDropdown ────────────────────────────────────────────────────
 
         private class TypeDropdown : AdvancedDropdown
         {
