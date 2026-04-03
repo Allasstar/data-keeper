@@ -1,9 +1,14 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace DataKeeper.DebugPrinter
 {
     public static class DebugPrint
     {
+        private const int MAX_MESSAGES = 50;
+        
+        public static List<Message> Messages { get; private set; }
+        
         public static bool IsEnabledPrint = true;
 
         private static bool _isEnabledSystemErrors = false;
@@ -17,12 +22,39 @@ namespace DataKeeper.DebugPrinter
             }
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
         {
+            Messages = new ();
             Application.logMessageReceived -= LogListener;
             if(!_isEnabledSystemErrors) return;
             Application.logMessageReceived += LogListener;
+        }
+        
+        private static void Add(string text, bool isError, DebugPrintStyle? overrideStyle)
+        {
+            var style = overrideStyle ?? (isError
+                ? DebugPrintStyle.DefaultError
+                : DebugPrintStyle.DefaultLog);
+
+            if (Messages.Count >= MAX_MESSAGES)
+                Messages.RemoveAt(0);
+
+            Messages.Add(new Message
+            {
+                Text = text,
+                Duration = style.Duration,
+                FadeOutTime = style.FadeOutTime,
+                TimeLeft = style.Duration + style.FadeOutTime,
+
+                Color = style.Color,
+                FontSize = style.FontSize,
+                IsError = isError,
+
+                UseBackground = style.UseBackground,
+                BackgroundColor = style.BackgroundColor,
+                HasCopyButton = style.HasCopyButton,
+            });
         }
 
         private static void LogListener(string condition, string stackTrace, LogType type)
@@ -38,13 +70,33 @@ namespace DataKeeper.DebugPrinter
         public static void Log(string message, DebugPrintStyle? style = null)
         {
             if (!IsEnabledPrint || !Application.isPlaying) return;
-            DebugPrintSystem.Instance.Add(message, false, style);
+            Add(message, false, style);
+            DebugPrintSystem.Instance.Ping();
         }
 
         public static void Error(string message, DebugPrintStyle? style = null)
         {
             if (!IsEnabledPrint || !Application.isPlaying) return;
-            DebugPrintSystem.Instance.Add(message, true, style);
+            Add(message, true, style);
+            DebugPrintSystem.Instance.Ping();
         }
+    }
+    
+    public class Message
+    {
+        public string Text;
+
+        public float TimeLeft;
+        public float Duration;
+        public float FadeOutTime;
+
+        public Color Color;
+        public int FontSize;
+        public bool IsError;
+
+        public bool UseBackground;
+        public Color BackgroundColor;
+            
+        public bool HasCopyButton;
     }
 }

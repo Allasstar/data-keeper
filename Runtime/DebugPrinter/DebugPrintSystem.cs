@@ -1,93 +1,30 @@
-using System.Collections.Generic;
+using DataKeeper.SingletonPattern;
 using UnityEngine;
 
 namespace DataKeeper.DebugPrinter
 {
-    public class DebugPrintSystem : MonoBehaviour
+    public class DebugPrintSystem : MonoSingleton<DebugPrintSystem>
     {
-        private class Message
-        {
-            public string Text;
-
-            public float TimeLeft;
-            public float Duration;
-            public float FadeOutTime;
-
-            public Color Color;
-            public int FontSize;
-            public bool IsError;
-
-            public bool UseBackground;
-            public Color BackgroundColor;
-            
-            public bool HasCopyButton;
-        }
-
-        private static DebugPrintSystem _instance;
-
-        public static DebugPrintSystem Instance
-        {
-            get
-            {
-                if (_instance == null)
-                    Create();
-                return _instance;
-            }
-        }
-
         public static bool IsEnabled = true;
-
-        private static void Create()
+        
+        public void Ping()
         {
-            var go = new GameObject("[DebugPrintSystem]");
-            DontDestroyOnLoad(go);
-            _instance = go.AddComponent<DebugPrintSystem>();
         }
-
-        private readonly List<Message> _messages = new List<Message>(64);
-
-        private const int MaxMessages = 50;
+        
         private const float BUTTON_WIDTH = 50f;
 
         private GUIStyle _labelStyle;
 
-        public void Add(string text, bool isError, DebugPrintStyle? overrideStyle)
-        {
-            var style = overrideStyle ?? (isError
-                ? DebugPrintStyle.DefaultError
-                : DebugPrintStyle.DefaultLog);
-
-            if (_messages.Count >= MaxMessages)
-                _messages.RemoveAt(0);
-
-            _messages.Add(new Message
-            {
-                Text = text,
-                Duration = style.Duration,
-                FadeOutTime = style.FadeOutTime,
-                TimeLeft = style.Duration + style.FadeOutTime,
-
-                Color = style.Color,
-                FontSize = style.FontSize,
-                IsError = isError,
-
-                UseBackground = style.UseBackground,
-                BackgroundColor = style.BackgroundColor,
-                HasCopyButton = style.HasCopyButton,
-            });
-        }
-
         private void Update()
         {
-            float dt = Time.unscaledDeltaTime;
-
-            for (int i = _messages.Count - 1; i >= 0; i--)
+            for (int i = DebugPrint.Messages.Count - 1; i >= 0; i--)
             {
-                var msg = _messages[i];
-                msg.TimeLeft -= dt;
+                var msg = DebugPrint.Messages[i];
+                
+                msg.TimeLeft -= Time.deltaTime;
 
                 if (msg.TimeLeft <= 0f)
-                    _messages.RemoveAt(i);
+                    DebugPrint.Messages.RemoveAt(i);
             }
         }
 
@@ -107,11 +44,10 @@ namespace DataKeeper.DebugPrinter
             }
 
             float y = 10f;
-            // float maxWidth = Mathf.Min(Screen.safeArea.width - 10f, 720f);
 
-            for (int i = _messages.Count - 1; i >= 0; i--)
+            for (int i = DebugPrint.Messages.Count - 1; i >= 0; i--)
             {
-                var msg = _messages[i];
+                var msg = DebugPrint.Messages[i];
                 
                 var maxWidth = CalculateWidth(msg);
                 float alpha = CalculateAlpha(msg);
@@ -187,20 +123,6 @@ namespace DataKeeper.DebugPrinter
                 return 0f;
 
             return msg.TimeLeft / msg.FadeOutTime;
-        }
-
-        private static void DrawShadowLabel(Rect rect, string text, GUIStyle style, Color textColor, Color shadowColor,
-            float alpha)
-        {
-            var prev = GUI.color;
-
-            GUI.color = new Color(shadowColor.r, shadowColor.g, shadowColor.b, alpha);
-            GUI.Label(new Rect(rect.x + 1, rect.y + 1, rect.width, rect.height), text, style);
-
-            GUI.color = textColor;
-            GUI.Label(rect, text, style);
-
-            GUI.color = prev;
         }
     }
 }
