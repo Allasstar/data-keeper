@@ -165,7 +165,10 @@ public class GameTagPickerWindow : EditorWindow
         {
             var guids = AssetDatabase.FindAssets("t:GameTagRegistry");
             if (guids.Length > 0)
+            {
                 Selection.activeObject = AssetDatabase.LoadAssetAtPath<GameTagRegistry>(AssetDatabase.GUIDToAssetPath(guids[0]));
+                Close();
+            }
         }
         
         _search = EditorGUILayout.TextField(_search, EditorStyles.toolbarSearchField, GUILayout.ExpandWidth(true));
