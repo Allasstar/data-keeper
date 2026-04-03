@@ -7,6 +7,7 @@ using UnityEngine;
 
 public class GameTagPickerWindow : EditorWindow
 {
+    [SerializeField] private Texture2D editTextIcon;
     [SerializeField] private Texture2D deleteTextIcon;
     
     // ── Public API ────────────────────────────────────────────────────────────
@@ -159,6 +160,13 @@ public class GameTagPickerWindow : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
         EditorGUI.BeginChangeCheck();
+        
+        if (GUILayout.Button(editTextIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
+        {
+            var guids = AssetDatabase.FindAssets("t:GameTagRegistry");
+            if (guids.Length > 0)
+                Selection.activeObject = AssetDatabase.LoadAssetAtPath<GameTagRegistry>(AssetDatabase.GUIDToAssetPath(guids[0]));
+        }
         
         _search = EditorGUILayout.TextField(_search, EditorStyles.toolbarSearchField, GUILayout.ExpandWidth(true));
         
