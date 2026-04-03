@@ -164,7 +164,7 @@ public class GameTagPickerWindow : EditorWindow
         if (GUILayout.Button("+ New Tag", EditorStyles.toolbarButton, GUILayout.Width(72)))
         {
             _addingNew   = !_addingNew;
-            _newTagInput = string.Empty;
+            _newTagInput = _search;
             if (_addingNew)
                 EditorApplication.delayCall += () => GUI.FocusControl("NewTagField");
         }
