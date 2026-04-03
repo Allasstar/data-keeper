@@ -7,6 +7,8 @@ using UnityEngine;
 
 public class GameTagPickerWindow : EditorWindow
 {
+    [SerializeField] private Texture2D deleteTextIcon;
+    
     // ── Public API ────────────────────────────────────────────────────────────
     public static void Show(
         GameTagRegistry registry,
@@ -157,8 +159,15 @@ public class GameTagPickerWindow : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
         EditorGUI.BeginChangeCheck();
-        _search = EditorGUILayout.TextField(_search, EditorStyles.toolbarSearchField,
-            GUILayout.ExpandWidth(true));
+        
+        _search = EditorGUILayout.TextField(_search, EditorStyles.toolbarSearchField, GUILayout.ExpandWidth(true));
+        
+        if (GUILayout.Button(deleteTextIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
+        {
+            _search = "";
+            GUI.FocusControl(null);
+        }
+        
         if (EditorGUI.EndChangeCheck()) RebuildTree();
 
         if (GUILayout.Button("+ New Tag", EditorStyles.toolbarButton, GUILayout.Width(72)))
