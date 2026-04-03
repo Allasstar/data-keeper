@@ -341,20 +341,21 @@ public class GameTagPickerWindow : EditorWindow
 
     private void DrawFooter()
     {
-        EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+        EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
 
         string label = _selected.Count == 0 ? "Nothing selected"
                      : _selected.Count == 1 ? _selected.First()
                      : $"{_selected.Count} tags selected";
-        GUILayout.Label(label, EditorStyles.miniLabel, GUILayout.ExpandWidth(true));
+        
+        GUILayout.Label(label, EditorStyles.boldLabel, GUILayout.ExpandWidth(true));
 
-        if (GUILayout.Button("Clear", EditorStyles.toolbarButton, GUILayout.Width(44)))
+        if (GUILayout.Button("Clear", EditorStyles.miniButtonLeft, GUILayout.Width(48)))
         {
             _selected.Clear();
             Repaint();
         }
 
-        if (GUILayout.Button("Apply", EditorStyles.toolbarButton, GUILayout.Width(48)))
+        if (GUILayout.Button("Apply", EditorStyles.miniButtonRight, GUILayout.Width(48)))
         {
             _onApply?.Invoke(_selected.ToList());
             Close();
