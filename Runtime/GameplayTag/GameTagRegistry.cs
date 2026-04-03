@@ -117,7 +117,7 @@ public class GameTagDrawer : PropertyDrawer
 
     static GameTagDrawer()
     {
-        _registry = Resources.Load<GameTagRegistry>("GameplayTagRegistry");
+        _registry = Resources.Load<GameTagRegistry>("GameTagRegistry");
 
 #if UNITY_EDITOR
         if (_registry == null)
@@ -128,7 +128,7 @@ public class GameTagDrawer : PropertyDrawer
             if (!AssetDatabase.IsValidFolder(resourcesPath))
                 AssetDatabase.CreateFolder("Assets", "Resources");
 
-            AssetDatabase.CreateAsset(_registry, $"{resourcesPath}/GameplayTagRegistry.asset");
+            AssetDatabase.CreateAsset(_registry, $"{resourcesPath}/GameTagRegistry.asset");
             AssetDatabase.SaveAssets();
         }
 #endif
