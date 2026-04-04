@@ -9,15 +9,16 @@ namespace DataKeeper.Editor.GameTagSystem
     public class GameTagDrawer : PropertyDrawer
     {
         private const string None = "(none)";
-        private static GameTagRegistry _registry => GameTagRegistry.Default;
 
         static GameTagDrawer()
         {
             if (_registry == null)
             {
-               Debug.LogError("GameTagRegistry is not found. Please add it to the Resources folder.");
+                Debug.LogError("GameTagRegistry is not found. Please add it to the Resources folder.");
             }
         }
+
+        private static GameTagRegistry _registry => GameTagRegistry.Default;
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {

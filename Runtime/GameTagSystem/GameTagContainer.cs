@@ -9,7 +9,7 @@ namespace DataKeeper.GameTagSystem
     public class GameTagContainer
     {
         [SerializeField] private List<GameTag> _tags = new();
-        
+
         public IReadOnlyList<GameTag> Tags => _tags;
 
         public bool HasTag(GameTag tag) => _tags.Contains(tag);

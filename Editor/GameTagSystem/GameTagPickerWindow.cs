@@ -11,8 +11,33 @@ namespace DataKeeper.Editor.GameTagSystem
 {
     public class GameTagPickerWindow : EditorWindow
     {
+        private static readonly Color kRowHover = new(0.5f, 0.5f, 0.5f, 0.3f);
         [SerializeField] private Texture2D editTextIcon;
         [SerializeField] private Texture2D deleteTextIcon;
+        private bool _addingNew;
+        private HashSet<string> _expanded = new();
+        private string _footerLabel = string.Empty;
+        private bool _multiSelect;
+        private string _newTagInput = string.Empty;
+        private Action<IReadOnlyList<string>> _onApply;
+
+        // ── State ─────────────────────────────────────────────────────────────────
+        private GameTagRegistry _registry;
+
+        private List<TagNode> _roots = new();
+        private Vector2 _scroll;
+        private string _search = string.Empty;
+
+        private HashSet<string> _selected = new();
+
+        // ── GUI ───────────────────────────────────────────────────────────────────
+        private void OnGUI()
+        {
+            DrawToolbar();
+            if (_addingNew) DrawAddTagRow();
+            DrawTree();
+            DrawFooter();
+        }
 
         // ── Public API ────────────────────────────────────────────────────────────
         public static void Show(
@@ -30,30 +55,6 @@ namespace DataKeeper.Editor.GameTagSystem
             win._selected = new HashSet<string>(currentTags ?? Enumerable.Empty<string>());
             win.RebuildTree();
             win.ShowAuxWindow();
-        }
-
-        // ── State ─────────────────────────────────────────────────────────────────
-        private GameTagRegistry _registry;
-        private bool _multiSelect;
-        private Action<IReadOnlyList<string>> _onApply;
-
-        private HashSet<string> _selected = new();
-        private HashSet<string> _expanded = new();
-        private string _search = string.Empty;
-        private string _footerLabel = string.Empty;
-        private bool _addingNew;
-        private string _newTagInput = string.Empty;
-
-        private List<TagNode> _roots = new();
-        private Vector2 _scroll;
-
-        // ── Tree model ────────────────────────────────────────────────────────────
-        private class TagNode
-        {
-            public string Label;
-            public string FullPath;
-            public bool ExistsInRegistry; // true if this exact path is a registered tag
-            public List<TagNode> Children = new();
         }
 
         private void RebuildTree()
@@ -88,17 +89,10 @@ namespace DataKeeper.Editor.GameTagSystem
                     {
                         node.ExistsInRegistry = true;
                     }
+
                     parent = node;
                 }
             }
-        }
-
-        // ── Selection ─────────────────────────────────────────────────────────────
-        private enum CheckState
-        {
-            None,
-            Partial,
-            All
         }
 
         // Every node is independently selectable regardless of children.
@@ -161,15 +155,6 @@ namespace DataKeeper.Editor.GameTagSystem
             else all.ForEach(p => _selected.Add(p));
         }
 
-        // ── GUI ───────────────────────────────────────────────────────────────────
-        private void OnGUI()
-        {
-            DrawToolbar();
-            if (_addingNew) DrawAddTagRow();
-            DrawTree();
-            DrawFooter();
-        }
-
         private void DrawToolbar()
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
@@ -208,7 +193,7 @@ namespace DataKeeper.Editor.GameTagSystem
                 {
                     _newTagInput = _search;
                 }
-            
+
                 if (_addingNew)
                 {
                     EditorApplication.delayCall += () => GUI.FocusControl("NewTagField");
@@ -267,8 +252,6 @@ namespace DataKeeper.Editor.GameTagSystem
                 DrawNode(root, 0);
             EditorGUILayout.EndScrollView();
         }
-
-        private static readonly Color kRowHover = new(0.5f, 0.5f, 0.5f, 0.08f);
 
         private void DrawNode(TagNode node, int depth)
         {
@@ -374,7 +357,7 @@ namespace DataKeeper.Editor.GameTagSystem
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
 
-            _footerLabel = _selected.Count == 0 ? "" :  _selected.First();
+            _footerLabel = _selected.Count == 0 ? "" : _selected.First();
 
             GUILayout.Label(_footerLabel, EditorStyles.boldLabel, GUILayout.ExpandWidth(true));
 
@@ -391,6 +374,23 @@ namespace DataKeeper.Editor.GameTagSystem
             }
 
             EditorGUILayout.EndHorizontal();
+        }
+
+        // ── Tree model ────────────────────────────────────────────────────────────
+        private class TagNode
+        {
+            public List<TagNode> Children = new();
+            public bool ExistsInRegistry; // true if this exact path is a registered tag
+            public string FullPath;
+            public string Label;
+        }
+
+        // ── Selection ─────────────────────────────────────────────────────────────
+        private enum CheckState
+        {
+            None,
+            Partial,
+            All
         }
     }
 }

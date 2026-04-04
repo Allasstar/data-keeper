@@ -8,69 +8,11 @@ namespace DataKeeper.GameTagSystem
     public class GameTagRegistry : SO
     {
         private const string DEFAULT_REGISTRY_NAME = "GameTagRegistry";
-        
+
         private static GameTagRegistry _default;
         private static readonly Queue<string> _registrationQueue = new();
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        private static void Preload()
-        {
-            _ = Default;
-        }
-
-        private static void ProcessQueue(GameTagRegistry registry)
-        {
-            if (registry != null)
-            {
-                while (_registrationQueue.Count > 0)
-                {
-                    registry.Add(_registrationQueue.Dequeue());
-                }
-#if UNITY_EDITOR
-                UnityEditor.EditorUtility.SetDirty(registry);
-#endif
-            }
-        }
-
-        public static void RegisterTag(string tag)
-        {
-            if (string.IsNullOrEmpty(tag)) return;
-
-            try
-            {
-                var registry = Default;
-                if (registry != null)
-                {
-                    if (registry.IsExist(tag)) return;
-                    registry.Add(tag);
-                    Debug.Log($"[GameTagRegistry] 1> '{tag}' register tag.");
-                    
-#if UNITY_EDITOR
-                    UnityEditor.EditorUtility.SetDirty(registry);
-#endif
-                }
-                else
-                {
-                    if (!_registrationQueue.Contains(tag))
-                    {
-                        Debug.Log($"[GameTagRegistry] 2> '{tag}' attempting to register tag.");
-                        _registrationQueue.Enqueue(tag);
-                    }
-                }
-            }
-            catch (UnityException)
-            {
-                if (!_registrationQueue.Contains(tag))
-                {
-                    Debug.Log($"[GameTagRegistry] 3> '{tag}'attempting to register tag.");
-                    _registrationQueue.Enqueue(tag);
-                }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"[GameTagRegistry] Unexpected error during registration of '{tag}': {e.Message}");
-            }
-        }
+        [SerializeField] private List<string> _tags = new();
 
         public static GameTagRegistry Default 
         {
@@ -116,9 +58,73 @@ namespace DataKeeper.GameTagSystem
                 return _default;
             }
         }
-        
-        [SerializeField] private List<string> _tags = new();
+
         public IReadOnlyList<string> Tags => _tags;
+
+#if UNITY_EDITOR
+
+        private void OnValidate()
+        {
+            Refresh();
+        }
+#endif
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        private static void Preload()
+        {
+            _ = Default;
+        }
+
+        private static void ProcessQueue(GameTagRegistry registry)
+        {
+            if (registry != null)
+            {
+                while (_registrationQueue.Count > 0)
+                {
+                    registry.Add(_registrationQueue.Dequeue());
+                }
+#if UNITY_EDITOR
+                UnityEditor.EditorUtility.SetDirty(registry);
+#endif
+            }
+        }
+
+        public static void RegisterTag(string tag)
+        {
+            if (string.IsNullOrEmpty(tag)) return;
+
+            try
+            {
+                var registry = Default;
+                if (registry != null)
+                {
+                    if (registry.IsExist(tag)) return;
+                    registry.Add(tag);
+                    
+#if UNITY_EDITOR
+                    UnityEditor.EditorUtility.SetDirty(registry);
+#endif
+                }
+                else
+                {
+                    if (!_registrationQueue.Contains(tag))
+                    {
+                        _registrationQueue.Enqueue(tag);
+                    }
+                }
+            }
+            catch (UnityException)
+            {
+                if (!_registrationQueue.Contains(tag))
+                {
+                    _registrationQueue.Enqueue(tag);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[GameTagRegistry] Unexpected error during registration of '{tag}': {e.Message}");
+            }
+        }
 
         public bool IsExist(GameTag tag) => _tags.Contains(tag.Value);
         public bool IsExist(string tag) => _tags.Contains(tag);
@@ -129,20 +135,12 @@ namespace DataKeeper.GameTagSystem
             Refresh();
         }
 
-#if UNITY_EDITOR
-
-        private void OnValidate()
-        {
-            Refresh();
-        }
-#endif
-
         private void Refresh()
         {
             _default = this;
             ProcessQueue(this);
         }
-        
+
         public void Add(string newTag)
         {
             if(IsExist(newTag)) return;
