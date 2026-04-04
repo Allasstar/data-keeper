@@ -12,10 +12,13 @@ namespace DataKeeper.GameTagSystem
 
         public IReadOnlyList<GameTag> Tags => _tags;
 
-        public bool HasTag(GameTag tag) => _tags.Contains(tag);
-        public bool HasStartWith(GameTag tag) => _tags.Any(t => t.StartsWith(tag));
+        public bool HasTag(GameTag gameTag) => _tags.Contains(gameTag);
+        public bool HasStartWith(GameTag gameTag) => _tags.Any(t => t.StartsWith(gameTag));
 
-        public void AddTag(GameTag tag) { if (!_tags.Contains(tag)) _tags.Add(tag); }
-        public void RemoveTag(GameTag tag) => _tags.Remove(tag);
+        public void AddTag(GameTag gameTag) { if (!_tags.Contains(gameTag)) _tags.Add(gameTag); }
+        public void RemoveTag(GameTag gameTag) => _tags.Remove(gameTag);
+        
+        public IEnumerable<GameTag> GetTagsStartsWith(GameTag gameTag) => _tags.Where(t => t.StartsWith(gameTag.Value));
+        public IEnumerable<GameTag> GetTagsStartsWith(string tag) => _tags.Where(t => t.StartsWith(tag));
     }
 }

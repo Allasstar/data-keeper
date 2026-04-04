@@ -28,8 +28,12 @@ namespace DataKeeper.GameTagSystem
             GameTagRegistry.RegisterTag(_value);
         }
 
-        public bool StartsWith(GameTag other) => _value.StartsWith(other._value);
+        public bool StartsWith(GameTag other) => _value.StartsWith(other._value + SEPARATOR);
+        public bool StartsWith(string other) => _value.StartsWith(other + SEPARATOR);
+        
         public bool Equals(GameTag other) => _value == other._value;
+        public bool Equals(string other) => _value == other;
+        
         public override string ToString() => _value ?? string.Empty;
     }
 }
