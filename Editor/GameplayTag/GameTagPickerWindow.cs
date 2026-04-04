@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DataKeeper.Extensions;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,7 +10,7 @@ public class GameTagPickerWindow : EditorWindow
 {
     [SerializeField] private Texture2D editTextIcon;
     [SerializeField] private Texture2D deleteTextIcon;
-    
+
     // ── Public API ────────────────────────────────────────────────────────────
     public static void Show(
         GameTagRegistry registry,
@@ -19,35 +20,36 @@ public class GameTagPickerWindow : EditorWindow
     {
         var win = CreateInstance<GameTagPickerWindow>();
         win.titleContent = new GUIContent("Game Tag Picker");
-        win.minSize      = new Vector2(340, 460);
-        win._registry    = registry;
+        win.minSize = new Vector2(340, 460);
+        win._registry = registry;
         win._multiSelect = multiSelect;
-        win._onApply     = onApply;
-        win._selected    = new HashSet<string>(currentTags ?? Enumerable.Empty<string>());
+        win._onApply = onApply;
+        win._selected = new HashSet<string>(currentTags ?? Enumerable.Empty<string>());
         win.RebuildTree();
         win.ShowAuxWindow();
     }
 
     // ── State ─────────────────────────────────────────────────────────────────
-    private GameTagRegistry               _registry;
-    private bool                          _multiSelect;
+    private GameTagRegistry _registry;
+    private bool _multiSelect;
     private Action<IReadOnlyList<string>> _onApply;
 
-    private HashSet<string>  _selected    = new();
-    private HashSet<string>  _expanded    = new();
-    private string           _search      = string.Empty;
-    private bool             _addingNew;
-    private string           _newTagInput = string.Empty;
+    private HashSet<string> _selected = new();
+    private HashSet<string> _expanded = new();
+    private string _search = string.Empty;
+    private string _footerLabel = string.Empty;
+    private bool _addingNew;
+    private string _newTagInput = string.Empty;
 
-    private List<TagNode>    _roots  = new();
-    private Vector2          _scroll;
+    private List<TagNode> _roots = new();
+    private Vector2 _scroll;
 
     // ── Tree model ────────────────────────────────────────────────────────────
     private class TagNode
     {
-        public string        Label;
-        public string        FullPath;
-        public bool          ExistsInRegistry; // true if this exact path is a registered tag
+        public string Label;
+        public string FullPath;
+        public bool ExistsInRegistry; // true if this exact path is a registered tag
         public List<TagNode> Children = new();
     }
 
@@ -58,44 +60,53 @@ public class GameTagPickerWindow : EditorWindow
 
         IEnumerable<string> source = _registry.Tags.OrderBy(t => t);
         if (!string.IsNullOrEmpty(_search))
-            source = source.Where(t =>
-                t.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0);
+        {
+            source = source.Where(t => t.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
 
         foreach (var tag in source)
         {
-            var parts  = tag.Split(GameTag.SEPARASTOR);
+            var parts = tag.Split(GameTag.SEPARATOR);
             TagNode parent = null;
 
             for (int i = 0; i < parts.Length; i++)
             {
-                var path = string.Join(GameTag.SEPARASTOR, parts[..(i + 1)]);
+                var path = string.Join(GameTag.SEPARATOR, parts[..(i + 1)]);
                 if (!dict.TryGetValue(path, out var node))
                 {
                     node = new TagNode { Label = parts[i], FullPath = path };
                     dict[path] = node;
                     if (parent == null) _roots.Add(node);
-                    else                parent.Children.Add(node);
+                    else parent.Children.Add(node);
                 }
+
                 // Mark the terminal segment as an explicit registry entry
                 if (i == parts.Length - 1)
+                {
                     node.ExistsInRegistry = true;
+                }
                 parent = node;
             }
         }
     }
 
     // ── Selection ─────────────────────────────────────────────────────────────
-    private enum CheckState { None, Partial, All }
+    private enum CheckState
+    {
+        None,
+        Partial,
+        All
+    }
 
     // Every node is independently selectable regardless of children.
     // Parent checkbox shows Partial when SOME nodes in its subtree are selected.
     private CheckState GetCheckState(TagNode node)
     {
         var all = CollectAllNodes(node);
-        int total  = all.Count;
+        int total = all.Count;
         int ticked = all.Count(p => _selected.Contains(p));
 
-        if (ticked == 0)     return CheckState.None;
+        if (ticked == 0) return CheckState.None;
         if (ticked == total) return CheckState.All;
         return CheckState.Partial;
     }
@@ -121,7 +132,7 @@ public class GameTagPickerWindow : EditorWindow
         if (_multiSelect)
         {
             if (_selected.Contains(node.FullPath)) _selected.Remove(node.FullPath);
-            else                                   _selected.Add(node.FullPath);
+            else _selected.Add(node.FullPath);
         }
         else
         {
@@ -141,10 +152,10 @@ public class GameTagPickerWindow : EditorWindow
             return;
         }
 
-        var all   = CollectAllNodes(node);
+        var all = CollectAllNodes(node);
         bool allOn = all.All(p => _selected.Contains(p));
         if (allOn) all.ForEach(p => _selected.Remove(p));
-        else       all.ForEach(p => _selected.Add(p));
+        else all.ForEach(p => _selected.Add(p));
     }
 
     // ── GUI ───────────────────────────────────────────────────────────────────
@@ -160,34 +171,47 @@ public class GameTagPickerWindow : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
         EditorGUI.BeginChangeCheck();
-        
+
         if (GUILayout.Button(editTextIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
         {
             var guids = AssetDatabase.FindAssets("t:GameTagRegistry");
             if (guids.Length > 0)
             {
-                Selection.activeObject = AssetDatabase.LoadAssetAtPath<GameTagRegistry>(AssetDatabase.GUIDToAssetPath(guids[0]));
+                Selection.activeObject =
+                    AssetDatabase.LoadAssetAtPath<GameTagRegistry>(AssetDatabase.GUIDToAssetPath(guids[0]));
                 Close();
             }
         }
-        
+
         _search = EditorGUILayout.TextField(_search, EditorStyles.toolbarSearchField, GUILayout.ExpandWidth(true));
-        
+
         if (GUILayout.Button(deleteTextIcon, style: EditorStyles.toolbarButton, GUILayout.Width(25)))
         {
             _search = "";
             GUI.FocusControl(null);
         }
-        
+
         if (EditorGUI.EndChangeCheck()) RebuildTree();
 
         if (GUILayout.Button("+ New Tag", EditorStyles.toolbarButton, GUILayout.Width(72)))
         {
-            _addingNew   = !_addingNew;
-            _newTagInput = _search;
+            _addingNew = !_addingNew;
+
+            if (_search.IsNullOrEmpty())
+            {
+                _newTagInput = _footerLabel;
+            }
+            else
+            {
+                _newTagInput = _search;
+            }
+            
             if (_addingNew)
+            {
                 EditorApplication.delayCall += () => GUI.FocusControl("NewTagField");
+            }
         }
+
         EditorGUILayout.EndHorizontal();
     }
 
@@ -198,15 +222,16 @@ public class GameTagPickerWindow : EditorWindow
         _newTagInput = EditorGUILayout.TextField(_newTagInput, GUILayout.ExpandWidth(true));
 
         bool confirm = GUILayout.Button("Add", GUILayout.Width(40))
-                    || (Event.current.type   == EventType.KeyDown
-                     && Event.current.keyCode == KeyCode.Return);
+                       || (Event.current.type == EventType.KeyDown
+                           && Event.current.keyCode == KeyCode.Return);
         if (confirm) CommitNewTag();
 
         if (GUILayout.Button("✕", GUILayout.Width(22)))
         {
-            _addingNew   = false;
+            _addingNew = false;
             _newTagInput = string.Empty;
         }
+
         EditorGUILayout.EndHorizontal();
     }
 
@@ -215,19 +240,19 @@ public class GameTagPickerWindow : EditorWindow
         var value = _newTagInput.Trim();
         if (string.IsNullOrEmpty(value) || _registry.Tags.Contains(value))
         {
-            _addingNew   = false;
+            _addingNew = false;
             _newTagInput = string.Empty;
             return;
         }
 
-        var so   = new SerializedObject(_registry);
+        var so = new SerializedObject(_registry);
         var list = so.FindProperty("_tags");
         list.arraySize++;
         list.GetArrayElementAtIndex(list.arraySize - 1).stringValue = value;
         so.ApplyModifiedProperties();
         AssetDatabase.SaveAssets();
 
-        _addingNew   = false;
+        _addingNew = false;
         _newTagInput = string.Empty;
         RebuildTree();
     }
@@ -245,8 +270,8 @@ public class GameTagPickerWindow : EditorWindow
     private void DrawNode(TagNode node, int depth)
     {
         bool hasChildren = node.Children.Count > 0;
-        bool isExpanded  = _expanded.Contains(node.FullPath) || !string.IsNullOrEmpty(_search);
-        var  state       = GetCheckState(node);
+        bool isExpanded = _expanded.Contains(node.FullPath) || !string.IsNullOrEmpty(_search);
+        var state = GetCheckState(node);
 
         var rowRect = GUILayoutUtility.GetRect(
             GUIContent.none, EditorStyles.label,
@@ -270,7 +295,7 @@ public class GameTagPickerWindow : EditorWindow
             if (EditorGUI.EndChangeCheck())
             {
                 if (nowOpen) _expanded.Add(node.FullPath);
-                else         _expanded.Remove(node.FullPath);
+                else _expanded.Remove(node.FullPath);
             }
         }
 
@@ -287,7 +312,7 @@ public class GameTagPickerWindow : EditorWindow
             if (hasChildren && (shift || !_multiSelect))
                 ToggleSubtree(node);
             else if (hasChildren)
-                ToggleNode(node);   // tick just this path, children unaffected
+                ToggleNode(node); // tick just this path, children unaffected
             else
                 ToggleNode(node);
             Repaint();
@@ -314,7 +339,7 @@ public class GameTagPickerWindow : EditorWindow
             {
                 // Clicking label toggles expand; also toggles own selection
                 if (isExpanded) _expanded.Remove(node.FullPath);
-                else            _expanded.Add(node.FullPath);
+                else _expanded.Add(node.FullPath);
             }
             else
             {
@@ -346,11 +371,9 @@ public class GameTagPickerWindow : EditorWindow
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
 
-        string label = _selected.Count == 0 ? "Nothing selected"
-                     : _selected.Count == 1 ? _selected.First()
-                     : $"{_selected.Count} tags selected";
-        
-        GUILayout.Label(label, EditorStyles.boldLabel, GUILayout.ExpandWidth(true));
+        _footerLabel = _selected.Count == 0 ? "" :  _selected.First();
+
+        GUILayout.Label(_footerLabel, EditorStyles.boldLabel, GUILayout.ExpandWidth(true));
 
         if (GUILayout.Button("Clear", EditorStyles.miniButtonLeft, GUILayout.Width(48)))
         {

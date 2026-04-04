@@ -12,13 +12,13 @@ public class GameTagRegistry : ScriptableObject
         _tags.Contains(tag.Value);
 
     public IEnumerable<string> GetChildren(string parent) =>
-        _tags.Where(t => t.StartsWith(parent + GameTag.SEPARASTOR));
+        _tags.Where(t => t.StartsWith(parent + GameTag.SEPARATOR));
 }
 
 [Serializable]
 public struct GameTag : IEquatable<GameTag>
 {
-    public const string SEPARASTOR = "/";
+    public const string SEPARATOR = "/";
     
     [SerializeField] private string _value;
     public string Value => _value;
@@ -26,7 +26,7 @@ public struct GameTag : IEquatable<GameTag>
     public GameTag(string value) => _value = value;
 
     public bool MatchesParent(GameTag parent) =>
-        _value == parent._value || _value.StartsWith(parent._value + SEPARASTOR);
+        _value == parent._value || _value.StartsWith(parent._value + SEPARATOR);
 
     public bool Equals(GameTag other) => _value == other._value;
     public override string ToString() => _value ?? string.Empty;
