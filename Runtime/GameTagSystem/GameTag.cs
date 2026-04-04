@@ -26,7 +26,7 @@ namespace DataKeeper.GameTagSystem
             GameTagRegistry.RegisterTag(_value);
         }
 
-        private GameTag[] GetNodes()
+        public GameTag[] GetNodes()
         {
             if (_nodes == null || _nodes.Length == 0)
             {
