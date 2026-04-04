@@ -24,28 +24,8 @@ namespace DataKeeper.GameTagSystem
                 ? _value.Split(SEPARATOR, StringSplitOptions.RemoveEmptyEntries)
                 : Array.Empty<string>();
 
-            Register();
-        }
-        
-        // [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-        // private static void Initialize()
-        // {
-        //      Register();
-        // }
-        
-        private void Register()
-        {
             if (!_autoRegister) return;
-            if (!string.IsNullOrEmpty(_value))
-            {
-                if (GameTagRegistry.Default != null)
-                {
-                    GameTagRegistry.Default.Add(_value);
-#if UNITY_EDITOR
-                    UnityEditor.EditorUtility.SetDirty(GameTagRegistry.Default);
-#endif
-                }
-            }
+            GameTagRegistry.RegisterTag(_value);
         }
 
         public bool StartsWith(GameTag other) => _value.StartsWith(other._value);

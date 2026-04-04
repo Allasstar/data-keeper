@@ -10,18 +10,96 @@ namespace DataKeeper.GameTagSystem
         private const string DEFAULT_REGISTRY_NAME = "GameTagRegistry";
         
         private static GameTagRegistry _default;
+        private static readonly Queue<string> _registrationQueue = new();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        private static void Preload()
+        {
+            _ = Default;
+        }
+
+        private static void ProcessQueue(GameTagRegistry registry)
+        {
+            if (registry != null)
+            {
+                while (_registrationQueue.Count > 0)
+                {
+                    registry.Add(_registrationQueue.Dequeue());
+                }
+#if UNITY_EDITOR
+                UnityEditor.EditorUtility.SetDirty(registry);
+#endif
+            }
+        }
+
+        public static void RegisterTag(string tag)
+        {
+            if (string.IsNullOrEmpty(tag)) return;
+
+            try
+            {
+                var registry = Default;
+                if (registry != null)
+                {
+                    if (registry.IsExist(tag)) return;
+                    registry.Add(tag);
+                    Debug.Log($"[GameTagRegistry] 1> '{tag}' register tag.");
+                    
+#if UNITY_EDITOR
+                    UnityEditor.EditorUtility.SetDirty(registry);
+#endif
+                }
+                else
+                {
+                    if (!_registrationQueue.Contains(tag))
+                    {
+                        Debug.Log($"[GameTagRegistry] 2> '{tag}' attempting to register tag.");
+                        _registrationQueue.Enqueue(tag);
+                    }
+                }
+            }
+            catch (UnityException)
+            {
+                if (!_registrationQueue.Contains(tag))
+                {
+                    Debug.Log($"[GameTagRegistry] 3> '{tag}'attempting to register tag.");
+                    _registrationQueue.Enqueue(tag);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[GameTagRegistry] Unexpected error during registration of '{tag}': {e.Message}");
+            }
+        }
+
         public static GameTagRegistry Default 
         {
             get
             {
                 if (_default == null)
                 {
-                    _default = Resources.Load<GameTagRegistry>(DEFAULT_REGISTRY_NAME);
+                    try
+                    {
+                        _default = Resources.Load<GameTagRegistry>(DEFAULT_REGISTRY_NAME);
+                    }
+                    catch (UnityException e)
+                    {
+                        Debug.LogWarning($"[GameTagRegistry] Failed to load default registry from Resources: {e.Message}");
+                    }
                 }
                 
                 if (_default == null)
                 {
-                    _default = CreateInstance<GameTagRegistry>();
+                    try
+                    {
+                        _default = CreateInstance<GameTagRegistry>();
+                    }
+                    catch (UnityException e)
+                    {
+                        Debug.LogWarning($"[GameTagRegistry] Failed to create instance of registry: {e.Message}");
+                        return null;
+                    }
+                    
                     const string path = "Assets/Resources";
 
 #if UNITY_EDITOR
@@ -48,7 +126,21 @@ namespace DataKeeper.GameTagSystem
 
         public override void Initialize()
         {
+            Refresh();
+        }
+
+#if UNITY_EDITOR
+
+        private void OnValidate()
+        {
+            Refresh();
+        }
+#endif
+
+        private void Refresh()
+        {
             _default = this;
+            ProcessQueue(this);
         }
         
         public void Add(string newTag)
