@@ -128,6 +128,7 @@ namespace DataKeeper.GameTagSystem
 
         public bool IsExist(GameTag tag) => _tags.Contains(tag.Value);
         public bool IsExist(string tag) => _tags.Contains(tag);
+        
         public IEnumerable<string> GetChildren(string parent) => _tags.Where(t => t.StartsWith(parent + GameTag.SEPARATOR));
 
         public override void Initialize()
