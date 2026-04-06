@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using DataKeeper.GameTagSystem;
 using UnityEditor;
 using UnityEngine;
@@ -9,6 +10,7 @@ namespace DataKeeper.Editor.GameTagSystem
     public class GameTagDrawer : PropertyDrawer
     {
         private const string None = "(none)";
+        private static readonly HashSet<string> _loggedErrors = new();
 
         static GameTagDrawer()
         {
@@ -30,7 +32,12 @@ namespace DataKeeper.Editor.GameTagSystem
             EditorGUI.LabelField(labelRect, label);
 
             string current = valueProp.stringValue;
-            if (GUI.Button(buttonRect, string.IsNullOrEmpty(current) ? None : current, EditorStyles.popup))
+            bool tagMissing = !string.IsNullOrEmpty(current) && (_registry == null || !_registry.IsExist(current));
+
+            var prevColor = GUI.contentColor;
+            if (tagMissing) GUI.contentColor = Color.lightPink;
+
+            if (GUI.Button(buttonRect, string.IsNullOrEmpty(current) ? None : tagMissing ? $"[missing] {current}" : current, EditorStyles.popup))
             {
                 GameTagPickerWindow.Show(
                     _registry,
@@ -42,6 +49,8 @@ namespace DataKeeper.Editor.GameTagSystem
                         property.serializedObject.ApplyModifiedProperties();
                     });
             }
+
+            if (tagMissing) GUI.contentColor = prevColor;
         }
     }
 }
