@@ -106,28 +106,28 @@ namespace DataKeeper.Tests.GameTagSystem
         public void Contains_GameTag_SubstringPresent_ReturnsTrue()
         {
             var tag = new GameTag("Enemy/Boss/Elite");
-            Assert.IsTrue(tag.Contains(new GameTag("Boss")));
+            Assert.IsTrue(tag.StartsWithOrEquals(new GameTag("Boss")));
         }
 
         [Test]
         public void Contains_GameTag_SubstringAbsent_ReturnsFalse()
         {
             var tag = new GameTag("Enemy/Boss");
-            Assert.IsFalse(tag.Contains(new GameTag("Player")));
+            Assert.IsFalse(tag.StartsWithOrEquals(new GameTag("Player")));
         }
 
         [Test]
         public void Contains_String_SubstringPresent_ReturnsTrue()
         {
             var tag = new GameTag("Enemy/Boss");
-            Assert.IsTrue(tag.Contains("Boss"));
+            Assert.IsTrue(tag.StartsWithOrEquals("Boss"));
         }
 
         [Test]
         public void Contains_String_SubstringAbsent_ReturnsFalse()
         {
             var tag = new GameTag("Enemy/Boss");
-            Assert.IsFalse(tag.Contains("Player"));
+            Assert.IsFalse(tag.StartsWithOrEquals("Player"));
         }
 
         // --- GetNodes ---
