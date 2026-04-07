@@ -127,8 +127,9 @@ namespace DataKeeper.Tests.GameTagSystem
             _container.AddTag(new GameTag("Player"));
 
             var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWith("Enemy"));
+                _container.GetTagsStartsWith(new GameTag("Enemy")));
 
+            
             Assert.AreEqual(2, results.Count);
         }
 
@@ -138,7 +139,7 @@ namespace DataKeeper.Tests.GameTagSystem
             _container.AddTag(new GameTag("Player"));
 
             var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWith("Enemy"));
+                _container.GetTagsStartsWith(new GameTag("Enemy")));
 
             Assert.AreEqual(0, results.Count);
         }
@@ -147,7 +148,7 @@ namespace DataKeeper.Tests.GameTagSystem
         public void GetTagsStartsWith_EmptyContainer_ReturnsEmpty()
         {
             var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWith("Enemy"));
+                _container.GetTagsStartsWith(new GameTag("Enemy")));
 
             Assert.AreEqual(0, results.Count);
         }

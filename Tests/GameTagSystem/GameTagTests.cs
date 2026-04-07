@@ -137,7 +137,7 @@ namespace DataKeeper.Tests.GameTagSystem
         {
             var tag = new GameTag("Enemy");
             var nodes = tag.GetNodes();
-            Assert.AreEqual(1, nodes.Length);
+            Assert.AreEqual(1, nodes.Count);
             Assert.AreEqual("Enemy", nodes[0].Value);
         }
 
@@ -146,7 +146,7 @@ namespace DataKeeper.Tests.GameTagSystem
         {
             var tag = new GameTag("Enemy/Boss/Elite");
             var nodes = tag.GetNodes();
-            Assert.AreEqual(3, nodes.Length);
+            Assert.AreEqual(3, nodes.Count);
             Assert.AreEqual("Enemy", nodes[0].Value);
             Assert.AreEqual("Boss", nodes[1].Value);
             Assert.AreEqual("Elite", nodes[2].Value);
@@ -157,7 +157,7 @@ namespace DataKeeper.Tests.GameTagSystem
         {
             var tag = new GameTag(null);
             var nodes = tag.GetNodes();
-            Assert.AreEqual(0, nodes.Length);
+            Assert.AreEqual(0, nodes.Count);
         }
 
         [Test]
