@@ -71,25 +71,49 @@ namespace DataKeeper.Tests.GameTagSystem
         public void HasStartWith_MatchingPrefix_ReturnsTrue()
         {
             _container.AddTag(new GameTag("Enemy/Boss"));
-            Assert.IsTrue(_container.HasStartWith(new GameTag("Enemy")));
+            Assert.IsTrue(_container.HasStartsWithAndNotEquals(new GameTag("Enemy")));
+        }
+        
+        [Test]
+        public void HasStartWith_MatchingPrefix_ReturnsFalse()
+        {
+            _container.AddTag(new GameTag("Enemy"));
+            Assert.IsFalse(_container.HasStartsWithAndNotEquals(new GameTag("Enemy")));
         }
 
         [Test]
         public void HasStartWith_NoMatchingPrefix_ReturnsFalse()
         {
             _container.AddTag(new GameTag("Enemy/Boss"));
-            Assert.IsFalse(_container.HasStartWith(new GameTag("Player")));
+            Assert.IsFalse(_container.HasStartsWithAndNotEquals(new GameTag("Player")));
         }
 
         [Test]
-        public void HasStartWith_ExactMatch_ReturnsFalse()
+        public void HasStartWith_ExactMatch_ReturnsTrue()
         {
             // StartsWith requires the separator — exact value doesn't count
             _container.AddTag(new GameTag("Enemy"));
-            Assert.IsFalse(_container.HasStartWith(new GameTag("Enemy")));
+            Assert.IsTrue(_container.HasStartWithOrEquals(new GameTag("Enemy")));
+        }
+        
+        [Test]
+        public void HasStartWith_ExactMatch_ReturnsTrue2()
+        {
+            // StartsWith requires the separator — exact value doesn't count
+            _container.AddTag(new GameTag("Enemy/Boss"));
+            Assert.IsTrue(_container.HasStartWithOrEquals(new GameTag("Enemy")));
+        }
+        
+        [Test]
+        public void HasStartWith_ExactMatch_ReturnsTrue3()
+        {
+            // StartsWith requires the separator — exact value doesn't count
+            _container.AddTag(new GameTag("Enemy"));
+            _container.AddTag(new GameTag("Enemy/Boss"));
+            Assert.IsTrue(_container.HasStartWithOrEquals(new GameTag("Enemy")));
         }
 
-        // --- GetTagsStartsWith (GameTag overload) ---
+        // --- GetTagsStartsWithAndNotEquals (GameTag overload) ---
 
         [Test]
         public void GetTagsStartsWith_GameTag_ReturnsMatchingTags()
@@ -99,7 +123,7 @@ namespace DataKeeper.Tests.GameTagSystem
             _container.AddTag(new GameTag("Player"));
 
             var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWith(new GameTag("Enemy")));
+                _container.GetTagsStartsWithAndNotEquals(new GameTag("Enemy")));
 
             Assert.AreEqual(2, results.Count);
             Assert.IsTrue(results.Exists(t => t.Value == "Enemy/Boss"));
@@ -112,13 +136,27 @@ namespace DataKeeper.Tests.GameTagSystem
             _container.AddTag(new GameTag("Player"));
 
             var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWith(new GameTag("Enemy")));
+                _container.GetTagsStartsWithAndNotEquals(new GameTag("Player")));
 
             Assert.AreEqual(0, results.Count);
         }
 
-        // --- GetTagsStartsWith (string overload) ---
+        // --- GetTagsStartsWithOrEquals (string overload) ---
 
+        [Test]
+        public void GetTagsStartsWith_String_ReturnsMatchingTags1()
+        {
+            _container.AddTag(new GameTag("Enemy"));
+            _container.AddTag(new GameTag("Enemy/Boss"));
+            _container.AddTag(new GameTag("Enemy/Boss/Elite"));
+            _container.AddTag(new GameTag("Player/Enemy"));
+
+            var results = new System.Collections.Generic.List<GameTag>(
+                _container.GetTagsStartsWithOrEquals(new GameTag("Enemy")));
+            
+            Assert.AreEqual(3, results.Count);
+        }
+        
         [Test]
         public void GetTagsStartsWith_String_ReturnsMatchingTags()
         {
@@ -127,10 +165,10 @@ namespace DataKeeper.Tests.GameTagSystem
             _container.AddTag(new GameTag("Player"));
 
             var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWith(new GameTag("Enemy")));
+                _container.GetTagsStartsWithOrEquals(new GameTag("Player")));
 
             
-            Assert.AreEqual(2, results.Count);
+            Assert.AreEqual(1, results.Count);
         }
 
         [Test]
@@ -139,7 +177,7 @@ namespace DataKeeper.Tests.GameTagSystem
             _container.AddTag(new GameTag("Player"));
 
             var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWith(new GameTag("Enemy")));
+                _container.GetTagsStartsWithOrEquals(new GameTag("Enemy")));
 
             Assert.AreEqual(0, results.Count);
         }
@@ -148,7 +186,7 @@ namespace DataKeeper.Tests.GameTagSystem
         public void GetTagsStartsWith_EmptyContainer_ReturnsEmpty()
         {
             var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWith(new GameTag("Enemy")));
+                _container.GetTagsStartsWithOrEquals(new GameTag("Enemy")));
 
             Assert.AreEqual(0, results.Count);
         }
