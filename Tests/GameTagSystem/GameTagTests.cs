@@ -75,7 +75,7 @@ namespace DataKeeper.Tests.GameTagSystem
         {
             var child = new GameTag("Enemy/Boss/Elite");
             var parent = new GameTag("Enemy");
-            Assert.IsTrue(child.StartsWith(parent));
+            Assert.IsTrue(child.StartsWithAndNotEquals(parent));
         }
 
         [Test]
@@ -83,7 +83,7 @@ namespace DataKeeper.Tests.GameTagSystem
         {
             var tag = new GameTag("Enemy/Boss");
             var other = new GameTag("Player");
-            Assert.IsFalse(tag.StartsWith(other));
+            Assert.IsFalse(tag.StartsWithAndNotEquals(other));
         }
         
         [Test]
@@ -91,7 +91,7 @@ namespace DataKeeper.Tests.GameTagSystem
         {
             var tag = new GameTag("Enemy/Boss");
             var other = new GameTag("Enemy/Boss");
-            Assert.IsFalse(tag.StartsWith(other));
+            Assert.IsFalse(tag.StartsWithAndNotEquals(other));
         }
 
         // --- StartsWithOrEquals ---

@@ -56,14 +56,14 @@ namespace DataKeeper.GameTagSystem
             return false;
         }
 
-        public bool StartsWith(GameTag other)
+        public bool StartsWithAndNotEquals(GameTag other)
         {
             return _value.Length > other._value.Length
                    && _value[other._value.Length] == SEPARATOR[0]
                    && _value.StartsWith(other._value);
         }
         
-        public bool StartsWithOrEquals(GameTag other) => StartsWith(other) || Equals(other);
+        public bool StartsWithOrEquals(GameTag other) => StartsWithAndNotEquals(other) || Equals(other);
 
         public override string ToString() => _value ?? string.Empty;
     }
