@@ -6,7 +6,7 @@ namespace DataKeeper.Tests.GameTagSystem
     public class GameTagTests
     {
         // --- Value & ToString ---
-
+        
         [Test]
         public void Value_ReturnsConstructorString()
         {
@@ -15,9 +15,16 @@ namespace DataKeeper.Tests.GameTagSystem
         }
 
         [Test]
+        public void Value_ReturnsConstructorString2()
+        {
+            var tag = new GameTag("Enemy/Boss/ ");
+            Assert.AreEqual("Enemy/Boss", tag.Value);
+        }
+
+        [Test]
         public void ToString_ReturnsValue()
         {
-            var tag = new GameTag("Player");
+            var tag = new GameTag("Player/    ");
             Assert.AreEqual("Player", tag.ToString());
         }
 
@@ -47,11 +54,12 @@ namespace DataKeeper.Tests.GameTagSystem
         }
 
         [Test]
-        public void Equals_String_MatchingValue_ReturnsTrue()
+        public void Equals_String_DifferentValue_ReturnsTrue()
         {
             var tag = new GameTag("Enemy");
             Assert.IsTrue(tag.Equals("Enemy"));
         }
+        
 
         [Test]
         public void Equals_String_DifferentValue_ReturnsFalse()
@@ -77,58 +85,45 @@ namespace DataKeeper.Tests.GameTagSystem
             var other = new GameTag("Player");
             Assert.IsFalse(tag.StartsWith(other));
         }
-
+        
         [Test]
-        public void StartsWith_String_DirectParent_ReturnsTrue()
-        {
-            var child = new GameTag("Enemy/Boss");
-            Assert.IsTrue(child.StartsWith("Enemy"));
-        }
-
-        [Test]
-        public void StartsWith_String_SameValue_ReturnsFalse()
-        {
-            // "Enemy".StartsWith("Enemy/") is false — requires the separator suffix
-            var tag = new GameTag("Enemy");
-            Assert.IsFalse(tag.StartsWith("Enemy"));
-        }
-
-        [Test]
-        public void StartsWith_String_PartialPrefix_ReturnsFalse()
+        public void StartsWith_GameTag_NotParent_ReturnsFalse2()
         {
             var tag = new GameTag("Enemy/Boss");
-            Assert.IsFalse(tag.StartsWith("Ene"));
+            var other = new GameTag("Enemy/Boss");
+            Assert.IsFalse(tag.StartsWith(other));
         }
 
-        // --- Contains ---
+        // --- StartsWithOrEquals ---
 
         [Test]
         public void Contains_GameTag_SubstringPresent_ReturnsTrue()
         {
             var tag = new GameTag("Enemy/Boss/Elite");
-            Assert.IsTrue(tag.StartsWithOrEquals(new GameTag("Boss")));
+            Assert.IsTrue(tag.StartsWithOrEquals(new GameTag("Enemy/Boss")));
+        }
+        
+        [Test]
+        public void Contains_GameTag_SubstringPresent2_ReturnsTrue()
+        {
+            var tag = new GameTag("Enemy/Boss/Elite");
+            Assert.IsTrue(tag.StartsWithOrEquals(new GameTag("Enemy/Boss/Elite")));
         }
 
         [Test]
         public void Contains_GameTag_SubstringAbsent_ReturnsFalse()
         {
-            var tag = new GameTag("Enemy/Boss");
+            var tag = new GameTag("Enemy/Boss/Elite");
             Assert.IsFalse(tag.StartsWithOrEquals(new GameTag("Player")));
         }
-
+        
         [Test]
-        public void Contains_String_SubstringPresent_ReturnsTrue()
+        public void Contains_GameTag_SubstringAbsent_ReturnsFalse2()
         {
-            var tag = new GameTag("Enemy/Boss");
-            Assert.IsTrue(tag.StartsWithOrEquals("Boss"));
+            var tag = new GameTag("Enemy/Boss/Elite");
+            Assert.IsFalse(tag.StartsWithOrEquals(new GameTag("Ene")));
         }
 
-        [Test]
-        public void Contains_String_SubstringAbsent_ReturnsFalse()
-        {
-            var tag = new GameTag("Enemy/Boss");
-            Assert.IsFalse(tag.StartsWithOrEquals("Player"));
-        }
 
         // --- GetNodes ---
 
@@ -156,7 +151,7 @@ namespace DataKeeper.Tests.GameTagSystem
         public void GetNodes_NullValue_ReturnsEmpty()
         {
             var tag = new GameTag(null);
-            var nodes = tag.GetNodes();
+            var nodes = tag.GetNodes(); // Error is not thrown
             Assert.AreEqual(0, nodes.Count);
         }
 

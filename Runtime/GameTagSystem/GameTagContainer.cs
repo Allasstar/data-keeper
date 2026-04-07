@@ -20,7 +20,7 @@ namespace DataKeeper.GameTagSystem
         public bool HasStartWith(GameTag gameTag) => _tags.Any(t => t.StartsWith(gameTag));
         public bool HasStartWithOrEquals(GameTag gameTag) => _tags.Any(t => t.StartsWithOrEquals(gameTag));
         
-        public IEnumerable<GameTag> GetTagsStartsWith(GameTag gameTag) => _tags.Where(t => t.StartsWith(gameTag.Value));
-        public IEnumerable<GameTag> GetTagsStartsWithOrEquals(GameTag gameTag) => _tags.Where(t => t.StartsWithOrEquals(gameTag.Value));
+        public IEnumerable<GameTag> GetTagsStartsWith(GameTag gameTag) => _tags.Where(t => t.StartsWith(gameTag));
+        public IEnumerable<GameTag> GetTagsStartsWithOrEquals(GameTag gameTag) => _tags.Where(t => t.StartsWithOrEquals(gameTag));
     }
 }
