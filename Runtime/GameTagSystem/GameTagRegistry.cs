@@ -144,6 +144,8 @@ namespace DataKeeper.GameTagSystem
         private void Prune()
         {
             // Trim trailing separators from all existing tags
+            _tags = _tags.Distinct().ToList(); // Remove duplicates before trimming
+
             for (int i = 0; i < _tags.Count; i++)
                 _tags[i] = _tags[i].TrimEnd(GameTag.SEPARATOR[0]);
 
