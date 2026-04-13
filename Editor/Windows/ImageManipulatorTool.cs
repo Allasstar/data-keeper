@@ -75,6 +75,10 @@ namespace DataKeeper.Editor.Windows
         private string ormOutputPath = "Assets";
         private string ormOutputName = "ORM_Packed";
 
+        // ── isReadable restore tracking ───────────────────────────────────────────
+        // Maps asset path → original isReadable value before the tool changed it.
+        private readonly Dictionary<string, bool> _originalReadability = new Dictionary<string, bool>();
+
         // ── UI ────────────────────────────────────────────────────────────────────
         private Vector2 scrollPos;
         private const float PREVIEW_MAX = 280f;
@@ -104,6 +108,25 @@ namespace DataKeeper.Editor.Windows
             scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
             EditorGUILayout.Space(6);
             GUILayout.Label("🖼  Image Manipulator", headerStyle);
+
+            if (_originalReadability.Count > 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "One or more textures have \"Read/Write Enabled\" turned ON by this tool so pixels can be read.\n" +
+                    "This increases memory usage at runtime. Click \"Finish Edit\" to restore original settings.",
+                    MessageType.Warning);
+                Color prevBg = GUI.backgroundColor;
+                GUI.backgroundColor = new Color(1f, 0.75f, 0.3f);
+                GUIContent finishContent = new GUIContent(
+                    "✔  Finish Edit  —  Restore isReadable",
+                    "Restores the Read/Write Enabled (isReadable) flag on all textures that were modified " +
+                    "by this tool back to their original value. Run this when you are done editing.");
+                if (GUILayout.Button(finishContent, GUILayout.Height(28)))
+                    RestoreReadability();
+                GUI.backgroundColor = prevBg;
+                EditorGUILayout.Space(4);
+            }
+
             activeTab = (Tab)GUILayout.Toolbar((int)activeTab, tabLabels);
             EditorGUILayout.Space(4);
 
@@ -366,12 +389,7 @@ namespace DataKeeper.Editor.Windows
                         if (si != null && di != null) CopyTextureImporterSettings(si, di);
                     }
 
-                    var dstImp = AssetImporter.GetAtPath(outPath) as TextureImporter;
-                    if (dstImp != null)
-                    {
-                        dstImp.isReadable = true;
-                        dstImp.SaveAndReimport();
-                    }
+                    TrackAndSetReadable(AssetImporter.GetAtPath(outPath) as TextureImporter, outPath);
 
                     done++;
                 }
@@ -570,10 +588,10 @@ namespace DataKeeper.Editor.Windows
                 if (imp != null)
                 {
                     imp.sRGBTexture = false;
-                    imp.isReadable = true;
                     imp.SaveAndReimport();
                 }
 
+                TrackAndSetReadable(AssetImporter.GetAtPath(outPath) as TextureImporter, outPath);
                 saved.Add(outPath);
             }
 
@@ -737,10 +755,10 @@ namespace DataKeeper.Editor.Windows
             if (imp != null)
             {
                 imp.sRGBTexture = false;
-                imp.isReadable = true;
                 imp.SaveAndReimport();
             }
 
+            TrackAndSetReadable(AssetImporter.GetAtPath(outPath) as TextureImporter, outPath);
             ormPreview = packed;
             AssetDatabase.Refresh();
             EditorUtility.DisplayDialog("Saved", $"ORM texture saved to:\n{outPath}", "OK");
@@ -860,11 +878,7 @@ namespace DataKeeper.Editor.Windows
             var srcImp = AssetImporter.GetAtPath(assetPath) as TextureImporter;
             var dstImp = AssetImporter.GetAtPath(savedPath) as TextureImporter;
             if (srcImp != null && dstImp != null && !overwrite) CopyTextureImporterSettings(srcImp, dstImp);
-            if (dstImp != null)
-            {
-                dstImp.isReadable = true;
-                dstImp.SaveAndReimport();
-            }
+            TrackAndSetReadable(dstImp, savedPath);
 
             AssetDatabase.Refresh();
             EditorUtility.DisplayDialog("Saved", $"Saved to:\n{savedPath}", "OK");
@@ -1043,9 +1057,44 @@ namespace DataKeeper.Editor.Windows
             var imp = AssetImporter.GetAtPath(path) as TextureImporter;
             if (imp != null && !imp.isReadable)
             {
+                if (!_originalReadability.ContainsKey(path))
+                    _originalReadability[path] = false;
                 imp.isReadable = true;
                 imp.SaveAndReimport();
             }
+        }
+
+        private void TrackAndSetReadable(TextureImporter imp, string path)
+        {
+            if (imp == null) return;
+            if (!_originalReadability.ContainsKey(path))
+                _originalReadability[path] = imp.isReadable;
+            imp.isReadable = true;
+            imp.SaveAndReimport();
+        }
+
+        private void RestoreReadability()
+        {
+            if (_originalReadability.Count == 0) return;
+            try
+            {
+                AssetDatabase.StartAssetEditing();
+                foreach (var kv in _originalReadability)
+                {
+                    var imp = AssetImporter.GetAtPath(kv.Key) as TextureImporter;
+                    if (imp == null) continue;
+                    imp.isReadable = kv.Value;
+                    imp.SaveAndReimport();
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+                AssetDatabase.Refresh();
+            }
+
+            Debug.Log($"[ImageManipulator] Restored isReadable on {_originalReadability.Count} texture(s).");
+            _originalReadability.Clear();
         }
 
         private void WriteTexture(Texture2D tex, string assetDstPath)
