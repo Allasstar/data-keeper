@@ -15,8 +15,8 @@ namespace DataKeeper.BeeTween
         public bool runOnEnable = false;
         public bool stopBeforeRun = false;
         public bool waitContext = false;
-        public bool restartOnEnd = false;
         
+        [field: SerializeField] public Optional<float> RestartOnEnd { get; private set; } = new Optional<float>(1, false);
         [field: SerializeField] public Optional<float> RestartOnFail { get; private set; } = new Optional<float>(1, false);
         
         [SerializeReference, SerializeReferenceSelector]
@@ -28,6 +28,11 @@ namespace DataKeeper.BeeTween
         {
             if (!runOnEnable) return;
             Run();
+        }
+        
+        private void OnDisable()
+        {
+            Stop();
         }
         
         [ContextMenu(nameof(Run))]
@@ -63,9 +68,9 @@ namespace DataKeeper.BeeTween
             {
                 await Context.RootNode.ExecuteAsync(Context, _cts);
 
-                if (restartOnEnd)
+                if (RestartOnEnd.Enabled)
                 {
-                    await Awaitable.EndOfFrameAsync(_cts.Token);
+                    await Awaitable.WaitForSecondsAsync(RestartOnFail.Value, _cts.Token);
                     Run();
                 }
             }
@@ -83,11 +88,6 @@ namespace DataKeeper.BeeTween
                     Run();
                 }
             }
-        }
-
-        private void OnDisable()
-        {
-            Stop();
         }
     }
 }
