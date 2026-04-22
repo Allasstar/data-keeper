@@ -1,7 +1,7 @@
 using DataKeeper.SingletonPattern;
 using UnityEngine;
 
-namespace DataKeeper.DebugPrinter
+namespace DataKeeper.Debugger
 {
     public class DebugPrintSystem : MonoSingleton<DebugPrintSystem>
     {

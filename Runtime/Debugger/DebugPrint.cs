@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace DataKeeper.DebugPrinter
+namespace DataKeeper.Debugger
 {
     public static class DebugPrint
     {

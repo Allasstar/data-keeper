@@ -1,6 +1,6 @@
 using System;
 using System.Threading;
-using DataKeeper.DebugPrinter;
+using DataKeeper.Debugger;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween

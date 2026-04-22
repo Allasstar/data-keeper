@@ -1,4 +1,4 @@
-namespace DataKeeper.DebugPrinter
+namespace DataKeeper.Debugger
 {
     using UnityEngine;
 
