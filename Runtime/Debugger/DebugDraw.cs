@@ -154,8 +154,8 @@ namespace DataKeeper.Debugger
         /// <param name="headSize">Length of the arrowhead lines.</param>
         /// <param name="headAngle">Half-angle of the arrowhead cone in degrees.</param>
         public static void Arrow(Vector3 from, Vector3 to, Color color,
-            float headSize = 0.25f, float headAngle = 20f,
-            float duration = 0f, Mode mode = Mode.DepthCorrect)
+            float headSize = 0.25f, float duration = 0f, float headAngle = 20f,
+             Mode mode = Mode.DepthCorrect)
             => Enqueue(CommandType.Arrow, color, duration, mode, from, to,
                 radius: headSize, roll: headAngle);
 
