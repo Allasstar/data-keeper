@@ -93,32 +93,45 @@ namespace DataKeeper.Debugger
 
         /// <param name="segments">Latitude resolution per circle.</param>
         /// <param name="meridians">Extra longitude arcs (0 = only 3 axis circles).</param>
+        /// <param name="rotation">Orientation of the sphere's axis circles and meridians.</param>
         public static void Sphere(Vector3 center, float radius, Color color,
             float duration = 0f, int segments = 16, int meridians = 0,
-            Mode mode = Mode.DepthCorrect)
-            => Enqueue(CommandType.Sphere, color, duration, mode, center, Vector3.up,
-                radius: radius, segments: segments, meridians: meridians);
+            Quaternion rotation = default, Mode mode = Mode.DepthCorrect)
+        {
+            if (rotation == default) rotation = Quaternion.identity;
+            Enqueue(CommandType.Sphere, color, duration, mode, center, Vector3.up,
+                radius: radius, segments: segments, meridians: meridians, rotation: rotation);
+        }
 
-        /// <param name="start">Center of the bottom hemisphere.</param>
-        /// <param name="end">Center of the top hemisphere.</param>
+        /// <param name="start">Center of the bottom sphere.</param>
+        /// <param name="end">Center of the top sphere.</param>
         /// <param name="segments">Resolution of each sphere and connecting rings.</param>
         /// <param name="meridians">Extra meridian arcs on each end sphere.</param>
         public static void Capsule(Vector3 start, Vector3 end, float radius, Color color,
             float duration = 0f, int segments = 16, int meridians = 0,
             Mode mode = Mode.DepthCorrect)
-            => Enqueue(CommandType.Capsule, color, duration, mode, start, end,
-                radius: radius, segments: segments, meridians: meridians);
+        {
+            // Derive rotation from the start→end axis so sphere circles align with the capsule body
+            Vector3 axis = end - start;
+            Quaternion rotation = axis != Vector3.zero
+                ? Quaternion.FromToRotation(Vector3.up, axis.normalized)
+                : Quaternion.identity;
+            Enqueue(CommandType.Capsule, color, duration, mode, start, end,
+                radius: radius, segments: segments, meridians: meridians, rotation: rotation);
+        }
 
         /// <param name="center">World-space center.</param>
-        /// <param name="height">Total height (tip to tip along Y).</param>
+        /// <param name="height">Total height (tip to tip).</param>
         /// <param name="radius">Radius of the cylindrical body.</param>
+        /// <param name="rotation">Orientation of the capsule — default is along world Y.</param>
         public static void Capsule(Vector3 center, float height, float radius, Color color,
             float duration = 0f, int segments = 16, int meridians = 0,
-            Mode mode = Mode.DepthCorrect)
+            Quaternion rotation = default, Mode mode = Mode.DepthCorrect)
         {
+            if (rotation == default) rotation = Quaternion.identity;
             float half = Mathf.Max(0f, height * 0.5f - radius);
-            Capsule(center - Vector3.up * half, center + Vector3.up * half,
-                radius, color, duration, segments, meridians, mode);
+            Vector3 offset = rotation * Vector3.up * half;
+            Capsule(center - offset, center + offset, radius, color, duration, segments, meridians, mode);
         }
 
         /// <param name="rotation">Orientation of the box.</param>
@@ -296,8 +309,8 @@ namespace DataKeeper.Debugger
                     case CommandType.Line:    DrawLine(cmd.A, cmd.B, c); break;
                     case CommandType.Circle:  DrawCircle(cmd.A, cmd.B, cmd.Radius, c, cmd.Segments); break;
                     case CommandType.Square:  DrawSquare(cmd.A, cmd.B, cmd.Radius, cmd.Roll, c); break;
-                    case CommandType.Sphere:  DrawSphere(cmd.A, cmd.Radius, c, cmd.Segments, cmd.Meridians); break;
-                    case CommandType.Capsule: DrawCapsule(cmd.A, cmd.B, cmd.Radius, c, cmd.Segments, cmd.Meridians); break;
+                    case CommandType.Sphere:  DrawSphere(cmd.A, cmd.Radius, c, cmd.Segments, cmd.Meridians, cmd.Rotation); break;
+                    case CommandType.Capsule: DrawCapsule(cmd.A, cmd.B, cmd.Radius, c, cmd.Segments, cmd.Meridians, cmd.Rotation); break;
                     case CommandType.Cube:    DrawCube(cmd.A, cmd.Size, cmd.Rotation, c); break;
                     case CommandType.Arrow:   DrawArrow(cmd.A, cmd.B, cmd.Radius, cmd.Roll, c); break;
                 }
@@ -360,31 +373,32 @@ namespace DataKeeper.Debugger
                 GL.End();
             }
 
+            // rotation rotates all circle normals so the sphere's equator/poles align with any axis
             static void DrawSphere(Vector3 center, float radius, Color color,
-                int segments, int meridians)
+                int segments, int meridians, Quaternion rotation)
             {
-                DrawCircle(center, Vector3.up,      radius, color, segments);
-                DrawCircle(center, Vector3.right,   radius, color, segments);
-                DrawCircle(center, Vector3.forward, radius, color, segments);
+                DrawCircle(center, rotation * Vector3.up,      radius, color, segments);
+                DrawCircle(center, rotation * Vector3.right,   radius, color, segments);
+                DrawCircle(center, rotation * Vector3.forward, radius, color, segments);
 
                 for (int i = 0; i < meridians; i++)
                 {
-                    float angle  = Mathf.PI * i / meridians;
-                    var   normal = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                    float   angle  = Mathf.PI * i / meridians;
+                    Vector3 normal = rotation * new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
                     DrawCircle(center, normal, radius, color, segments);
                 }
             }
 
             static void DrawCapsule(Vector3 bottom, Vector3 top, float radius, Color color,
-                int segments, int meridians)
+                int segments, int meridians, Quaternion rotation)
             {
-                // Two full spheres at each end — no hemisphere math needed
-                DrawSphere(top,    radius, color, segments, meridians);
-                DrawSphere(bottom, radius, color, segments, meridians);
+                // Two full spheres — circles aligned to the capsule axis via rotation
+                DrawSphere(top,    radius, color, segments, meridians, rotation);
+                DrawSphere(bottom, radius, color, segments, meridians, rotation);
 
                 // Four connecting lines along the body
                 Vector3 axis = (top - bottom).normalized;
-                if (axis == Vector3.zero) axis = Vector3.up;
+                if (axis == Vector3.zero) axis = rotation * Vector3.up;
                 Tangents(axis, out var tA, out var tB);
 
                 GL.Begin(GL.LINES);
@@ -499,11 +513,14 @@ namespace DataKeeper.Debugger
             UnityEngine.Vector3 cv, UnityEngine.Color c, float d = 0f, Mode m = default) {}
 
         public static void Sphere(UnityEngine.Vector3 p, float r,
-            UnityEngine.Color c, float d = 0f, int seg = 16, int mer = 0, Mode m = default) {}
+            UnityEngine.Color c, float d = 0f, int seg = 16, int mer = 0,
+            UnityEngine.Quaternion rot = default, Mode m = default) {}
         public static void Capsule(UnityEngine.Vector3 a, UnityEngine.Vector3 b,
-            float r, UnityEngine.Color c, float d = 0f, int seg = 16, int mer = 0, Mode m = default) {}
+            float r, UnityEngine.Color c, float d = 0f, int seg = 16, int mer = 0,
+            Mode m = default) {}
         public static void Capsule(UnityEngine.Vector3 p, float h, float r,
-            UnityEngine.Color c, float d = 0f, int seg = 16, int mer = 0, Mode m = default) {}
+            UnityEngine.Color c, float d = 0f, int seg = 16, int mer = 0,
+            UnityEngine.Quaternion rot = default, Mode m = default) {}
         public static void Cube(UnityEngine.Vector3 p, UnityEngine.Vector3 s,
             UnityEngine.Color c, float d = 0f, UnityEngine.Quaternion rot = default, Mode m = default) {}
         public static void Cube(UnityEngine.Vector3 p, float s,
