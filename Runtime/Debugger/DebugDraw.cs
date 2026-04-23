@@ -9,153 +9,184 @@ namespace DataKeeper.Debugger
     /// Works in builds (not editor-only like Debug.Draw / Gizmos).
     ///
     /// Usage:
-    ///   DebugDraw.Line(a, b, Color.red);                                    // DepthCorrect by default
-    ///   DebugDraw.Sphere(pos, 0.5f, Color.green, 2f);                      // visible for 2 seconds
-    ///   DebugDraw.WireCube(center, size, Color.yellow, 0f, default,
-    ///                 DebugDraw.Mode.XRay);                                 // visible through walls, dimmed
-    ///   DebugDraw.Arrow(from, to, Color.white, 0.25f, 0f,
-    ///              DebugDraw.Mode.AlwaysOnTop);                             // fully on top, ignores depth
+    ///   DebugDraw.Line(a, b, Color.red);
+    ///   DebugDraw.Arrow(from, to, Color.white, 0.25f);
+    ///   DebugDraw.Sphere(pos, 0.5f, Color.green, 2f);
+    ///   DebugDraw.Capsule(bottom, top, 0.5f, Color.cyan);
+    ///   DebugDraw.Square(center, 1f, Vector3.up, Color.yellow);
+    ///   DebugDraw.Triangle(a, b, c, Color.red);
+    ///   DebugDraw.Cube(center, size, Color.white);
+    ///   DebugDraw.Bounds(bounds, Color.green);
+    ///   DebugDraw.Circle(center, 0.5f, Vector3.up, Color.blue);
     ///
     /// No setup required — bootstraps itself on first call.
-    /// Add DEBUG_DRAW to Scripting Define Symbols to run in release.
+    /// Add DEBUG_DRAW to Scripting Define Symbols to run in release builds.
     /// </summary>
 #if UNITY_EDITOR || DEVELOPMENT_BUILD || DEBUG_DRAW
     public static class DebugDraw
     {
-        // ─── Depth Mode ──────────────────────────────────────────────────────────
+        // ─── Depth Mode ───────────────────────────────────────────────────────────
 
         /// <summary>Controls how a drawn shape interacts with scene depth.</summary>
         public enum Mode
         {
-            /// <summary>
-            /// Occluded by geometry — correct depth sorting, best spatial perception. Default.
-            /// </summary>
+            /// <summary>Occluded by geometry — correct depth sorting. Default.</summary>
             DepthCorrect,
-
-            /// <summary>
-            /// Always renders on top of everything, ignoring scene depth.
-            /// Useful for UI-adjacent debug info that must never be hidden.
-            /// </summary>
+            /// <summary>Always renders on top of everything, ignoring depth.</summary>
             AlwaysOnTop,
-
-            /// <summary>
-            /// Two-pass: full opacity where visible, dimmed (15% alpha) where occluded.
-            /// Best of both worlds — spatially grounded yet always readable.
-            /// </summary>
+            /// <summary>Full opacity where visible, dimmed where occluded.</summary>
             XRay,
         }
 
-        // ─── Public API ──────────────────────────────────────────────────────────
+        // ─── Public API ───────────────────────────────────────────────────────────
+
+        // ── Primitives ────────────────────────────────────────────────────────────
 
         public static void Line(Vector3 start, Vector3 end, Color color,
             float duration = 0f, Mode mode = Mode.DepthCorrect)
-            => Renderer.Instance.Enqueue(new DrawCommand(CommandType.Line, duration, color, mode, start, end));
+            => Enqueue(CommandType.Line, color, duration, mode, start, end);
 
         public static void Ray(Vector3 origin, Vector3 direction, Color color,
             float duration = 0f, Mode mode = Mode.DepthCorrect)
             => Line(origin, origin + direction, color, duration, mode);
 
+        /// <param name="size">Arm length of each axis line.</param>
         public static void Cross(Vector3 center, float size, Color color,
             float duration = 0f, Mode mode = Mode.DepthCorrect)
         {
             float h = size * 0.5f;
-            var r = Renderer.Instance;
-            r.Enqueue(new DrawCommand(CommandType.Line, duration, color, mode,
-                center - Vector3.right * h, center + Vector3.right * h));
-            r.Enqueue(new DrawCommand(CommandType.Line, duration, color, mode,
-                center - Vector3.up * h, center + Vector3.up * h));
-            r.Enqueue(new DrawCommand(CommandType.Line, duration, color, mode,
-                center - Vector3.forward * h, center + Vector3.forward * h));
+            Line(center - Vector3.right   * h, center + Vector3.right   * h, color, duration, mode);
+            Line(center - Vector3.up      * h, center + Vector3.up      * h, color, duration, mode);
+            Line(center - Vector3.forward * h, center + Vector3.forward * h, color, duration, mode);
         }
-
-        public static void Circle(Vector3 center, float radius, Vector3 normal, Color color,
-            float duration = 0f, int segments = 32, Mode mode = Mode.DepthCorrect)
-            => Renderer.Instance.Enqueue(new DrawCommand(CommandType.Circle, duration, color, mode,
-                center, normal) { Radius = radius, Segments = segments });
-
-        public static void Sphere(Vector3 center, float radius, Color color,
-            float duration = 0f, int segments = 16, Mode mode = Mode.DepthCorrect)
-        {
-            Circle(center, radius, Vector3.up, color, duration, segments, mode);
-            Circle(center, radius, Vector3.right, color, duration, segments, mode);
-            Circle(center, radius, Vector3.forward, color, duration, segments, mode);
-        }
-
-        public static void WireCube(Vector3 center, Vector3 size, Color color,
-            float duration = 0f, Quaternion rotation = default, Mode mode = Mode.DepthCorrect)
-        {
-            if (rotation == default) rotation = Quaternion.identity;
-            Renderer.Instance.Enqueue(new DrawCommand(CommandType.WireBox, duration, color, mode,
-                center, Vector3.zero) { Size = size, Rotation = rotation });
-        }
-
-        public static void WireCube(Vector3 center, float size, Color color,
-            float duration = 0f, Quaternion rotation = default, Mode mode = Mode.DepthCorrect)
-            => WireCube(center, Vector3.one * size, color, duration, rotation, mode);
-
-        public static void WireCapsule(Vector3 start, Vector3 end, float radius, Color color,
-            float duration = 0f, int segments = 16, Mode mode = Mode.DepthCorrect)
-            => Renderer.Instance.Enqueue(new DrawCommand(CommandType.WireCapsule, duration, color, mode,
-                start, end) { Radius = radius, Segments = segments });
-
-        public static void WireCapsule(Vector3 center, float height, float radius, Color color,
-            float duration = 0f, int segments = 16, Mode mode = Mode.DepthCorrect)
-        {
-            float half = Mathf.Max(0f, height * 0.5f - radius);
-            WireCapsule(center + Vector3.up * half, center - Vector3.up * half,
-                radius, color, duration, segments, mode);
-        }
-
-        public static void Arrow(Vector3 from, Vector3 to, Color color,
-            float headSize = 0.25f, float duration = 0f, Mode mode = Mode.DepthCorrect)
-            => Renderer.Instance.Enqueue(new DrawCommand(CommandType.Arrow, duration, color, mode,
-                from, to) { Radius = headSize });
-
-        public static void Bounds(Bounds bounds, Color color,
-            float duration = 0f, Mode mode = Mode.DepthCorrect)
-            => WireCube(bounds.center, bounds.size, color, duration, default, mode);
 
         public static void Point(Vector3 position, float size, Color color,
             float duration = 0f, Mode mode = Mode.DepthCorrect)
             => Cross(position, size, color, duration, mode);
 
-        // ─── Internals ───────────────────────────────────────────────────────────
+        // ── Flat shapes ───────────────────────────────────────────────────────────
 
-        enum CommandType
+        /// <param name="normal">Axis the circle faces toward.</param>
+        /// <param name="segments">Number of line segments (smoothness).</param>
+        public static void Circle(Vector3 center, float radius, Vector3 normal, Color color,
+            float duration = 0f, int segments = 32, Mode mode = Mode.DepthCorrect)
+            => Enqueue(CommandType.Circle, color, duration, mode, center, normal,
+                radius: radius, segments: segments);
+
+        /// <param name="normal">Axis the square faces toward.</param>
+        /// <param name="rotation">Roll rotation around the normal in degrees.</param>
+        public static void Square(Vector3 center, float size, Vector3 normal, Color color,
+            float duration = 0f, float rotation = 0f, Mode mode = Mode.DepthCorrect)
+            => Enqueue(CommandType.Square, color, duration, mode, center, normal,
+                radius: size * 0.5f, roll: rotation);
+
+        /// <summary>Draws a wire triangle from three explicit world-space corners.</summary>
+        public static void Triangle(Vector3 a, Vector3 b, Vector3 c, Color color,
+            float duration = 0f, Mode mode = Mode.DepthCorrect)
         {
-            Line,
-            Circle,
-            WireBox,
-            WireCapsule,
-            Arrow
+            Line(a, b, color, duration, mode);
+            Line(b, c, color, duration, mode);
+            Line(c, a, color, duration, mode);
         }
+
+        // ── 3-D shapes ────────────────────────────────────────────────────────────
+
+        /// <param name="segments">Latitude resolution per circle.</param>
+        /// <param name="meridians">Extra longitude arcs (0 = only 3 axis circles).</param>
+        public static void Sphere(Vector3 center, float radius, Color color,
+            float duration = 0f, int segments = 16, int meridians = 0,
+            Mode mode = Mode.DepthCorrect)
+            => Enqueue(CommandType.Sphere, color, duration, mode, center, Vector3.up,
+                radius: radius, segments: segments, meridians: meridians);
+
+        /// <param name="start">Center of the bottom hemisphere.</param>
+        /// <param name="end">Center of the top hemisphere.</param>
+        /// <param name="segments">Resolution of each sphere and connecting rings.</param>
+        /// <param name="meridians">Extra meridian arcs on each end sphere.</param>
+        public static void Capsule(Vector3 start, Vector3 end, float radius, Color color,
+            float duration = 0f, int segments = 16, int meridians = 0,
+            Mode mode = Mode.DepthCorrect)
+            => Enqueue(CommandType.Capsule, color, duration, mode, start, end,
+                radius: radius, segments: segments, meridians: meridians);
+
+        /// <param name="center">World-space center.</param>
+        /// <param name="height">Total height (tip to tip along Y).</param>
+        /// <param name="radius">Radius of the cylindrical body.</param>
+        public static void Capsule(Vector3 center, float height, float radius, Color color,
+            float duration = 0f, int segments = 16, int meridians = 0,
+            Mode mode = Mode.DepthCorrect)
+        {
+            float half = Mathf.Max(0f, height * 0.5f - radius);
+            Capsule(center - Vector3.up * half, center + Vector3.up * half,
+                radius, color, duration, segments, meridians, mode);
+        }
+
+        /// <param name="rotation">Orientation of the box.</param>
+        public static void Cube(Vector3 center, Vector3 size, Color color,
+            float duration = 0f, Quaternion rotation = default, Mode mode = Mode.DepthCorrect)
+        {
+            if (rotation == default) rotation = Quaternion.identity;
+            Enqueue(CommandType.Cube, color, duration, mode, center, Vector3.zero,
+                size: size, rotation: rotation);
+        }
+
+        public static void Cube(Vector3 center, float size, Color color,
+            float duration = 0f, Quaternion rotation = default, Mode mode = Mode.DepthCorrect)
+            => Cube(center, Vector3.one * size, color, duration, rotation, mode);
+
+        public static void Bounds(Bounds bounds, Color color,
+            float duration = 0f, Mode mode = Mode.DepthCorrect)
+            => Cube(bounds.center, bounds.size, color, duration, default, mode);
+
+        /// <param name="headSize">Length of the arrowhead lines.</param>
+        /// <param name="headAngle">Half-angle of the arrowhead cone in degrees.</param>
+        public static void Arrow(Vector3 from, Vector3 to, Color color,
+            float headSize = 0.25f, float headAngle = 20f,
+            float duration = 0f, Mode mode = Mode.DepthCorrect)
+            => Enqueue(CommandType.Arrow, color, duration, mode, from, to,
+                radius: headSize, roll: headAngle);
+
+        // ─── Internals ────────────────────────────────────────────────────────────
+
+        enum CommandType { Line, Circle, Square, Sphere, Capsule, Cube, Arrow }
 
         struct DrawCommand
         {
             public CommandType Type;
-            public float ExpiresAt;
-            public Color Color;
-            public Mode DepthMode;
-            public Vector3 A, B;
-            public Vector3 Size;
-            public Quaternion Rotation;
-            public float Radius;
-            public int Segments;
+            public float       ExpiresAt;
+            public Color       Color;
+            public Mode        DepthMode;
+            public Vector3     A, B;        // start/end or center/normal
+            public Vector3     Size;
+            public Quaternion  Rotation;
+            public float       Radius;
+            public float       Roll;        // degrees — reused for arrow head angle too
+            public int         Segments;
+            public int         Meridians;
+        }
 
-            public DrawCommand(CommandType type, float duration, Color color, Mode depthMode,
-                Vector3 a, Vector3 b)
+        static void Enqueue(CommandType type, Color color, float duration, Mode mode,
+            Vector3 a, Vector3 b,
+            Vector3 size = default, Quaternion rotation = default,
+            float radius = 0f, float roll = 0f,
+            int segments = 16, int meridians = 0)
+        {
+            if (rotation == default) rotation = Quaternion.identity;
+            Renderer.Instance.Enqueue(new DrawCommand
             {
-                Type = type;
-                ExpiresAt = Time.time + duration;
-                Color = color;
-                DepthMode = depthMode;
-                A = a;
-                B = b;
-                Size = Vector3.one;
-                Rotation = Quaternion.identity;
-                Radius = 0f;
-                Segments = 16;
-            }
+                Type      = type,
+                ExpiresAt = Time.time + duration,
+                Color     = color,
+                DepthMode = mode,
+                A         = a,
+                B         = b,
+                Size      = size == default ? Vector3.one : size,
+                Rotation  = rotation,
+                Radius    = radius,
+                Roll      = roll,
+                Segments  = segments,
+                Meridians = meridians,
+            });
         }
 
         // ─── Renderer MonoBehaviour ───────────────────────────────────────────────
@@ -163,60 +194,47 @@ namespace DataKeeper.Debugger
         class Renderer : MonoBehaviour
         {
             static Renderer _instance;
-
             public static Renderer Instance
             {
                 get
                 {
                     if (_instance != null) return _instance;
-                    var go = new GameObject("[RuntimeDraw]") { hideFlags = HideFlags.HideInHierarchy };
+                    var go = new GameObject("[DebugDraw]") { hideFlags = HideFlags.HideInHierarchy };
                     DontDestroyOnLoad(go);
                     _instance = go.AddComponent<Renderer>();
                     return _instance;
                 }
             }
 
-            // How dim XRay shapes appear through occluding geometry
             const float XRayOccludedAlpha = 0.15f;
 
-            Material _mat;
-            List<DrawCommand> _persistent = new(64);
-            List<DrawCommand> _oneFrame = new(256);
-            List<DrawCommand> _swap = new(256);
-
-            // Buckets filled each OnRenderObject — avoids mid-frame ZTest thrashing
-            List<DrawCommand> _bucketDepth = new(128);
-            List<DrawCommand> _bucketOnTop = new(64);
-            List<DrawCommand> _bucketXRay = new(64);
+            Material           _mat;
+            List<DrawCommand>  _persistent  = new(64);
+            List<DrawCommand>  _oneFrame    = new(256);
+            List<DrawCommand>  _swap        = new(256);
+            List<DrawCommand>  _bucketDepth = new(128);
+            List<DrawCommand>  _bucketOnTop = new(64);
+            List<DrawCommand>  _bucketXRay  = new(64);
 
             void Awake()
             {
                 _mat = new Material(Shader.Find("Hidden/Internal-Colored"))
-                {
-                    hideFlags = HideFlags.HideAndDontSave
-                };
+                    { hideFlags = HideFlags.HideAndDontSave };
                 _mat.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
                 _mat.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-                _mat.SetInt("_Cull", (int)CullMode.Off);
-                _mat.SetInt("_ZWrite", 0);
-                // ZTest is set per-batch below
+                _mat.SetInt("_Cull",     (int)CullMode.Off);
+                _mat.SetInt("_ZWrite",   0);
             }
 
-            public void Enqueue(DrawCommand cmd)
-            {
-                if (cmd.ExpiresAt <= Time.time)
-                    _oneFrame.Add(cmd);
-                else
-                    _persistent.Add(cmd);
-            }
+            public void Enqueue(DrawCommand cmd) =>
+                (cmd.ExpiresAt <= Time.time ? _oneFrame : _persistent).Add(cmd);
 
             void LateUpdate()
             {
                 float now = Time.time;
                 _swap.Clear();
                 foreach (var cmd in _persistent)
-                    if (cmd.ExpiresAt > now)
-                        _swap.Add(cmd);
+                    if (cmd.ExpiresAt > now) _swap.Add(cmd);
                 (_persistent, _swap) = (_swap, _persistent);
             }
 
@@ -224,232 +242,240 @@ namespace DataKeeper.Debugger
             {
                 if (_mat == null) return;
 
-                // ── Sort into mode buckets ────────────────────────────────────────
-                _bucketDepth.Clear();
-                _bucketOnTop.Clear();
-                _bucketXRay.Clear();
-                Bucket(_persistent);
-                Bucket(_oneFrame);
+                _bucketDepth.Clear(); _bucketOnTop.Clear(); _bucketXRay.Clear();
+                Bucket(_persistent);  Bucket(_oneFrame);
 
                 GL.PushMatrix();
                 GL.MultMatrix(Matrix4x4.identity);
 
-                // Pass 1 — DepthCorrect (LessEqual, full alpha)
-                // Rendered first so AlwaysOnTop/XRay correctly overdraw it.
                 if (_bucketDepth.Count > 0)
                 {
                     _mat.SetInt("_ZTest", (int)CompareFunction.LessEqual);
                     _mat.SetPass(0);
-                    foreach (var cmd in _bucketDepth)
-                        Render(cmd, 1f);
+                    foreach (var cmd in _bucketDepth) Render(cmd, 1f);
                 }
 
-                // Pass 2 — AlwaysOnTop (Always, full alpha)
                 if (_bucketOnTop.Count > 0)
                 {
                     _mat.SetInt("_ZTest", (int)CompareFunction.Always);
                     _mat.SetPass(0);
-                    foreach (var cmd in _bucketOnTop)
-                        Render(cmd, 1f);
+                    foreach (var cmd in _bucketOnTop) Render(cmd, 1f);
                 }
 
-                // Pass 3 — XRay: two sub-passes
-                //   3a. Greater (behind geometry) — dimmed
-                //   3b. LessEqual (in front)      — full alpha
                 if (_bucketXRay.Count > 0)
                 {
                     _mat.SetInt("_ZTest", (int)CompareFunction.Greater);
                     _mat.SetPass(0);
-                    foreach (var cmd in _bucketXRay)
-                        Render(cmd, XRayOccludedAlpha);
+                    foreach (var cmd in _bucketXRay) Render(cmd, XRayOccludedAlpha);
 
                     _mat.SetInt("_ZTest", (int)CompareFunction.LessEqual);
                     _mat.SetPass(0);
-                    foreach (var cmd in _bucketXRay)
-                        Render(cmd, 1f);
+                    foreach (var cmd in _bucketXRay) Render(cmd, 1f);
                 }
 
                 GL.PopMatrix();
                 _oneFrame.Clear();
             }
 
-            void Bucket(List<DrawCommand> source)
+            void Bucket(List<DrawCommand> src)
             {
-                foreach (var cmd in source)
-                {
+                foreach (var cmd in src)
                     switch (cmd.DepthMode)
                     {
                         case Mode.DepthCorrect: _bucketDepth.Add(cmd); break;
-                        case Mode.AlwaysOnTop: _bucketOnTop.Add(cmd); break;
-                        case Mode.XRay: _bucketXRay.Add(cmd); break;
+                        case Mode.AlwaysOnTop:  _bucketOnTop.Add(cmd); break;
+                        case Mode.XRay:         _bucketXRay.Add(cmd);  break;
                     }
-                }
             }
 
-            void Render(in DrawCommand cmd, float alphaScale)
+            void Render(in DrawCommand cmd, float alpha)
             {
-                Color c = cmd.Color;
-                c.a *= alphaScale;
+                Color c = cmd.Color; c.a *= alpha;
                 switch (cmd.Type)
                 {
-                    case CommandType.Line: RenderLine(cmd.A, cmd.B, c); break;
-                    case CommandType.Circle: RenderCircle(cmd.A, cmd.B, cmd.Radius, c, cmd.Segments); break;
-                    case CommandType.WireBox: RenderWireBox(cmd.A, cmd.Size, cmd.Rotation, c); break;
-                    case CommandType.WireCapsule: RenderWireCapsule(cmd.A, cmd.B, cmd.Radius, c, cmd.Segments); break;
-                    case CommandType.Arrow: RenderArrow(cmd.A, cmd.B, c, cmd.Radius); break;
+                    case CommandType.Line:    DrawLine(cmd.A, cmd.B, c); break;
+                    case CommandType.Circle:  DrawCircle(cmd.A, cmd.B, cmd.Radius, c, cmd.Segments); break;
+                    case CommandType.Square:  DrawSquare(cmd.A, cmd.B, cmd.Radius, cmd.Roll, c); break;
+                    case CommandType.Sphere:  DrawSphere(cmd.A, cmd.Radius, c, cmd.Segments, cmd.Meridians); break;
+                    case CommandType.Capsule: DrawCapsule(cmd.A, cmd.B, cmd.Radius, c, cmd.Segments, cmd.Meridians); break;
+                    case CommandType.Cube:    DrawCube(cmd.A, cmd.Size, cmd.Rotation, c); break;
+                    case CommandType.Arrow:   DrawArrow(cmd.A, cmd.B, cmd.Radius, cmd.Roll, c); break;
                 }
             }
 
-            // ── Primitive Renderers ───────────────────────────────────────────────
+            // ── Primitive helpers ─────────────────────────────────────────────────
 
-            static void RenderLine(Vector3 a, Vector3 b, Color color)
+            // Returns two orthogonal tangents for a given normal/axis vector
+            static void Tangents(Vector3 normal, out Vector3 tangA, out Vector3 tangB)
+            {
+                Vector3 up = Mathf.Abs(Vector3.Dot(normal, Vector3.up)) < 0.99f
+                    ? Vector3.up : Vector3.right;
+                tangA = Vector3.Cross(normal, up).normalized;
+                tangB = Vector3.Cross(normal, tangA);
+            }
+
+            static void DrawLine(Vector3 a, Vector3 b, Color c)
             {
                 GL.Begin(GL.LINES);
-                GL.Color(color);
-                GL.Vertex(a);
-                GL.Vertex(b);
+                GL.Color(c);
+                GL.Vertex(a); GL.Vertex(b);
                 GL.End();
             }
 
-            static void RenderCircle(Vector3 center, Vector3 normal, float radius,
+            static void DrawCircle(Vector3 center, Vector3 normal, float radius,
                 Color color, int segments)
             {
-                Vector3 up = Mathf.Abs(Vector3.Dot(normal, Vector3.up)) < 0.99f
-                    ? Vector3.up
-                    : Vector3.right;
-                Vector3 tangA = Vector3.Cross(normal, up).normalized;
-                Vector3 tangB = Vector3.Cross(normal, tangA);
-
+                Tangents(normal, out var tA, out var tB);
                 GL.Begin(GL.LINE_STRIP);
                 GL.Color(color);
                 float step = Mathf.PI * 2f / segments;
                 for (int i = 0; i <= segments; i++)
                 {
                     float a = step * i;
-                    GL.Vertex(center + (tangA * Mathf.Cos(a) + tangB * Mathf.Sin(a)) * radius);
+                    GL.Vertex(center + (tA * Mathf.Cos(a) + tB * Mathf.Sin(a)) * radius);
                 }
-
                 GL.End();
             }
 
-            static void RenderWireBox(Vector3 center, Vector3 size, Quaternion rot, Color color)
+            static void DrawSquare(Vector3 center, Vector3 normal, float halfSize,
+                float rollDeg, Color color)
             {
-                Vector3 h = size * 0.5f;
-                Vector3 c0 = center + rot * new Vector3(-h.x, -h.y, -h.z);
-                Vector3 c1 = center + rot * new Vector3(h.x, -h.y, -h.z);
-                Vector3 c2 = center + rot * new Vector3(h.x, -h.y, h.z);
-                Vector3 c3 = center + rot * new Vector3(-h.x, -h.y, h.z);
-                Vector3 c4 = center + rot * new Vector3(-h.x, h.y, -h.z);
-                Vector3 c5 = center + rot * new Vector3(h.x, h.y, -h.z);
-                Vector3 c6 = center + rot * new Vector3(h.x, h.y, h.z);
-                Vector3 c7 = center + rot * new Vector3(-h.x, h.y, h.z);
+                Tangents(normal, out var tA, out var tB);
 
-                GL.Begin(GL.LINES);
+                // Apply roll rotation around the normal
+                float roll = rollDeg * Mathf.Deg2Rad;
+                float cr = Mathf.Cos(roll), sr = Mathf.Sin(roll);
+                Vector3 right = tA * cr + tB * sr;
+                Vector3 fwd   = tA * -sr + tB * cr;
+
+                Vector3 c0 = center + (-right + fwd)  * halfSize;
+                Vector3 c1 = center + ( right + fwd)  * halfSize;
+                Vector3 c2 = center + ( right - fwd)  * halfSize;
+                Vector3 c3 = center + (-right - fwd)  * halfSize;
+
+                GL.Begin(GL.LINE_STRIP);
                 GL.Color(color);
-                Edge(c0, c1);
-                Edge(c1, c2);
-                Edge(c2, c3);
-                Edge(c3, c0); // bottom
-                Edge(c4, c5);
-                Edge(c5, c6);
-                Edge(c6, c7);
-                Edge(c7, c4); // top
-                Edge(c0, c4);
-                Edge(c1, c5);
-                Edge(c2, c6);
-                Edge(c3, c7); // verticals
+                GL.Vertex(c0); GL.Vertex(c1); GL.Vertex(c2);
+                GL.Vertex(c3); GL.Vertex(c0);
                 GL.End();
             }
 
-            static void RenderWireCapsule(Vector3 top, Vector3 bottom, float radius,
-                Color color, int segments)
+            static void DrawSphere(Vector3 center, float radius, Color color,
+                int segments, int meridians)
             {
+                DrawCircle(center, Vector3.up,      radius, color, segments);
+                DrawCircle(center, Vector3.right,   radius, color, segments);
+                DrawCircle(center, Vector3.forward, radius, color, segments);
+
+                for (int i = 0; i < meridians; i++)
+                {
+                    float angle  = Mathf.PI * i / meridians;
+                    var   normal = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                    DrawCircle(center, normal, radius, color, segments);
+                }
+            }
+
+            static void DrawCapsule(Vector3 bottom, Vector3 top, float radius, Color color,
+                int segments, int meridians)
+            {
+                // Two full spheres at each end — no hemisphere math needed
+                DrawSphere(top,    radius, color, segments, meridians);
+                DrawSphere(bottom, radius, color, segments, meridians);
+
+                // Four connecting lines along the body
                 Vector3 axis = (top - bottom).normalized;
                 if (axis == Vector3.zero) axis = Vector3.up;
-
-                Vector3 up = Mathf.Abs(Vector3.Dot(axis, Vector3.up)) < 0.99f
-                    ? Vector3.up
-                    : Vector3.right;
-                Vector3 tangA = Vector3.Cross(axis, up).normalized;
-                Vector3 tangB = Vector3.Cross(axis, tangA);
-
-                RenderCircle(top, axis, radius, color, segments);
-                RenderCircle(bottom, axis, radius, color, segments);
+                Tangents(axis, out var tA, out var tB);
 
                 GL.Begin(GL.LINES);
                 GL.Color(color);
                 for (int i = 0; i < 4; i++)
                 {
-                    float a = Mathf.PI * 0.5f * i;
-                    Vector3 off = (tangA * Mathf.Cos(a) + tangB * Mathf.Sin(a)) * radius;
-                    GL.Vertex(top + off);
+                    float   a   = Mathf.PI * 0.5f * i;
+                    Vector3 off = (tA * Mathf.Cos(a) + tB * Mathf.Sin(a)) * radius;
+                    GL.Vertex(top    + off);
                     GL.Vertex(bottom + off);
                 }
-
                 GL.End();
-
-                RenderHemisphere(top, axis, radius, tangA, tangB, color, segments);
-                RenderHemisphere(bottom, -axis, radius, tangA, tangB, color, segments);
             }
 
-            static void RenderHemisphere(Vector3 center, Vector3 axis, float radius,
-                Vector3 tangA, Vector3 tangB, Color color, int segments)
+            static void DrawCube(Vector3 center, Vector3 size, Quaternion rot, Color color)
             {
-                int half = segments / 2;
-                for (int arc = 0; arc < 2; arc++)
-                {
-                    Vector3 planar = arc == 0 ? tangA : tangB;
-                    GL.Begin(GL.LINE_STRIP);
-                    GL.Color(color);
-                    for (int i = 0; i <= half; i++)
-                    {
-                        float t = Mathf.PI * i / half;
-                        GL.Vertex(center + (planar * Mathf.Sin(t) + axis * Mathf.Cos(t)) * radius);
-                    }
+                Vector3 h  = size * 0.5f;
+                // Bottom ring (–Y), top ring (+Y)
+                Vector3 c0 = center + rot * new Vector3(-h.x, -h.y, -h.z);
+                Vector3 c1 = center + rot * new Vector3( h.x, -h.y, -h.z);
+                Vector3 c2 = center + rot * new Vector3( h.x, -h.y,  h.z);
+                Vector3 c3 = center + rot * new Vector3(-h.x, -h.y,  h.z);
+                Vector3 c4 = center + rot * new Vector3(-h.x,  h.y, -h.z);
+                Vector3 c5 = center + rot * new Vector3( h.x,  h.y, -h.z);
+                Vector3 c6 = center + rot * new Vector3( h.x,  h.y,  h.z);
+                Vector3 c7 = center + rot * new Vector3(-h.x,  h.y,  h.z);
 
-                    GL.End();
-                }
+                GL.Begin(GL.LINES);
+                GL.Color(color);
+                // Bottom face
+                GL.Vertex(c0); GL.Vertex(c1);
+                GL.Vertex(c1); GL.Vertex(c2);
+                GL.Vertex(c2); GL.Vertex(c3);
+                GL.Vertex(c3); GL.Vertex(c0);
+                // Top face
+                GL.Vertex(c4); GL.Vertex(c5);
+                GL.Vertex(c5); GL.Vertex(c6);
+                GL.Vertex(c6); GL.Vertex(c7);
+                GL.Vertex(c7); GL.Vertex(c4);
+                // Verticals
+                GL.Vertex(c0); GL.Vertex(c4);
+                GL.Vertex(c1); GL.Vertex(c5);
+                GL.Vertex(c2); GL.Vertex(c6);
+                GL.Vertex(c3); GL.Vertex(c7);
+                GL.End();
             }
 
-            static void RenderArrow(Vector3 from, Vector3 to, Color color, float headSize)
+            static void DrawArrow(Vector3 from, Vector3 to, float headSize,
+                float headAngleDeg, Color color)
             {
-                RenderLine(from, to, color);
+                DrawLine(from, to, color);
 
                 Vector3 dir = (to - from).normalized;
                 if (dir == Vector3.zero) return;
 
-                Vector3 up = Mathf.Abs(Vector3.Dot(dir, Vector3.up)) < 0.99f
-                    ? Vector3.up
-                    : Vector3.right;
-                Vector3 right = Vector3.Cross(dir, up).normalized;
-                Vector3 fwd = Vector3.Cross(right, dir);
+                Tangents(dir, out var tA, out var tB);
 
-                Vector3 tip = to;
-                Vector3 base0 = to - dir * headSize + right * headSize * 0.4f;
-                Vector3 base1 = to - dir * headSize - right * headSize * 0.4f;
-                Vector3 base2 = to - dir * headSize + fwd * headSize * 0.4f;
-                Vector3 base3 = to - dir * headSize - fwd * headSize * 0.4f;
+                // Build 4 head lines evenly distributed around the shaft,
+                // each angled inward by headAngleDeg from the shaft direction.
+                float   rad    = headSize * Mathf.Tan(headAngleDeg * Mathf.Deg2Rad);
+                Vector3 tip    = to;
+                Vector3 shaft  = tip - dir * headSize; // base center of the head cone
 
                 GL.Begin(GL.LINES);
                 GL.Color(color);
-                GL.Vertex(tip);
-                GL.Vertex(base0);
-                GL.Vertex(tip);
-                GL.Vertex(base1);
-                GL.Vertex(tip);
-                GL.Vertex(base2);
-                GL.Vertex(tip);
-                GL.Vertex(base3);
-                GL.End();
-            }
+                for (int i = 0; i < 4; i++)
+                {
+                    float   a      = Mathf.PI * 0.5f * i;
+                    Vector3 offset = (tA * Mathf.Cos(a) + tB * Mathf.Sin(a)) * rad;
 
-            static void Edge(Vector3 a, Vector3 b)
-            {
-                GL.Vertex(a);
-                GL.Vertex(b);
+                    Vector3 baseVert = shaft + offset;
+
+                    // Shaft → base vertex (the 4 slanted lines)
+                    GL.Vertex(tip);
+                    GL.Vertex(baseVert);
+                }
+
+                // Wire square at the base of the head to close the arrowhead visually
+                Vector3 b0 = shaft + ( tA + tB) * rad;
+                Vector3 b1 = shaft + (-tA + tB) * rad;
+                Vector3 b2 = shaft + (-tA - tB) * rad;
+                Vector3 b3 = shaft + ( tA - tB) * rad;
+                GL.Vertex(b0); GL.Vertex(b1);
+                GL.Vertex(b1); GL.Vertex(b2);
+                GL.Vertex(b2); GL.Vertex(b3);
+                GL.Vertex(b3); GL.Vertex(b0);
+                GL.End();
             }
         }
     }
+
 #else
     // Fully stripped in release — all calls compile to nothing
     public static class DebugDraw
@@ -457,32 +483,35 @@ namespace DataKeeper.Debugger
         public enum Mode { DepthCorrect, AlwaysOnTop, XRay }
 
         public static void Line(UnityEngine.Vector3 a, UnityEngine.Vector3 b,
-            UnityEngine.Color c, float d = 0, Mode m = Mode.DepthCorrect) {}
+            UnityEngine.Color c, float d = 0f, Mode m = default) {}
         public static void Ray(UnityEngine.Vector3 o, UnityEngine.Vector3 dir,
-            UnityEngine.Color c, float d = 0, Mode m = Mode.DepthCorrect) {}
+            UnityEngine.Color c, float d = 0f, Mode m = default) {}
         public static void Cross(UnityEngine.Vector3 p, float s,
-            UnityEngine.Color c, float d = 0, Mode m = Mode.DepthCorrect) {}
-        public static void Circle(UnityEngine.Vector3 p, float r, UnityEngine.Vector3 n,
-            UnityEngine.Color c, float d = 0, int seg = 32, Mode m = Mode.DepthCorrect) {}
-        public static void Sphere(UnityEngine.Vector3 p, float r,
-            UnityEngine.Color c, float d = 0, int seg = 16, Mode m = Mode.DepthCorrect) {}
-        public static void WireCube(UnityEngine.Vector3 p, UnityEngine.Vector3 s,
-            UnityEngine.Color c, float d = 0, UnityEngine.Quaternion rot = default,
-            Mode m = Mode.DepthCorrect) {}
-        public static void WireCube(UnityEngine.Vector3 p, float s,
-            UnityEngine.Color c, float d = 0, UnityEngine.Quaternion rot = default,
-            Mode m = Mode.DepthCorrect) {}
-        public static void WireCapsule(UnityEngine.Vector3 a, UnityEngine.Vector3 b,
-            float r, UnityEngine.Color c, float d = 0, int seg = 16,
-            Mode m = Mode.DepthCorrect) {}
-        public static void WireCapsule(UnityEngine.Vector3 p, float h, float r,
-            UnityEngine.Color c, float d = 0, int seg = 16, Mode m = Mode.DepthCorrect) {}
-        public static void Arrow(UnityEngine.Vector3 f, UnityEngine.Vector3 t,
-            UnityEngine.Color c, float hs = 0.25f, float d = 0, Mode m = Mode.DepthCorrect) {}
-        public static void Bounds(UnityEngine.Bounds b,
-            UnityEngine.Color c, float d = 0, Mode m = Mode.DepthCorrect) {}
+            UnityEngine.Color c, float d = 0f, Mode m = default) {}
         public static void Point(UnityEngine.Vector3 p, float s,
-            UnityEngine.Color c, float d = 0, Mode m = Mode.DepthCorrect) {}
+            UnityEngine.Color c, float d = 0f, Mode m = default) {}
+
+        public static void Circle(UnityEngine.Vector3 p, float r, UnityEngine.Vector3 n,
+            UnityEngine.Color c, float d = 0f, int seg = 32, Mode m = default) {}
+        public static void Square(UnityEngine.Vector3 p, float s, UnityEngine.Vector3 n,
+            UnityEngine.Color c, float d = 0f, float roll = 0f, Mode m = default) {}
+        public static void Triangle(UnityEngine.Vector3 a, UnityEngine.Vector3 b,
+            UnityEngine.Vector3 cv, UnityEngine.Color c, float d = 0f, Mode m = default) {}
+
+        public static void Sphere(UnityEngine.Vector3 p, float r,
+            UnityEngine.Color c, float d = 0f, int seg = 16, int mer = 0, Mode m = default) {}
+        public static void Capsule(UnityEngine.Vector3 a, UnityEngine.Vector3 b,
+            float r, UnityEngine.Color c, float d = 0f, int seg = 16, int mer = 0, Mode m = default) {}
+        public static void Capsule(UnityEngine.Vector3 p, float h, float r,
+            UnityEngine.Color c, float d = 0f, int seg = 16, int mer = 0, Mode m = default) {}
+        public static void Cube(UnityEngine.Vector3 p, UnityEngine.Vector3 s,
+            UnityEngine.Color c, float d = 0f, UnityEngine.Quaternion rot = default, Mode m = default) {}
+        public static void Cube(UnityEngine.Vector3 p, float s,
+            UnityEngine.Color c, float d = 0f, UnityEngine.Quaternion rot = default, Mode m = default) {}
+        public static void Bounds(UnityEngine.Bounds b,
+            UnityEngine.Color c, float d = 0f, Mode m = default) {}
+        public static void Arrow(UnityEngine.Vector3 f, UnityEngine.Vector3 t,
+            UnityEngine.Color c, float hs = 0.25f, float ha = 20f, float d = 0f, Mode m = default) {}
     }
 #endif
 }
