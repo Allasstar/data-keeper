@@ -1,8 +1,7 @@
 using System.Collections.Generic;
-using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace DataKeeper.Debugger
+namespace UnityEngine
 {
     /// <summary>
     /// Lightweight runtime shape drawing system using GL immediate mode.
