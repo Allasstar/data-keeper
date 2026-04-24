@@ -1,7 +1,7 @@
-namespace DataKeeper.Debugger
+namespace UnityEngine
 {
-    using UnityEngine;
-
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || DEBUG_PRINT
+    
     public struct DebugPrintStyle
     {
         public const float FADE_OUT_TIME = 1f;
@@ -99,4 +99,5 @@ namespace DataKeeper.Debugger
             HasCopyButton = true,
         };
     }
+#endif
 }

@@ -1,16 +1,15 @@
 using System.Collections.Generic;
-using UnityEngine;
 
-namespace DataKeeper.Debugger
+namespace UnityEngine
 {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || DEBUG_PRINT
+    
     public static class DebugPrint
     {
         private const int MAX_MESSAGES = 50;
         
         public static List<Message> Messages { get; private set; }
         
-        public static bool IsEnabledPrint = true;
-
         private static bool _isEnabledSystemErrors = false;
         public static bool IsEnabledSystemErrors
         {
@@ -69,14 +68,14 @@ namespace DataKeeper.Debugger
         
         public static void Log(string message, DebugPrintStyle? style = null)
         {
-            if (!IsEnabledPrint || !Application.isPlaying) return;
+            if (!Application.isPlaying) return;
             Add(message, false, style);
             DebugPrintSystem.Instance.Ping();
         }
 
         public static void Error(string message, DebugPrintStyle? style = null)
         {
-            if (!IsEnabledPrint || !Application.isPlaying) return;
+            if (!Application.isPlaying) return;
             Add(message, true, style);
             DebugPrintSystem.Instance.Ping();
         }
@@ -99,4 +98,21 @@ namespace DataKeeper.Debugger
             
         public bool HasCopyButton;
     }
+    
+#else
+    public static class DebugPrint
+    {
+        public static void Log(string message, DebugPrintStyle? style = null)
+        {
+           
+        }
+
+        public static void Error(string message, DebugPrintStyle? style = null)
+        {
+           
+        }
+    }
+    
+    public struct DebugPrintStyle {}
+#endif
 }

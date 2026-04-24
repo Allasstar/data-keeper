@@ -1,8 +1,8 @@
 using DataKeeper.SingletonPattern;
-using UnityEngine;
 
-namespace DataKeeper.Debugger
+namespace UnityEngine
 {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || DEBUG_PRINT
     public class DebugPrintSystem : MonoSingleton<DebugPrintSystem>
     {
         public static bool IsEnabled = true;
@@ -125,4 +125,6 @@ namespace DataKeeper.Debugger
             return msg.TimeLeft / msg.FadeOutTime;
         }
     }
+    
+#endif
 }
