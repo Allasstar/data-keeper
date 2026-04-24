@@ -12,14 +12,6 @@ namespace DataKeeper.Editor.GameTagSystem
         private const string None = "(none)";
         private static readonly HashSet<string> _loggedErrors = new();
 
-        static GameTagDrawer()
-        {
-            if (_registry == null)
-            {
-                Debug.LogError("GameTagRegistry is not found. Please add it to the Resources folder.");
-            }
-        }
-
         private static GameTagRegistry _registry => GameTagRegistry.Default;
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
