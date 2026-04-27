@@ -46,6 +46,12 @@ namespace DataKeeper.Editor.GameTagSystem
             bool multiSelect,
             Action<IReadOnlyList<string>> onApply)
         {
+            if (registry == null)
+            {
+                EditorUtility.DisplayDialog("Error", "No GameTagRegistry found.\nCreate new GameTagRegistry in Resources folder.", "OK");
+                return;
+            }
+            
             var win = CreateInstance<GameTagPickerWindow>();
             win.titleContent = new GUIContent("Game Tag Picker");
             win.minSize = new Vector2(340, 460);

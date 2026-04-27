@@ -6,6 +6,7 @@ using UnityEngine;
 
 namespace DataKeeper.GameTagSystem
 {
+    [CreateAssetMenu(menuName = "DataKeeper/GameTagRegistry", fileName = "GameTagRegistry", order = 1000)]
     public class GameTagRegistry : SO
     {
         private const string DEFAULT_REGISTRY_NAME = "GameTagRegistry";
@@ -27,33 +28,7 @@ namespace DataKeeper.GameTagSystem
                     }
                     catch (UnityException e)
                     {
-                        Debug.LogWarning($"[GameTagRegistry] Failed to load default registry from Resources: {e.Message}");
                     }
-                }
-                
-                if (_default == null)
-                {
-                    try
-                    {
-                        _default = CreateInstance<GameTagRegistry>();
-                    }
-                    catch (UnityException e)
-                    {
-                        Debug.LogWarning($"[GameTagRegistry] Failed to create instance of registry: {e.Message}");
-                        return null;
-                    }
-                    
-                    const string path = "Assets/Resources";
-
-#if UNITY_EDITOR
-                    if (!UnityEditor.AssetDatabase.IsValidFolder(path))
-                    {
-                        UnityEditor.AssetDatabase.CreateFolder("Assets", "Resources");
-                    }
-                    
-                    UnityEditor.AssetDatabase.CreateAsset(_default, $"{path}/{DEFAULT_REGISTRY_NAME}.asset");
-                    UnityEditor.AssetDatabase.SaveAssets();
-#endif
                 }
                 
                 return _default;
@@ -61,21 +36,6 @@ namespace DataKeeper.GameTagSystem
         }
 
         public IReadOnlyList<string> Tags => _tags;
-
-#if UNITY_EDITOR
-        private void OnValidate()
-        {
-            _default = this;
-            ProcessQueue(this);
-            // No Prune here — interferes with live typing in the inspector
-        }
-#endif
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        private static void Preload()
-        {
-            _ = Default;
-        }
 
         private static void ProcessQueue(GameTagRegistry registry)
         {
