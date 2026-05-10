@@ -5,9 +5,9 @@
   "description": "DataKeeper is a comprehensive package/Unity extension that enhances the functionality and convenience of Unity development.",
   "unity": "2021.3",
   "unityRelease": "11f1",
-  "documentationUrl": "https://github.com/Allasstar/DataKeeper/tree/main",
-  "changelogUrl": "https://github.com/Allasstar/DataKeeper/tree/main",
-  "licensesUrl": "https://github.com/Allasstar/DataKeeper/tree/main",
+  "documentationUrl": "https://github.com/Allasstar/data-keeper/tree/main/Documentation~",
+  "changelogUrl": "https://github.com/Allasstar/data-keeper",
+  "licensesUrl": "https://github.com/Allasstar/data-keeper/blob/main/LICENSE",
   "dependencies": {
     "com.unity.textmeshpro": "3.0.6",
     "com.unity.nuget.newtonsoft-json": "3.0.2",
