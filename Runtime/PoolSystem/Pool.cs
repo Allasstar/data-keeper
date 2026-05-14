@@ -84,7 +84,7 @@ namespace DataKeeper.PoolSystem
        public virtual T Create()
        {
            var obj = Object.Instantiate(_poolPrefab, PoolContainer);
-           obj.gameObject.name = $"{_poolPrefab.name} [{obj.GetInstanceID()}]";
+           obj.gameObject.name = $"{_poolPrefab.name} [{obj.GetEntityId()}]";
            OnObjectCreate?.Invoke(obj);
            obj.gameObject.SetActive(false);
            _poolInactive.Add(obj);

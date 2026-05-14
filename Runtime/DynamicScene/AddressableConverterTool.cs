@@ -412,7 +412,7 @@ namespace DataKeeper.DynamicScene
                     return $"{baseKey}{positionSuffix}";
                 
                 case DuplicateHandlingMode.UseInstanceId:
-                    return $"{baseKey}_{child.GetInstanceID()}";
+                    return $"{baseKey}_{child.GetEntityId()}";
                 
                 case DuplicateHandlingMode.Skip:
                     // Check if this key already exists
