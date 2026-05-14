@@ -54,6 +54,7 @@ namespace DataKeeper.Editor.Windows
             CreateGroupingToolsSection(mainContainer);
             CreateTimeScaleSection(mainContainer);
             CreateBuffersSection(mainContainer);
+            CreateShortcutsSection(mainContainer);
             CreateSceneManagementSection(mainContainer);
 
             root.Add(mainContainer);
@@ -413,6 +414,51 @@ namespace DataKeeper.Editor.Windows
             section.Add(bufferLabel);
         }
 
+        private void CreateShortcutsSection(VisualElement parent)
+        {
+            var section = CreateSection("Shortcuts", parent);
+
+            var saveProjectBtn = CreateIconButton(
+                "Save Project",
+                "d_SaveAs",
+                SaveProject);
+            saveProjectBtn.tooltip = "Save all modified assets and dirty scenes";
+            section.Add(saveProjectBtn);
+
+            var reloadDomainBtn = CreateIconButton(
+                "Reload Domain",
+                "d_RotateTool",
+                ReloadDomain);
+            reloadDomainBtn.tooltip = "Force a script domain reload";
+            section.Add(reloadDomainBtn);
+
+            var recompileBtn = CreateIconButton(
+                "Recompile Scripts",
+                "d_cs Script Icon",
+                RecompileScripts);
+            recompileBtn.tooltip = "Request a full script recompilation";
+            section.Add(recompileBtn);
+        }
+
+        private static void SaveProject()
+        {
+            EditorSceneManager.SaveOpenScenes();
+            AssetDatabase.SaveAssets();
+            Debug.Log("Project saved.");
+        }
+
+        private static void ReloadDomain()
+        {
+            EditorUtility.RequestScriptReload();
+            Debug.Log("Domain reload requested.");
+        }
+
+        private static void RecompileScripts()
+        {
+            UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
+            Debug.Log("Script recompilation requested.");
+        }
+        
         private void CreateGroundSnapSection(VisualElement parent)
         {
             var section = CreateSection("Ground Snap Tools", parent);
