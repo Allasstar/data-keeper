@@ -8,6 +8,7 @@ using DataKeeper.UIToolkit;
 using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using DataKeeper.UIToolkit.Elements;
 
 namespace DataKeeper.Editor.Windows
 {
@@ -17,10 +18,27 @@ namespace DataKeeper.Editor.Windows
 
         private FloatField cellSizeField;
 
+        // Buffer fields
+        private struct TransformSnapshot
+        {
+            public Vector3 position;
+            public Vector3 rotation;
+            public Vector3 scale;
+            public string sourceName;
+            public bool hasData;
+        }
+
+        private const int BufferSlotCount = 5;
+        private static TransformSnapshot[] bufferSlots = new TransformSnapshot[BufferSlotCount];
+        private static int activeSlotIndex = 0;
+        private static bool bufferUseWorldSpace = true;
+        private static bool bufferCopyPos = true;
+        private static bool bufferCopyRot = true;
+        private static bool bufferCopyScale = true;
+
+        // UI references for buffer
         private static Label bufferLabel;
-        private static Vector3 copiedPosition;
-        private static Vector3 copiedRotation;
-        private static Vector3 copiedScale = Vector3.one;
+        private VisualElement bufferSlotsContainer;
 
         // Add these fields to your class
         private Slider timeScaleSlider;
@@ -383,35 +401,303 @@ namespace DataKeeper.Editor.Windows
         {
             var section = CreateSection("Buffer", parent);
 
-            // Transform Copy/Paste Buttons
-            var transformContainer = new VisualElement()
-                .SetFlexDirection(FlexDirection.Row)
-                .SetMarginTop(5);
+            // ── World / Local space toggle ──
+            var spaceRow = new VisualElement()
+                .SetFlexRow()
+                .SetMarginBottom(4)
+                .SetChildOf(section);
 
-            var copyTransformBtn = CreateIconButton(
-                "Copy Transform",
-                "",
-                CopyTransform);
+            var worldBtn = new Button(() => SetBufferSpace(true))
+                .SetText("World")
+                .SetHeight(20)
+                .SetFlexGrow(1)
+                .SetChildOf(spaceRow);
 
-            copyTransformBtn.tooltip = "Copy position, rotation, and scale of selected object";
-            copyTransformBtn.style.flexGrow = 1;
-            copyTransformBtn.style.marginRight = 2;
+            var localBtn = new Button(() => SetBufferSpace(false))
+                .SetText("Local")
+                .SetHeight(20)
+                .SetFlexGrow(1)
+                .SetChildOf(spaceRow);
 
-            var pasteTransformBtn = CreateIconButton(
-                "Paste Transform",
-                "",
-                PasteTransform);
+            RefreshSpaceButtons(worldBtn, localBtn);
 
-            pasteTransformBtn.tooltip = "Paste copied transform values to selected objects";
-            pasteTransformBtn.style.flexGrow = 1;
-            pasteTransformBtn.style.marginLeft = 2;
+            // ── Component filter toggles ──
+            var filterRow = new VisualElement()
+                .SetFlexRow()
+                .SetMarginBottom(6)
+                .SetChildOf(section);
 
-            transformContainer.Add(copyTransformBtn);
-            transformContainer.Add(pasteTransformBtn);
-            section.Add(transformContainer);
+            new ToggleButton("Pos", bufferCopyPos, v => bufferCopyPos = v)
+                .SetFlexGrow(1).SetMarginRight(4).SetChildOf(filterRow);
+            new ToggleButton("Rot", bufferCopyRot, v => bufferCopyRot = v)
+                .SetFlexGrow(1).SetMarginRight(4).SetChildOf(filterRow);
+            new ToggleButton("Scale", bufferCopyScale, v => bufferCopyScale = v)
+                .SetFlexGrow(1).SetChildOf(filterRow);
 
-            bufferLabel = new Label();
+
+            // ── Copy / Paste / Paste Offset buttons ──
+            var actionRow = new VisualElement()
+                .SetFlexRow()
+                .SetMarginBottom(6);
+
+            var copyBtn = new Button(CopyTransform)
+                .SetText("Copy")
+                .SetFlexGrow(1)
+                .SetHeight(22)
+                .SetMarginRight(2);
+            copyBtn.tooltip = "Copy transform of selected object into active slot";
+
+            var pasteBtn = new Button(PasteTransform)
+                .SetText("Paste")
+                .SetFlexGrow(1)
+                .SetHeight(22)
+                .SetMarginRight(2);
+            pasteBtn.tooltip = "Paste active slot values onto selected objects";
+
+            var pasteOffsetBtn = new Button(PasteTransformOffset)
+                .SetText("Paste Offset")
+                .SetFlexGrow(1)
+                .SetHeight(22);
+            pasteOffsetBtn.tooltip = "Add active slot values as offset to selected objects";
+
+            actionRow.Add(copyBtn);
+            actionRow.Add(pasteBtn);
+            actionRow.Add(pasteOffsetBtn);
+            section.Add(actionRow);
+
+            // ── Clipboard slots ──
+            bufferSlotsContainer = new VisualElement()
+                .SetMarginBottom(6);
+
+            RefreshBufferSlotsUI();
+            section.Add(bufferSlotsContainer);
+
+            // ── Readout label ──
+            bufferLabel = new Label()
+                .SetFontSize(10);
+            bufferLabel.style.whiteSpace = WhiteSpace.Normal;
             section.Add(bufferLabel);
+
+            RefreshBufferLabel();
+
+            // store button refs so we can re-style on toggle
+            worldBtn.userData = (Action)(() => RefreshSpaceButtons(worldBtn, localBtn));
+            localBtn.userData = (Action)(() => RefreshSpaceButtons(worldBtn, localBtn));
+
+            // re-wire now that userData is set
+            worldBtn.clicked += () => (worldBtn.userData as Action)?.Invoke();
+            localBtn.clicked += () => (localBtn.userData as Action)?.Invoke();
+        }
+
+// ── Space toggle helpers ──
+
+        private static void SetBufferSpace(bool world)
+        {
+            bufferUseWorldSpace = world;
+        }
+
+        private static void RefreshSpaceButtons(Button worldBtn, Button localBtn)
+        {
+            var activeColor = new Color(0.3f, 0.5f, 0.8f);
+            var inactiveColor = new Color(0.3f, 0.3f, 0.3f);
+            worldBtn.style.backgroundColor = bufferUseWorldSpace ? activeColor : inactiveColor;
+            localBtn.style.backgroundColor = bufferUseWorldSpace ? inactiveColor : activeColor;
+        }
+
+// ── Slot UI ──
+
+        private void RefreshBufferSlotsUI()
+        {
+            bufferSlotsContainer.Clear();
+
+            for (int i = 0; i < BufferSlotCount; i++)
+            {
+                int idx = i; // capture
+                var slot = bufferSlots[i];
+                bool isActive = idx == activeSlotIndex;
+
+                var row = new VisualElement()
+                    .SetFlexRow()
+                    .SetMarginBottom(2)
+                    .SetPadding(3)
+                    .SetBorderRadius(3)
+                    .SetBorderWidth(1)
+                    .SetBorderColor(isActive ? new Color(0.3f, 0.5f, 0.8f) : new Color(0.25f, 0.25f, 0.25f));
+
+                // Slot label
+                string slotText = slot.hasData
+                    ? $"[{idx + 1}] {slot.sourceName}"
+                    : $"[{idx + 1}] empty";
+
+                var label = new Label(slotText)
+                    .SetFlexGrow(1)
+                    .SetAlignSelf(Align.Center)
+                    .SetFontSize(11);
+
+                if (isActive)
+                    label.SetFontStyle(FontStyle.Bold);
+
+                // Activate button
+                var activateBtn = new Button(() =>
+                    {
+                        activeSlotIndex = idx;
+                        RefreshBufferSlotsUI();
+                        RefreshBufferLabel();
+                    })
+                    .SetText("◀")
+                    .SetWidth(24)
+                    .SetHeight(18);
+                activateBtn.tooltip = "Set as active slot";
+
+                // Clear button
+                var clearBtn = new Button(() =>
+                    {
+                        bufferSlots[idx] = default;
+                        if (activeSlotIndex == idx) RefreshBufferLabel();
+                        RefreshBufferSlotsUI();
+                    })
+                    .SetText("✕")
+                    .SetWidth(24)
+                    .SetHeight(18);
+                clearBtn.tooltip = "Clear this slot";
+                clearBtn.SetEnabled(slot.hasData);
+
+                row.Add(label);
+                row.Add(activateBtn);
+                row.Add(clearBtn);
+                bufferSlotsContainer.Add(row);
+            }
+        }
+
+        private static void RefreshBufferLabel()
+        {
+            if (bufferLabel == null) return;
+            var s = bufferSlots[activeSlotIndex];
+            if (!s.hasData)
+            {
+                bufferLabel.text = "Active slot is empty";
+                return;
+            }
+
+            bufferLabel.text = $"p: {s.position}\nr: {s.rotation}\nsc: {s.scale}";
+        }
+
+// ── Core operations ──
+
+        private void CopyTransform()
+        {
+            var selected = Selection.activeGameObject;
+            if (selected == null)
+            {
+                Debug.LogWarning("No object selected to copy transform from");
+                return;
+            }
+
+            var snap = new TransformSnapshot
+            {
+                hasData = true,
+                sourceName = selected.name
+            };
+
+            if (bufferUseWorldSpace)
+            {
+                snap.position = selected.transform.position;
+                snap.rotation = selected.transform.eulerAngles;
+                snap.scale = selected.transform.lossyScale;
+            }
+            else
+            {
+                snap.position = selected.transform.localPosition;
+                snap.rotation = selected.transform.localEulerAngles;
+                snap.scale = selected.transform.localScale;
+            }
+
+            bufferSlots[activeSlotIndex] = snap;
+            RefreshBufferSlotsUI();
+            RefreshBufferLabel();
+            Debug.Log($"Copied transform from '{selected.name}' into slot {activeSlotIndex + 1}");
+        }
+
+        private static void PasteTransform()
+        {
+            var selected = Selection.gameObjects;
+            if (selected == null || selected.Length == 0)
+            {
+                Debug.LogWarning("No objects selected to paste transform to");
+                return;
+            }
+
+            var snap = bufferSlots[activeSlotIndex];
+            if (!snap.hasData)
+            {
+                Debug.LogWarning($"Slot {activeSlotIndex + 1} is empty. Copy a transform first.");
+                return;
+            }
+
+            Undo.IncrementCurrentGroup();
+            Undo.SetCurrentGroupName("Paste Transform");
+
+            foreach (var obj in selected)
+            {
+                Undo.RecordObject(obj.transform, "Paste Transform");
+
+                if (bufferUseWorldSpace)
+                {
+                    if (bufferCopyPos) obj.transform.position = snap.position;
+                    if (bufferCopyRot) obj.transform.eulerAngles = snap.rotation;
+                    if (bufferCopyScale) obj.transform.localScale = snap.scale;
+                }
+                else
+                {
+                    if (bufferCopyPos) obj.transform.localPosition = snap.position;
+                    if (bufferCopyRot) obj.transform.localEulerAngles = snap.rotation;
+                    if (bufferCopyScale) obj.transform.localScale = snap.scale;
+                }
+            }
+
+            Undo.CollapseUndoOperations(Undo.GetCurrentGroup());
+            Debug.Log($"Pasted transform (slot {activeSlotIndex + 1}) to {selected.Length} object(s)");
+        }
+
+        private static void PasteTransformOffset()
+        {
+            var selected = Selection.gameObjects;
+            if (selected == null || selected.Length == 0)
+            {
+                Debug.LogWarning("No objects selected");
+                return;
+            }
+
+            var snap = bufferSlots[activeSlotIndex];
+            if (!snap.hasData)
+            {
+                Debug.LogWarning($"Slot {activeSlotIndex + 1} is empty. Copy a transform first.");
+                return;
+            }
+
+            Undo.IncrementCurrentGroup();
+            Undo.SetCurrentGroupName("Paste Transform Offset");
+
+            foreach (var obj in selected)
+            {
+                Undo.RecordObject(obj.transform, "Paste Transform Offset");
+
+                if (bufferUseWorldSpace)
+                {
+                    if (bufferCopyPos) obj.transform.position += snap.position;
+                    if (bufferCopyRot) obj.transform.eulerAngles += snap.rotation;
+                    if (bufferCopyScale) obj.transform.localScale += snap.scale - Vector3.one; // delta from identity
+                }
+                else
+                {
+                    if (bufferCopyPos) obj.transform.localPosition += snap.position;
+                    if (bufferCopyRot) obj.transform.localEulerAngles += snap.rotation;
+                    if (bufferCopyScale) obj.transform.localScale += snap.scale - Vector3.one;
+                }
+            }
+
+            Undo.CollapseUndoOperations(Undo.GetCurrentGroup());
+            Debug.Log($"Applied transform offset (slot {activeSlotIndex + 1}) to {selected.Length} object(s)");
         }
 
         private void CreateShortcutsSection(VisualElement parent)
@@ -458,7 +744,7 @@ namespace DataKeeper.Editor.Windows
             UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
             Debug.Log("Script recompilation requested.");
         }
-        
+
         private void CreateGroundSnapSection(VisualElement parent)
         {
             var section = CreateSection("Ground Snap Tools", parent);
@@ -665,12 +951,12 @@ namespace DataKeeper.Editor.Windows
                 Debug.LogWarning("No objects selected to group");
                 return;
             }
-    
+
             Undo.IncrementCurrentGroup();
             var undoGroupIndex = Undo.GetCurrentGroup();
-            
+
             var created = new List<GameObject>();
-    
+
             foreach (var selected in selection)
             {
                 if (selected == null)
@@ -684,61 +970,13 @@ namespace DataKeeper.Editor.Windows
                 newObj.transform.parent = selected.transform.parent;
                 newObj.transform.SetSiblingIndex(selected.transform.GetSiblingIndex());
                 created.Add(newObj);
-                
+
                 Undo.RegisterCreatedObjectUndo(newObj, "Create Empty at Position");
             }
-            
+
             Selection.objects = created.ToArray();
-    
-            Undo.CollapseUndoOperations(undoGroupIndex);
-        }
-
-        private static void CopyTransform()
-        {
-            var selected = Selection.activeGameObject;
-            if (selected == null)
-            {
-                Debug.LogWarning("No object selected to copy transform from");
-                return;
-            }
-
-            copiedPosition = selected.transform.position;
-            copiedRotation = selected.transform.eulerAngles;
-            copiedScale = selected.transform.localScale;
-
-            bufferLabel.SetText($"p: {copiedPosition}\nr: {copiedRotation}\ns: {copiedScale}");
-            Debug.Log($"Copied transform from {selected.name}");
-        }
-
-        private static void PasteTransform()
-        {
-            var selected = Selection.gameObjects;
-            if (selected == null || selected.Length == 0)
-            {
-                Debug.LogWarning("No objects selected to paste transform to");
-                return;
-            }
-
-            if (copiedScale == Vector3.zero) // Check if we have copied data
-            {
-                Debug.LogWarning("No transform data copied. Use Copy Transform first.");
-                return;
-            }
-
-            Undo.IncrementCurrentGroup();
-            var undoGroupIndex = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName("Paste Transform");
-
-            foreach (var obj in selected)
-            {
-                Undo.RecordObject(obj.transform, "Paste Transform");
-                obj.transform.position = copiedPosition;
-                obj.transform.eulerAngles = copiedRotation;
-                obj.transform.localScale = copiedScale;
-            }
 
             Undo.CollapseUndoOperations(undoGroupIndex);
-            Debug.Log($"Pasted transform to {selected.Length} objects");
         }
 
         private VisualElement CreateSection(string title, VisualElement parent, Action<bool> onToggle = null)
