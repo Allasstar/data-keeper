@@ -1,6 +1,6 @@
 {
   "name": "com.micrarriors.data-keeper",
-  "version": "0.75.0",
+  "version": "0.76.0",
   "displayName": "DataKeeper",
   "description": "DataKeeper is a comprehensive package/Unity extension that enhances the functionality and convenience of Unity development.",
   "unity": "2021.3",
@@ -12,45 +12,33 @@
     "com.unity.textmeshpro": "3.0.6",
     "com.unity.nuget.newtonsoft-json": "3.0.2",
     "com.unity.addressables": "1.21.21"
- },
- "keywords": [
+  },
+  "keywords": [
     "Reactive",
     "PlayerPrefs",
-	"Extensions",
-	"UI"
+    "Extensions",
+    "UI"
   ],
   "author": {
     "name": "Micrarriors",
-    "email": "micrarriors@gmail.com",
-    "url": "https://github.com/Allasstar"
+    "url": "https://github.com/Allasstar",
+    "email": "micrarriors@gmail.com"
   },
   "samples": [
-        {
-            "displayName": "IconKeeper Font",
-            "description": "Contains font with icons",
-            "path": "Samples~/IconKeeper Font"
-        },
-        {
-            "displayName": "UI Mask Materials",
-            "description": "Contains Mask Materials for UI",
-            "path": "Samples~/UI Mask Materials"
-        },
-        {
-          "displayName": "Overlay UI",
-          "description": "Contains Overlay UI prefab",
-          "path": "Samples~/Overlay Canvas"
-        }
-    ]
+    {
+      "displayName": "IconKeeper Font",
+      "description": "Contains font with icons",
+      "path": "Samples~/IconKeeper Font"
+    },
+    {
+      "displayName": "UI Mask Materials",
+      "description": "Contains Mask Materials for UI",
+      "path": "Samples~/UI Mask Materials"
+    },
+    {
+      "displayName": "Overlay UI",
+      "description": "Contains Overlay UI prefab",
+      "path": "Samples~/Overlay Canvas"
+    }
+  ]
 }
-
-
-
-
-
-
-
-
-
-
-
-
