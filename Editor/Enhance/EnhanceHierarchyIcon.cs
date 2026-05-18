@@ -81,7 +81,7 @@ namespace DataKeeper.Editor.Enhance
             typeof(UnityEngine.UI.Scrollbar),
             typeof(UnityEngine.UI.ScrollRect),
             typeof(UnityEngine.UI.ToggleGroup),
-            typeof(DataKeeper.UI.ToggleUIGroup),
+            typeof(DataKeeper.UI.TabsUI),
             typeof(UnityEngine.UI.LayoutGroup),
             typeof(UnityEngine.UI.LayoutElement),
             typeof(UnityEngine.UI.ContentSizeFitter),

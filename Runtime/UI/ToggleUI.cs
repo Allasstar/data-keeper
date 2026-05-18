@@ -18,9 +18,6 @@ namespace DataKeeper.UI
         [SerializeField, Space]
         private bool m_IsOn;
         
-        [SerializeField]
-        private ToggleUIGroup m_Group;
-
         [field: SerializeField, Space] public Image icon;
         public Optional<ToggleSprite> _iconSprite = new Optional<ToggleSprite>();
         public Optional<ToggleColor> _iconColor = new Optional<ToggleColor>();
@@ -32,6 +29,11 @@ namespace DataKeeper.UI
         
         [Space]
         public UnityEvent<bool> onValueChanged = new UnityEvent<bool>();
+        public UnityEvent onBecameInteractable   = new UnityEvent();
+        public UnityEvent onBecameNonInteractable = new UnityEvent();
+        
+        // Track last known interactable state to detect transitions.
+        private bool _wasInteractable;
         
         public void UpdateUI()
         {
@@ -66,19 +68,6 @@ namespace DataKeeper.UI
             }
         }
 
-        /// <summary>
-        /// Group the toggle belongs to.
-        /// </summary>
-        public ToggleUIGroup group
-        {
-            get { return m_Group; }
-            set
-            {
-                SetToggleGroup(value, true);
-                UpdateUI();
-            }
-        }
-
         protected ToggleUI()
         {}
 
@@ -86,26 +75,9 @@ namespace DataKeeper.UI
         protected override void OnValidate()
         {
             base.OnValidate();
-            ForceUpdate();
             if (!UnityEditor.PrefabUtility.IsPartOfPrefabAsset(this) && !Application.isPlaying)
                 CanvasUpdateRegistry.RegisterCanvasElementForLayoutRebuild(this);
         }
-
-        public void ForceUpdate()
-        {
-            SetToggleGroup(m_Group, false);
-            if (group != null && IsActive())
-            {
-                if (isOn || (!group.AnyTogglesOn() && !group.allowSwitchOff))
-                {
-                    isOn = true;
-                    group.NotifyToggleOn(this);
-                }
-            }
-            UpdateUI();
-        }
-        
-        
 
 #endif // if UNITY_EDITOR
 
@@ -123,24 +95,28 @@ namespace DataKeeper.UI
         public virtual void GraphicUpdateComplete()
         {}
 
-        protected override void OnDestroy()
-        {
-            if (m_Group != null)
-                m_Group.EnsureValidState();
-            base.OnDestroy();
-        }
-
         protected override void OnEnable()
         {
             base.OnEnable();
-            SetToggleGroup(m_Group, false);
+            _wasInteractable = IsInteractable();
             UpdateUI();
         }
-
-        protected override void OnDisable()
+        
+        // DoStateTransition is called by Unity every time interactable,
+        // highlight, press, or selection state changes — it's our only
+        // reliable hook into interactable changes without polling.
+        protected override void DoStateTransition(SelectionState state, bool instant)
         {
-            SetToggleGroup(null, false);
-            base.OnDisable();
+            base.DoStateTransition(state, instant); // keep SelectableUI color/sprite logic
+ 
+            bool nowInteractable = IsInteractable();
+            if (nowInteractable == _wasInteractable) return;
+ 
+            _wasInteractable = nowInteractable;
+            if (nowInteractable)
+                onBecameInteractable.Invoke();
+            else
+                onBecameNonInteractable.Invoke();
         }
 
         protected override void OnDidApplyAnimationProperties()
@@ -158,28 +134,6 @@ namespace DataKeeper.UI
         {
             _labelText.Value.SetOffText(offText);
             UpdateUI();
-        }
-
-        private void SetToggleGroup(ToggleUIGroup newGroup, bool setMemberValue)
-        {
-            // Sometimes IsActive returns false in OnDisable so don't check for it.
-            // Rather remove the toggle too often than too little.
-            if (m_Group != null)
-                m_Group.UnregisterToggle(this);
-
-            // At runtime the group variable should be set but not when calling this method from OnEnable or OnDisable.
-            // That's why we use the setMemberValue parameter.
-            if (setMemberValue)
-                m_Group = newGroup;
-
-            // Only register to the new group if this Toggle is active.
-            if (newGroup != null && IsActive())
-                newGroup.RegisterToggle(this);
-
-            // If we are in a new group, and this toggle is on, notify group.
-            // Note: Don't refer to m_Group here as it's not guaranteed to have been set.
-            if (newGroup != null && isOn && IsActive())
-                newGroup.NotifyToggleOn(this);
         }
 
         /// <summary>
@@ -211,14 +165,6 @@ namespace DataKeeper.UI
 
             // if we are in a group and set to true, do group logic
             m_IsOn = value;
-            if (m_Group != null && m_Group.isActiveAndEnabled && IsActive())
-            {
-                if (m_IsOn || (!m_Group.AnyTogglesOn() && !m_Group.allowSwitchOff))
-                {
-                    m_IsOn = true;
-                    m_Group.NotifyToggleOn(this, sendCallback);
-                }
-            }
 
             // Always send event when toggle is clicked, even if value didn't change
             // due to already active toggle in a toggle group being clicked.
