@@ -75,6 +75,7 @@ namespace DataKeeper.UI
         protected override void OnValidate()
         {
             base.OnValidate();
+            UpdateUI();
             if (!UnityEditor.PrefabUtility.IsPartOfPrefabAsset(this) && !Application.isPlaying)
                 CanvasUpdateRegistry.RegisterCanvasElementForLayoutRebuild(this);
         }
