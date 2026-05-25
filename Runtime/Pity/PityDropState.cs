@@ -4,47 +4,48 @@ using UnityEngine;
 namespace DataKeeper.Pity
 {
     /// <summary>
-    /// Read-only snapshot of runtime pity state for one drop entry.
-    /// Returned by PitySystem.GetState(index) so callers can inspect
-    /// progress without mutating anything.
+    /// Runtime pity state for one drop entry.
+    /// Tracks how many times this entry has been missed and the accumulated weight bonus.
     /// </summary>
     [Serializable]
     public class PityDropState
     {
-        [SerializeField] private int _attempts;
+        [SerializeField] private int   _misses;      // times this entry was NOT selected
+        [SerializeField] private float _weightBonus; // extra weight accumulated via pity
 
-        /// <summary>Total roll attempts recorded for this entry since last reset.</summary>
-        public int Attempts => _attempts;
+        /// <summary>Number of consecutive misses since the last time this entry dropped.</summary>
+        public int Misses => _misses;
 
-        /// <summary>Effective chance (base + pity + luck) as of the last roll call.</summary>
-        public float CurrentChance { get; internal set; }
+        /// <summary>Extra weight added on top of the base weight due to pity accumulation.</summary>
+        public float WeightBonus => _weightBonus;
 
-        /// <summary>True when the next roll for this entry is forced to succeed.</summary>
-        public bool IsGuaranteed { get; internal set; }
-
-        internal void IncrementAttempts() => _attempts++;
+        internal void IncrementMisses(float increasePerAttempt)
+        {
+            _misses++;
+            _weightBonus += increasePerAttempt;
+        }
 
         internal void Reset()
         {
-            _attempts     = 0;
-            IsGuaranteed  = false;
-            CurrentChance = 0f;
+            _misses      = 0;
+            _weightBonus = 0f;
         }
 
-        internal void SetAttempts(int value)
+        internal void SetMisses(int value, float weightBonus)
         {
-            _attempts = Mathf.Max(0, value);
+            _misses      = Mathf.Max(0, value);
+            _weightBonus = Mathf.Max(0f, weightBonus);
         }
     }
 
     // ── persistence helpers ───────────────────────────────────────────────────
 
-    /// <summary>Per-drop save data. Only the attempt counter needs to persist;
-    /// everything else is recomputed from config on load.</summary>
+    /// <summary>Per-drop save data. Persists miss count and weight bonus.</summary>
     [Serializable]
     public struct PityDropSaveData
     {
-        public int attempts;
+        public int   misses;
+        public float weightBonus;
     }
 
     /// <summary>Full save payload for a PitySystem — an ordered array, one entry per drop.</summary>

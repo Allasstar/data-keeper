@@ -10,57 +10,50 @@ namespace DataKeeper.Pity
     ///
     /// <para><b>How a roll works:</b></para>
     /// <list type="number">
-    ///   <item>Build a weighted pool from all entries (weight 0 = excluded).</item>
-    ///   <item>Select one candidate entry via weighted random.</item>
-    ///   <item>Roll against that entry's effective chance (base + pity + luck).</item>
-    ///   <item>On success: output the drop, record success, auto-reset if configured.</item>
-    ///   <item>On failure: increment that entry's attempt counter; pity increases next roll.</item>
+    ///   <item>
+    ///     Check for guaranteed entries — any entry whose miss count has reached
+    ///     <c>guaranteedDropThreshold</c>. If multiple entries are guaranteed simultaneously,
+    ///     the one with the highest effective weight wins.
+    ///   </item>
+    ///   <item>
+    ///     If no entry is guaranteed, perform a weighted random selection using
+    ///     each entry's effective weight (base weight + pity bonus).
+    ///   </item>
+    ///   <item>
+    ///     The selected entry drops. Its miss counter and weight bonus reset.
+    ///   </item>
+    ///   <item>
+    ///     Every entry that was NOT selected has its miss counter incremented.
+    ///     Once an entry's misses exceed <c>pityActivationThreshold</c>, each additional miss
+    ///     also adds <c>pityWeightIncrement</c> to its weight bonus.
+    ///   </item>
     /// </list>
     ///
-    /// <para><b>Weight vs chance — what each field controls:</b></para>
+    /// <para><b>Key properties:</b></para>
     /// <list type="bullet">
-    ///   <item>
-    ///     <b>weight</b> — relative probability of being selected as the candidate this roll.
-    ///     Higher weight = chosen more often = pity counter advances faster.
-    ///     Weight 0 disables normal selection; the entry can still drop via guaranteedAt.
-    ///   </item>
-    ///   <item>
-    ///     <b>baseChance</b> — probability of actually dropping once selected [0..1].
-    ///     Independent of other entries. Pity and luck scale this value up over time.
-    ///   </item>
+    ///   <item>Every roll always produces exactly one drop.</item>
+    ///   <item>Pity is per-entry and independent — dropping one item does not reset others.</item>
+    ///   <item>Weight 0 entries are never selected normally but can still be forced by <c>guaranteedAt</c>.</item>
     /// </list>
     ///
-    /// <para>
-    ///   Overall drop rate per roll = (weight / totalWeight) * effectiveChance.
-    ///   Weight controls how often pity accumulates; chance controls how hard
-    ///   the drop is once it is attempted.
+    /// <para><b>Luck system:</b> Pass a <c>luck</c> value to <see cref="Roll"/> (e.g. 0.25 = 25 %, 5.0 = 500 %).
+    ///   Each entry has a <c>luckInfluence</c> that controls how much it is affected by luck.
+    ///   The bonus added to an entry's weight is: <c>luck × luckInfluence</c>.
+    ///   No clamping is applied — luck can exceed 1 (e.g. 500 %) or be negative (penalty).
+    ///   Set <c>luckInfluence = 0</c> on common entries and higher values on rare entries
+    ///   to make luck shift the distribution toward rarer drops.
     /// </para>
     ///
-    /// <para><b>Example loot table — total weight 19:</b></para>
+    /// <para><b>Example loot table — total base weight 19:</b></para>
     /// <code>
-    ///  Drop           weight  select%   baseChance   avg/100 rolls   pityStart  +perRoll  guarantee
-    ///  ──────────────────────────────────────────────────────────────────────────────────────────────
-    ///  Common           10    52.6 %      70 %          36.8           0        0 %        off
-    ///  Uncommon          5    26.3 %      40 %          10.5           5        2 %        off
-    ///  Rare              3    15.8 %      15 %           2.4          10        5 %         40
-    ///  Epic              1     5.3 %       5 %           0.3          15        4 %         60
-    ///  Legendary         0     0.0 %       1 %           0.0 (*)      20        3 %         80
-    ///
-    ///  (*) weight 0 = never selected normally; only guaranteedAt can trigger this drop.
-    ///      Pity still accumulates each time any roll occurs for this entry.
-    ///
-    ///  avg/100 rolls = (weight / totalWeight) * baseChance * 100  (no pity, no luck)
+    ///  Drop        baseWeight  luckInfluence  pityActivationThreshold  pityWeightIncrement  guaranteedDropThreshold
+    ///  ────────────────────────────────────────────────────────────────────────
+    ///  Common        10       0.0          0          0.0           off
+    ///  Uncommon       5       0.5          5          0.5           off
+    ///  Rare           3       1.0         10          1.0            40
+    ///  Epic           1       2.0         15          2.0            60
+    ///  Legendary      0       3.0         20          3.0            80
     /// </code>
-    ///
-    /// <para><b>Key design patterns:</b></para>
-    /// <list type="bullet">
-    ///   <item>High weight + low chance  → attempted often, pity builds fast, guarantee reached sooner.</item>
-    ///   <item>Low weight + high chance  → rarely attempted, nearly always succeeds when chosen.</item>
-    ///   <item>Weight 0 + guaranteedAt   → impossible to get normally; only drops at the hard cap.</item>
-    ///   <item>Weight 0 + no guarantee   → entry is fully disabled until re-enabled at runtime.</item>
-    /// </list>
-    ///
-    /// <para>Every entry tracks its own independent pity counter.</para>
     /// </summary>
     /// <typeparam name="T">Type of item to drop.</typeparam>
     [Serializable]
@@ -87,60 +80,66 @@ namespace DataKeeper.Pity
         // ── public API ────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Attempts a single roll against the weighted drop pool.
+        /// Performs a single roll. Always produces exactly one drop.
+        ///
+        /// <para>
+        ///   If one or more entries have reached their <c>guaranteedDropThreshold</c> miss cap,
+        ///   the guaranteed entry with the highest effective weight is forced to drop.
+        ///   Otherwise a weighted random selection is made using effective weights.
+        /// </para>
+        ///
+        /// <para><b>Luck:</b> Pass any value (e.g. 0.25 = 25 %, 5.0 = 500 %, -0.5 = −50 % penalty).
+        ///   For each entry the luck modifier applied to its weight is:
+        ///   <c>luck × luckInfluence</c>.  Entries with a higher <c>luckInfluence</c>
+        ///   are affected more by luck, letting you tune which rarities are boosted or penalised.
+        ///   No clamping is applied in either direction.
+        /// </para>
         /// </summary>
         /// <param name="luck">
-        /// Luck value ≥ 0. Applied via "closes the gap" with diminishing returns —
-        /// rare drops benefit most, common drops barely change.
-        /// 0 = no bonus. Values above 1 are valid and keep improving odds naturally.
+        /// Player luck as a percentage (e.g. 0.25 = 25 %, 5.0 = 500 %, -1.0 = −100 % penalty).
+        /// Defaults to 0 (no luck modifier). No upper or lower limit.
         /// </param>
-        /// <param name="result">
-        /// The dropped value when the method returns true; default(T) otherwise.
-        /// </param>
-        /// <returns>True if a drop was awarded, false otherwise.</returns>
-        public bool Roll(float luck, out T result)
+        public T Roll(float luck = 0f)
         {
-            result = default;
-
             if (_drops == null || _drops.Count == 0)
             {
                 Debug.LogWarning("[PitySystem] Roll called with no drop entries configured.");
-                return false;
+                return default;
             }
 
-            luck = Mathf.Max(0f, luck);
+            // Step 1: check for guaranteed entries
+            int winnerIndex = FindGuaranteedWinner(luck);
 
-            // Step 1: weighted selection of candidate entry
-            int candidateIndex = SelectWeightedCandidate();
-            if (candidateIndex < 0)
+            // Step 2: if no guarantee, weighted random selection
+            if (winnerIndex < 0)
+                winnerIndex = SelectWeightedCandidate(luck);
+
+            if (winnerIndex < 0)
             {
-                Debug.LogWarning("[PitySystem] Weighted selection returned no candidate (all weights are zero?).");
-                return false;
+                // All weights are zero — fall back to uniform random
+                winnerIndex = UnityEngine.Random.Range(0, _drops.Count);
             }
 
-            PityDropEntry<T> entry = _drops[candidateIndex];
+            // Step 3: record drop for winner, record miss for all others
+            for (int i = 0; i < _drops.Count; i++)
+            {
+                if (i == winnerIndex)
+                    _drops[i].RecordDrop();
+                else
+                    _drops[i].RecordMiss();
+            }
 
-            // Step 2: roll against effective chance
-            float effectiveChance = entry.GetEffectiveChance(luck);
-            bool  success         = UnityEngine.Random.value <= effectiveChance;
-
-            // Step 3: record the attempt (handles auto-reset internally)
-            entry.RecordAttempt(success);
-
-            if (success)
-                result = entry.drop;
-
-            return success;
+            return  _drops[winnerIndex].item;
         }
 
-        /// <summary>Resets attempt counters for all entries.</summary>
+        /// <summary>Resets pity state for all entries.</summary>
         public void ResetAll()
         {
             foreach (var entry in _drops)
                 entry.Reset();
         }
 
-        /// <summary>Resets the attempt counter for the entry at the given index.</summary>
+        /// <summary>Resets the pity state for the entry at the given index.</summary>
         /// <param name="index">Zero-based index into the Drops list.</param>
         public void ResetDrop(int index)
         {
@@ -174,7 +173,7 @@ namespace DataKeeper.Pity
         // ── persistence ───────────────────────────────────────────────────────
 
         /// <summary>
-        /// Serializes all attempt counters to a JSON string.
+        /// Serializes all pity states to a JSON string.
         /// Store this in PlayerPrefs, a save file, or your own persistence layer.
         /// </summary>
         public string SaveState()
@@ -191,7 +190,7 @@ namespace DataKeeper.Pity
         }
 
         /// <summary>
-        /// Restores attempt counters from a JSON string previously produced by <see cref="SaveState"/>.
+        /// Restores pity states from a JSON string previously produced by <see cref="SaveState"/>.
         /// Drop count must match; mismatches are logged and silently ignored.
         /// </summary>
         public void LoadState(string json)
@@ -233,14 +232,39 @@ namespace DataKeeper.Pity
         // ── private helpers ───────────────────────────────────────────────────
 
         /// <summary>
-        /// Weighted random selection. Each entry's <c>weight</c> determines
-        /// its relative probability of being chosen as the candidate for rolling.
+        /// Returns the index of the guaranteed entry with the highest effective weight
+        /// (including luck bonus), or -1 if no entry has reached its guarantee threshold.
+        /// When multiple entries are guaranteed, the one with the highest effective weight wins.
         /// </summary>
-        private int SelectWeightedCandidate()
+        private int FindGuaranteedWinner(float luck)
+        {
+            int   bestIndex  = -1;
+            float bestWeight = float.NegativeInfinity;
+
+            for (int i = 0; i < _drops.Count; i++)
+            {
+                if (!_drops[i].IsGuaranteed) continue;
+
+                float w = _drops[i].GetEffectiveWeightWithLuck(luck);
+                if (w > bestWeight)
+                {
+                    bestWeight = w;
+                    bestIndex  = i;
+                }
+            }
+
+            return bestIndex;
+        }
+
+        /// <summary>
+        /// Weighted random selection using each entry's effective weight (including luck bonus).
+        /// Returns -1 if all effective weights are zero or negative.
+        /// </summary>
+        private int SelectWeightedCandidate(float luck)
         {
             float totalWeight = 0f;
-            foreach (var entry in _drops)
-                totalWeight += Mathf.Max(0f, entry.weight);
+            for (int i = 0; i < _drops.Count; i++)
+                totalWeight += Mathf.Max(0f, _drops[i].GetEffectiveWeightWithLuck(luck));
 
             if (totalWeight <= 0f)
                 return -1;
@@ -250,12 +274,15 @@ namespace DataKeeper.Pity
 
             for (int i = 0; i < _drops.Count; i++)
             {
-                cumulated += Mathf.Max(0f, _drops[i].weight);
+                cumulated += Mathf.Max(0f, _drops[i].GetEffectiveWeightWithLuck(luck));
                 if (roll <= cumulated)
                     return i;
             }
 
-            // Floating point safety: return last entry
+            // Floating-point safety: return last entry with positive weight
+            for (int i = _drops.Count - 1; i >= 0; i--)
+                if (_drops[i].GetEffectiveWeightWithLuck(luck) > 0f) return i;
+
             return _drops.Count - 1;
         }
 

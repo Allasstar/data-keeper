@@ -4,163 +4,137 @@ using UnityEngine;
 namespace DataKeeper.Pity
 {
     /// <summary>
-    /// Defines one possible drop in a PitySystem, including all pity parameters
-    /// and the runtime state for that specific drop.
+    /// Defines one possible drop in a <see cref="PitySystem{T}"/>.
+    ///
+    /// <para><b>How pity works in this model:</b></para>
+    /// <list type="bullet">
+    ///   <item>
+    ///     Every roll always produces exactly one drop — the entry with the highest
+    ///     effective weight wins the weighted random selection.
+    ///   </item>
+    ///   <item>
+    ///     When an entry is NOT selected, its miss counter increments.
+    ///     Once misses exceed <see cref="pityActivationThreshold"/>, each additional miss adds
+    ///     <see cref="pityWeightIncrement"/> to its effective weight, making it
+    ///     progressively more likely to be chosen on future rolls.
+    ///   </item>
+    ///   <item>
+    ///     When an entry IS selected (drops), its miss counter and weight bonus reset
+    ///     automatically. Other entries keep their accumulated pity.
+    ///   </item>
+    ///   <item>
+    ///     <see cref="guaranteedDropThreshold"/> is a hard cap: if an entry's miss count reaches
+    ///     this value it is forced to drop on the next roll regardless of weight.
+    ///     If multiple entries hit their cap simultaneously, the one with the highest
+    ///     effective weight wins.
+    ///   </item>
+    /// </list>
     /// </summary>
     [Serializable]
     public class PityDropEntry<T>
     {
         [Tooltip("The item/value to drop.")]
-        public T drop;
+        public T item;
 
-        [Tooltip("Base probability [0..1] before any pity scaling.")]
-        [Range(0f, 1f)]
-        public float baseChance = 0.1f;
-
-        [Tooltip("Relative weight for weighted selection. Higher = more likely to be chosen as the candidate drop.")]
+        [Tooltip("Base weight for weighted selection. Higher = more likely to be chosen each roll.")]
         [Min(0f)]
-        public float weight = 1f;
+        public float baseWeight = 100f;
 
-        [Tooltip("After this many failed attempts pity starts increasing the chance.")]
+        [Tooltip("How strongly luck influences this entry. The luck bonus added to weight is: luck × luckInfluence. " +
+                 "Set to 0 to make this entry unaffected by luck.")]
+        public float luckInfluence = 0f;
+
+        [Tooltip("Pity starts accumulating after this many consecutive misses. 0 = pity starts immediately.")]
         [Min(0)]
-        public int pityStartAt = 10;
+        public int pityActivationThreshold = 0;
 
-        [Tooltip("Flat chance added per attempt once pity has started.")]
-        [Range(0f, 1f)]
-        public float increasePerAttempt = 0.05f;
+        [Tooltip("Weight added per miss once pity has started (after pityActivationThreshold misses).")]
+        [Min(0f)]
+        public float pityWeightIncrement = 0f;
 
-        [Tooltip("After this many total attempts the drop is guaranteed (chance forced to 1). 0 = disabled.")]
+        [Tooltip("Hard cap: after this many consecutive misses the entry is guaranteed to drop next roll. " +
+                 "0 = no hard cap.")]
         [Min(0)]
-        public int guaranteedAt = 50;
-
-        [Tooltip("If true, resets attempt counter automatically after a successful drop. " +
-                 "If false, you must call ResetDrop(index) manually.")]
-        public bool autoReset = true;
+        public int guaranteedDropThreshold = 0;
 
         // ── runtime state ─────────────────────────────────────────────────────
 
         [NonSerialized]
         private PityDropState _state = new PityDropState();
 
-        /// <summary>Current runtime state for this entry (attempts, effective chance, etc.).</summary>
+        /// <summary>Current runtime pity state (miss count, weight bonus).</summary>
         public PityDropState State => _state;
+
+        // ── computed properties ───────────────────────────────────────────────
+
+        /// <summary>
+        /// Effective weight used for weighted selection this roll (without luck).
+        /// Equals <see cref="baseWeight"/> plus any accumulated pity bonus.
+        /// </summary>
+        public float EffectiveWeight => baseWeight + _state.WeightBonus;
+
+        /// <summary>
+        /// Effective weight used for weighted selection this roll, including a luck bonus.
+        /// The luck bonus is: <paramref name="luck"/> × <see cref="luckInfluence"/>.
+        /// </summary>
+        /// <param name="luck">
+        /// Player luck as a percentage (e.g. 0.25 = 25 %, 5.0 = 500 %).
+        /// No clamping is applied — negative values act as a luck penalty,
+        /// reducing the effective weight of this entry.
+        /// </param>
+        public float GetEffectiveWeightWithLuck(float luck)
+        {
+            return baseWeight + _state.WeightBonus + luck * luckInfluence;
+        }
+
+        /// <summary>
+        /// True when this entry's miss count has reached <see cref="guaranteedDropThreshold"/>
+        /// and it must drop on the next roll.
+        /// </summary>
+        public bool IsGuaranteed => guaranteedDropThreshold > 0 && _state.Misses >= guaranteedDropThreshold;
 
         // ── internal helpers ──────────────────────────────────────────────────
 
         /// <summary>
-        /// Computes the effective drop chance for this entry given extra luck.
-        ///
-        /// <para><b>Luck model — "closes the gap":</b></para>
-        /// <para>
-        ///   Luck is first converted to a factor in [0, 1) via diminishing returns:
-        ///   <c>luckFactor = 1 - 1 / (1 + luck)</c>
-        ///   Then applied as:
-        ///   <c>effectiveChance = chance + (1 - chance) * luckFactor</c>
-        ///   This means rare drops (low base chance) benefit most from luck,
-        ///   while near-guaranteed drops are barely affected.
-        ///   Luck can exceed 1 freely — higher values keep improving odds
-        ///   with natural diminishing returns, no hard cap needed.
-        /// </para>
-        /// <para>Examples at different luck values (base 1% → 5% → 50%):</para>
-        /// <list type="bullet">
-        ///   <item>luck=0   →  1% / 5% / 50%  (no change)</item>
-        ///   <item>luck=0.5 →  4% / 8% / 60%</item>
-        ///   <item>luck=1   →  9% /14% / 71%</item>
-        ///   <item>luck=2   → 23% /28% / 83%</item>
-        ///   <item>luck=5   → 51% /55% / 95%</item>
-        /// </list>
+        /// Called when this entry was NOT selected on a roll.
+        /// Increments the miss counter and, once past <see cref="pityActivationThreshold"/>,
+        /// adds <see cref="pityWeightIncrement"/> to the weight bonus.
         /// </summary>
-        /// <param name="luck">
-        /// Luck value ≥ 0. No upper cap — higher values give more benefit
-        /// with natural diminishing returns. 0 = no luck bonus.
-        /// </param>
-        internal float GetEffectiveChance(float luck)
+        internal void RecordMiss()
         {
-            // Step 1: apply pity ramp to base chance
-            float chance = baseChance;
-
-            if (guaranteedAt > 0 && _state.Attempts >= guaranteedAt)
-                return 1f;
-
-            if (_state.Attempts > pityStartAt)
-            {
-                int pitySteps = _state.Attempts - pityStartAt;
-                chance += pitySteps * increasePerAttempt;
-                chance  = Mathf.Clamp01(chance);
-            }
-
-            // Step 2: apply luck via "closes the gap" model
-            // luckFactor maps [0, +inf) → [0, 1) with diminishing returns
-            if (luck > 0f)
-            {
-                float luckFactor = 1f - 1f / (1f + luck);
-                chance = chance + (1f - chance) * luckFactor;
-            }
-
-            return Mathf.Clamp01(chance);
+            if (_state.Misses >= pityActivationThreshold)
+                _state.IncrementMisses(pityWeightIncrement);
+            else
+                _state.IncrementMisses(0f);
         }
 
         /// <summary>
-        /// Records one roll attempt and optionally resets on success.
+        /// Called when this entry was selected and dropped.
+        /// Resets the miss counter and weight bonus for this entry only.
         /// </summary>
-        /// <param name="success">Whether the roll succeeded.</param>
-        internal void RecordAttempt(bool success)
-        {
-            if (success)
-            {
-                if (autoReset)
-                    _state.Reset();
-                else
-                    _state.IncrementAttempts();
-            }
-            else
-            {
-                _state.IncrementAttempts();
-            }
+        internal void RecordDrop() => _state.Reset();
 
-            _state.CurrentChance = GetEffectiveChance(0f);
-            _state.IsGuaranteed  = guaranteedAt > 0 && _state.Attempts >= guaranteedAt;
-        }
-
+        /// <summary>Manually resets this entry's pity state.</summary>
         internal void Reset() => _state.Reset();
 
         /// <summary>
-        /// Returns the effective chance at a given attempt count and luck value
-        /// without touching runtime state. Used for display and simulation.
+        /// Returns the effective weight at a given miss count without touching runtime state.
+        /// Used for display and simulation.
         /// </summary>
-        public float GetEffectiveChancePublic(float luck, int atAttempts)
+        public float GetEffectiveWeightAt(int atMisses)
         {
-            float chance = baseChance;
-
-            if (guaranteedAt > 0 && atAttempts >= guaranteedAt)
-                return 1f;
-
-            if (atAttempts > pityStartAt)
-            {
-                int pitySteps = atAttempts - pityStartAt;
-                chance += pitySteps * increasePerAttempt;
-                chance  = Mathf.Clamp01(chance);
-            }
-
-            if (luck > 0f)
-            {
-                float luckFactor = 1f - 1f / (1f + luck);
-                chance = chance + (1f - chance) * luckFactor;
-            }
-
-            return Mathf.Clamp01(chance);
+            float bonus = 0f;
+            if (atMisses > pityActivationThreshold)
+                bonus = (atMisses - pityActivationThreshold) * pityWeightIncrement;
+            return baseWeight + bonus;
         }
 
         // ── serialization helpers ─────────────────────────────────────────────
 
         internal PityDropSaveData ExportState() =>
-            new PityDropSaveData { attempts = _state.Attempts };
+            new PityDropSaveData { misses = _state.Misses, weightBonus = _state.WeightBonus };
 
-        internal void ImportState(PityDropSaveData data)
-        {
-            _state.SetAttempts(data.attempts);
-            _state.CurrentChance = GetEffectiveChance(0f);
-            _state.IsGuaranteed  = guaranteedAt > 0 && _state.Attempts >= guaranteedAt;
-        }
+        internal void ImportState(PityDropSaveData data) =>
+            _state.SetMisses(data.misses, data.weightBonus);
     }
 }
