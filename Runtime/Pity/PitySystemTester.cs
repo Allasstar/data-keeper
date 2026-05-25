@@ -32,9 +32,9 @@ namespace DataKeeper.Pity
         /// Runs a Monte Carlo simulation against <paramref name="system"/>.
         /// </summary>
         /// <param name="system">The pity system to test. State is reset before and after.</param>
-        /// <param name="trials">Number of independent simulated players.</param>
-        /// <param name="rollsPerTrial">Number of roll attempts per player.</param>
-        public void Run<T>(PitySystem<T> system, int trials = 10_000, int rollsPerTrial = 200)
+        /// <param name="players">Number of independent simulated players.</param>
+        /// <param name="rolls">Number of roll attempts per player.</param>
+        public void Run<T>(PitySystem<T> system, float luck = 0f, int players = 10_000, int rolls = 200)
         {
             if (system == null)
             {
@@ -48,11 +48,11 @@ namespace DataKeeper.Pity
                 return;
             }
 
-            trials        = Mathf.Max(1, trials);
-            rollsPerTrial = Mathf.Max(1, rollsPerTrial);
+            players = Mathf.Max(1, players);
+            rolls = Mathf.Max(1, rolls);
 
-            var stats = Simulate(system, trials, rollsPerTrial);
-            Log(system, stats, trials, rollsPerTrial);
+            var stats = Simulate(system, luck,  players, rolls);
+            Log(system, stats, players, rolls);
 
             system.ResetAll();
         }
@@ -86,7 +86,7 @@ namespace DataKeeper.Pity
 
         // ── simulation ────────────────────────────────────────────────────────
 
-        private DropStats[] Simulate<T>(PitySystem<T> system, int trials, int rollsPerTrial)
+        private DropStats[] Simulate<T>(PitySystem<T> system, float luck, int trials, int rollsPerTrial)
         {
             int dropCount = system.Drops.Count;
 
@@ -117,7 +117,7 @@ namespace DataKeeper.Pity
 
                 for (int r = 1; r <= rollsPerTrial; r++)
                 {
-                    var drop = system.Roll();
+                    var drop = system.Roll(luck);
 
                     // identify which entry fired (first value-match)
                     for (int d = 0; d < dropCount; d++)
