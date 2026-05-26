@@ -11,9 +11,11 @@ namespace DataKeeper.Pity
     /// <para><b>How a roll works:</b></para>
     /// <list type="number">
     ///   <item>
-    ///     Check for guaranteed entries — any entry whose miss count has reached
-    ///     <c>guaranteedDropThreshold</c>. If multiple entries are guaranteed simultaneously,
-    ///     the one with the highest effective weight wins.
+    ///     Check for guaranteed entries — any entry whose accumulated miss count means
+    ///     this is its guaranteed roll (i.e. <c>misses + 1 &gt;= guaranteedDropThreshold</c>,
+    ///     so the entry is forced to drop by roll N when the threshold is set to N).
+    ///     If multiple entries are guaranteed simultaneously, the one with the highest
+    ///     effective weight wins.
     ///   </item>
     ///   <item>
     ///     If no entry is guaranteed, perform a weighted random selection using

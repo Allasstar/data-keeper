@@ -52,8 +52,8 @@ namespace DataKeeper.Pity
         [Min(0f)]
         public float pityWeightIncrement = 0f;
 
-        [Tooltip("Hard cap: after this many consecutive misses the entry is guaranteed to drop next roll. " +
-                 "0 = no hard cap.")]
+        [Tooltip("Hard cap: the entry is guaranteed to drop on this roll number if not already dropped " +
+                 "(e.g. 200 = guaranteed by roll 200). 0 = no hard cap.")]
         [Min(0)]
         public int guaranteedDropThreshold = 0;
 
@@ -88,10 +88,12 @@ namespace DataKeeper.Pity
         }
 
         /// <summary>
-        /// True when this entry's miss count has reached <see cref="guaranteedDropThreshold"/>
-        /// and it must drop on the next roll.
+        /// True when this entry's accumulated miss count means the current roll is its guaranteed drop.
+        /// With <see cref="guaranteedDropThreshold"/> = N the entry is forced to drop on the Nth roll
+        /// at the latest (i.e. when <c>misses + 1 >= N</c>, meaning N-1 consecutive misses have already
+        /// accumulated going into this roll).
         /// </summary>
-        public bool IsGuaranteed => guaranteedDropThreshold > 0 && _state.Misses >= guaranteedDropThreshold;
+        public bool IsGuaranteed => guaranteedDropThreshold > 0 && _state.Misses + 1 >= guaranteedDropThreshold;
 
         // ── internal helpers ──────────────────────────────────────────────────
 
