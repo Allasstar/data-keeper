@@ -11,10 +11,13 @@ namespace DataKeeper.Pity
     ///   Runs <c>players</c> independent simulated players, each performing <c>rolls</c> rolls.
     ///   For each drop entry the report shows:
     ///   <list type="bullet">
+    ///     <item>Chance breakdown — combined (base + luck + pity) drop chance at roll 1 (fresh) and at
+    ///       the last roll (worst case: never received), showing each weight component separately.</item>
     ///     <item>First drop — on which roll the player first received this item (avg / min / max).</item>
     ///     <item>Most unlucky streak — the longest run of rolls without this item across all players.</item>
     ///     <item>Drops per player — how many times a player got this item (avg / min / max).</item>
     ///     <item>Players who never got it — how many players finished all rolls without a single drop.</item>
+    ///     <item>Coverage — simulated drop rate vs theoretical base rate, confirming pity and luck are working.</item>
     ///   </list>
     ///   Each drop entry is logged as a separate Unity console message so the console
     ///   does not overflow when there are many entries.
@@ -215,9 +218,55 @@ namespace DataKeeper.Pity
                                    ? Mathf.Max(0f, entry.baseWeight) / totalBaseW * 100f
                                    : 0f;
 
+                float simulatedDropRate = r.totalDrops / (float)((long)players * rolls) * 100f;
+
                 var sb = new StringBuilder();
                 sb.AppendLine($"[{d}] \"{entry.item}\"   base chance: {basePct:F1}%");
                 sb.AppendLine(LINE);
+
+                // ── Chance Breakdown ────────────────────────────────────────
+                // Roll 1: base + luck, no pity
+                float roll1EffW        = Mathf.Max(0f, entry.baseWeight + luck * entry.luckInfluence);
+                float totalWeightRoll1 = 0f;
+                for (int i = 0; i < dropCount; i++)
+                    totalWeightRoll1 += Mathf.Max(0f, system.Drops[i].baseWeight + luck * system.Drops[i].luckInfluence);
+                float roll1Pct = totalWeightRoll1 > 0f ? roll1EffW / totalWeightRoll1 * 100f : 0f;
+
+                // Last roll: pity + base + luck (worst case — never received this item)
+                int   missesAtLast     = rolls - 1;
+                bool  guaranteedAtLast = entry.guaranteedDropThreshold > 0
+                                         && missesAtLast + 1 >= entry.guaranteedDropThreshold;
+                float pityEffW         = Mathf.Max(0f, entry.GetEffectiveWeightAt(missesAtLast));
+                float lastEntryEffW    = Mathf.Max(0f, pityEffW + luck * entry.luckInfluence);
+                float totalWeightLast  = lastEntryEffW;
+                for (int i = 0; i < dropCount; i++)
+                    if (i != d) totalWeightLast += Mathf.Max(0f, system.Drops[i].baseWeight + luck * system.Drops[i].luckInfluence);
+                float lastRollPct = totalWeightLast > 0f ? lastEntryEffW / totalWeightLast * 100f : 0f;
+                float pityBonus   = pityEffW - Mathf.Max(0f, entry.baseWeight);
+
+                sb.AppendLine("CHANCE BREAKDOWN");
+                sb.AppendLine($"  Roll 1  (fresh, no pity accumulated)");
+                sb.Append    ($"    Weight  : {entry.baseWeight:F1}");
+                if (luck != 0f) sb.Append($" + luck {luck * entry.luckInfluence:+0.##;-0.##;0} = {roll1EffW:F1}");
+                sb.AppendLine();
+                sb.AppendLine($"    Chance  : {roll1Pct:F1}%");
+                sb.AppendLine();
+
+                sb.AppendLine($"  Roll {rolls}  (worst case — never dropped yet)");
+                if (guaranteedAtLast)
+                {
+                    sb.AppendLine($"    Chance  : GUARANTEED  (hard cap = {entry.guaranteedDropThreshold})");
+                }
+                else
+                {
+                    sb.Append($"    Weight  : {entry.baseWeight:F1}");
+                    if (pityBonus > 0f) sb.Append($" + pity +{pityBonus:F1}");
+                    if (luck != 0f)     sb.Append($" + luck {luck * entry.luckInfluence:+0.##;-0.##;0}");
+                    if (pityBonus > 0f || luck != 0f) sb.Append($" = {lastEntryEffW:F1}");
+                    sb.AppendLine();
+                    sb.AppendLine($"    Chance  : {lastRollPct:F1}%");
+                }
+                sb.AppendLine();
 
                 // ── First Drop ──────────────────────────────────────────────
                 sb.AppendLine("FIRST DROP  (roll on which a player first received this item)");
@@ -249,6 +298,8 @@ namespace DataKeeper.Pity
 
                 // ── Coverage ────────────────────────────────────────────────
                 sb.AppendLine("COVERAGE");
+                sb.AppendLine($"  Simulated rate : {simulatedDropRate:F2}%  ({r.totalDrops:N0} drops across {(long)players * rolls:N0} rolls)");
+                sb.AppendLine($"  Base rate      : {basePct:F1}%  (theoretical, roll 1, no luck)");
                 sb.AppendLine($"  Got at least 1 : {r.playersWithDrop:N0} / {players:N0} players  ({hitRate:F1}%)");
                 if (neverGot > 0)
                     sb.AppendLine($"  Never got it   : {neverGot:N0} / {players:N0} players  ({neverGot / (float)players * 100f:F1}%)");

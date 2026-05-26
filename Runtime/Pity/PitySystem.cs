@@ -26,8 +26,8 @@ namespace DataKeeper.Pity
     ///   </item>
     ///   <item>
     ///     Every entry that was NOT selected has its miss counter incremented.
-    ///     Once an entry's misses exceed <c>pityActivationThreshold</c>, each additional miss
-    ///     also adds <c>pityWeightIncrement</c> to its weight bonus.
+    ///     Once an entry's miss count reaches <c>pityActivationThreshold</c>, that miss and
+    ///     every subsequent miss also adds <c>pityWeightIncrement</c> to its weight bonus.
     ///   </item>
     /// </list>
     ///

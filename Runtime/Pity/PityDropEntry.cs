@@ -44,7 +44,9 @@ namespace DataKeeper.Pity
                  "Set to 0 to make this entry unaffected by luck.")]
         public float luckInfluence = 0f;
 
-        [Tooltip("Pity starts accumulating after this many consecutive misses. 0 = pity starts immediately.")]
+        [Tooltip("Pity starts accumulating from this miss number " +
+                 "(e.g. 10 = the 10th consecutive miss is the first to add pity weight). " +
+                 "0 = pity starts from miss 1.")]
         [Min(0)]
         public int pityActivationThreshold = 0;
 
@@ -99,12 +101,18 @@ namespace DataKeeper.Pity
 
         /// <summary>
         /// Called when this entry was NOT selected on a roll.
-        /// Increments the miss counter and, once past <see cref="pityActivationThreshold"/>,
-        /// adds <see cref="pityWeightIncrement"/> to the weight bonus.
+        /// Increments the miss counter and, once the miss count (after increment) reaches
+        /// <see cref="pityActivationThreshold"/>, adds <see cref="pityWeightIncrement"/>
+        /// to the weight bonus.  Setting the threshold to N means the Nth miss is the
+        /// first miss to carry a pity bonus.
         /// </summary>
         internal void RecordMiss()
         {
-            if (_state.Misses >= pityActivationThreshold)
+            // _state.Misses is the count BEFORE this miss is added.
+            // We want the bonus to apply when (misses + 1) >= threshold,
+            // i.e. the Nth miss triggers pity when threshold = N.
+            // For threshold = 0, (misses + 1) >= 0 is always true → same "start immediately" behaviour.
+            if (_state.Misses + 1 >= pityActivationThreshold)
                 _state.IncrementMisses(pityWeightIncrement);
             else
                 _state.IncrementMisses(0f);
@@ -120,14 +128,27 @@ namespace DataKeeper.Pity
         internal void Reset() => _state.Reset();
 
         /// <summary>
-        /// Returns the effective weight at a given miss count without touching runtime state.
-        /// Used for display and simulation.
+        /// Returns the effective weight after <paramref name="atMisses"/> consecutive misses,
+        /// without touching runtime state. Used for display and simulation.
+        /// <para>
+        ///   Pity bonus accumulation mirrors <see cref="RecordMiss"/>:
+        ///   the first bonus is applied on miss number <see cref="pityActivationThreshold"/>
+        ///   (threshold = 0 means pity from miss 1).
+        /// </para>
         /// </summary>
         public float GetEffectiveWeightAt(int atMisses)
         {
             float bonus = 0f;
-            if (atMisses > pityActivationThreshold)
-                bonus = (atMisses - pityActivationThreshold) * pityWeightIncrement;
+            if (pityActivationThreshold == 0)
+            {
+                // pity starts from the very first miss
+                bonus = atMisses * pityWeightIncrement;
+            }
+            else if (atMisses >= pityActivationThreshold)
+            {
+                // first bonus on miss pityActivationThreshold, second on miss+1, etc.
+                bonus = (atMisses - pityActivationThreshold + 1) * pityWeightIncrement;
+            }
             return baseWeight + bonus;
         }
 
