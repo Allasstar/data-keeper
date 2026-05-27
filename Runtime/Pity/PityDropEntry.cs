@@ -59,6 +59,19 @@ namespace DataKeeper.Pity
         [Min(0)]
         public int guaranteedDropThreshold = 0;
 
+        // ── constructor ─────────────────────────────────────────────────────
+        public PityDropEntry() { }
+        
+        public PityDropEntry(T item, float baseWeight = 100f, float luckInfluence = 0f,
+            int pityActivationThreshold = 0, float pityWeightIncrement = 0f, int guaranteedDropThreshold = 0)
+        {
+            this.item = item;
+            this.baseWeight = Mathf.Max(0f, baseWeight);
+            this.luckInfluence = luckInfluence;
+            this.pityActivationThreshold = Mathf.Max(0, pityActivationThreshold);
+            this.pityWeightIncrement = pityWeightIncrement;
+            this.guaranteedDropThreshold = Mathf.Max(0, guaranteedDropThreshold);
+        }
         // ── runtime state ─────────────────────────────────────────────────────
 
         [NonSerialized]
