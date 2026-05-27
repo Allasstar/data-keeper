@@ -1,10 +1,10 @@
 {
   "name": "com.micrarriors.data-keeper",
-  "version": "0.81.0",
+  "version": "0.82.0",
   "displayName": "DataKeeper",
   "description": "DataKeeper is a comprehensive package/Unity extension that enhances the functionality and convenience of Unity development.",
-  "unity": "2021.3",
-  "unityRelease": "11f1",
+  "unity": "6000.0",
+  "unityRelease": "66f2",
   "documentationUrl": "https://github.com/Allasstar/data-keeper/tree/main/Documentation~",
   "changelogUrl": "https://github.com/Allasstar/data-keeper",
   "licensesUrl": "https://github.com/Allasstar/data-keeper/blob/main/LICENSE",
