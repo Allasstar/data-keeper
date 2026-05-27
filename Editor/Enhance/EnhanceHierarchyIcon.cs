@@ -76,8 +76,6 @@ namespace DataKeeper.Editor.Enhance
             typeof(UnityEngine.UI.Button),
             typeof(UnityEngine.UI.Slider),
             typeof(UnityEngine.UI.Toggle),
-            typeof(UnityEngine.UI.Dropdown),
-            typeof(UnityEngine.UI.InputField),
             typeof(UnityEngine.UI.Scrollbar),
             typeof(UnityEngine.UI.ScrollRect),
             typeof(UnityEngine.UI.ToggleGroup),
@@ -153,8 +151,13 @@ namespace DataKeeper.Editor.Enhance
         {
             EditorApplication.update -= HandleEditorAppUpdate;
             EditorApplication.update += HandleEditorAppUpdate;
+#if UNITY_6000_5_OR_NEWER
+            EditorApplication.hierarchyWindowItemByEntityIdOnGUI -= HandleHierarchyWindowItemByEntityIdOnGUI;
+            EditorApplication.hierarchyWindowItemByEntityIdOnGUI += HandleHierarchyWindowItemByEntityIdOnGUI;
+#else
             EditorApplication.hierarchyWindowItemOnGUI -= HandleHierarchyWindowItemOnGUI;
             EditorApplication.hierarchyWindowItemOnGUI += HandleHierarchyWindowItemOnGUI;
+#endif
         }
         
         private static void HandleEditorAppUpdate()
@@ -173,29 +176,57 @@ namespace DataKeeper.Editor.Enhance
             return window != null && window.GetType().Name == SCENE_HIERARCHY_WINDOW;
         }
 
-        private static void HandleHierarchyWindowItemOnGUI(int instanceID, Rect selectionRect)
+#if UNITY_6000_5_OR_NEWER
+        private static void HandleHierarchyWindowItemByEntityIdOnGUI(EntityId entityId, Rect selectionRect)
         {
             if (!isEnabled) return;
 
-            GameObject gameObject = EditorUtility.InstanceIDToObject(instanceID) as GameObject;
+            GameObject gameObject = EditorUtility.EntityIdToObject(entityId) as GameObject;
             if (gameObject == null) return;
-            
+
+            bool isSelected = Selection.Contains(entityId);
+
             switch (HierarchyIconType)
             {
                 case HierarchyIconType.All:
-                    var primaryIcon = DrawPrimaryIcon(gameObject, instanceID, selectionRect);
+                    var primaryIcon = DrawPrimaryIcon(gameObject, isSelected, selectionRect);
                     DrawSecondaryIcons(gameObject, selectionRect, primaryIcon);
                     break;
                 case HierarchyIconType.Primary:
-                    DrawPrimaryIcon(gameObject, instanceID, selectionRect);
+                    DrawPrimaryIcon(gameObject, isSelected, selectionRect);
                     break;
                 case HierarchyIconType.Secondary:
                     DrawSecondaryIcons(gameObject, selectionRect, null);
                     break;
             }
         }
+#else
+        private static void HandleHierarchyWindowItemOnGUI(int instanceID, Rect selectionRect)
+        {
+            if (!isEnabled) return;
 
-        private static Component DrawPrimaryIcon(GameObject gameObject, int instanceID, Rect selectionRect)
+            GameObject gameObject = EditorUtility.InstanceIDToObject(instanceID) as GameObject;
+            if (gameObject == null) return;
+
+            bool isSelected = Selection.Contains(instanceID);
+
+            switch (HierarchyIconType)
+            {
+                case HierarchyIconType.All:
+                    var primaryIcon = DrawPrimaryIcon(gameObject, isSelected, selectionRect);
+                    DrawSecondaryIcons(gameObject, selectionRect, primaryIcon);
+                    break;
+                case HierarchyIconType.Primary:
+                    DrawPrimaryIcon(gameObject, isSelected, selectionRect);
+                    break;
+                case HierarchyIconType.Secondary:
+                    DrawSecondaryIcons(gameObject, selectionRect, null);
+                    break;
+            }
+        }
+#endif
+
+        private static Component DrawPrimaryIcon(GameObject gameObject, bool isSelected, Rect selectionRect)
         {
             Component targetComponent = GetPrimaryIconComponent(gameObject);
             if (targetComponent == null) return null;
@@ -207,7 +238,6 @@ namespace DataKeeper.Editor.Enhance
             iconRect.width = 16f;
             iconRect.height = 16f;
 
-            bool isSelected = Selection.Contains(instanceID);
             bool isHovered = selectionRect.Contains(Event.current.mousePosition);
             bool isClicked = isHovered && GetIsMouseDown();
             
