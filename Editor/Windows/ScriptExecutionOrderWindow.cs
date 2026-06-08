@@ -114,13 +114,25 @@ namespace DataKeeper.Editor.Windows
 
         private VisualElement CreateToolbar()
         {
-            var bar = new VisualElement().SetFlexRow().SetMarginBottom(4);
+            var row = new VisualElement().SetFlexRow().SetMarginBottom(4);
 
-            new Button(SortEntries) { text = "Sort by Order" }.SetHeight(22).SetChildOf(bar);
-            new Button(ScanScene)   { text = "From Scene" }   .SetHeight(22).SetMarginLeft(4).SetChildOf(bar);
-            new Button(ClearAll)    { text = "Clear All" }    .SetHeight(22).SetMarginLeft(4).SetChildOf(bar);
+            new Button(SortEntries)             { text = "Sort by Order" }      .SetHeight(22).SetChildOf(row);
+            new Button(ScanScene)               { text = "From Scene" }         .SetHeight(22).SetMarginLeft(4).SetChildOf(row);
+            new Button(LoadFromProjectSettings) { text = "From Proj. Settings" }.SetHeight(22).SetMarginLeft(4).SetChildOf(row);
 
-            return bar;
+            var nsBtn = new Button { text = "From Namespace ▾" };
+            nsBtn.SetHeight(22).SetMarginLeft(4);
+            nsBtn.clicked += () =>
+            {
+                var wb = nsBtn.worldBound;
+                var screenRect = new Rect(position.x + wb.x, position.y + wb.yMax + 21, wb.width, 0);
+                UnityEditor.PopupWindow.Show(screenRect, new NamespacePickerPopup(CollectNamespacesWithAttribute(), LoadFromNamespace));
+            };
+            nsBtn.SetChildOf(row);
+
+            new Button(ClearAll) { text = "Clear All" }.SetHeight(22).SetMarginLeft(4).SetChildOf(row);
+
+            return row;
         }
 
         private VisualElement CreateSearchBar()
@@ -165,14 +177,15 @@ namespace DataKeeper.Editor.Windows
         private VisualElement CreateBottomBar()
         {
             var bar = new VisualElement().SetFlexRow().SetMarginTop(4);
-
-            var applyBtn = new Button(ApplyAll) { text = "Apply All" };
-            applyBtn.tooltip = "Apply all pending order changes to Project Settings";
-            applyBtn.SetHeight(22).SetChildOf(bar);
+            bar.style.justifyContent = Justify.FlexEnd;
 
             var revertBtn = new Button(RevertAll) { text = "Revert" };
             revertBtn.tooltip = "Revert all pending changes back to current applied values";
-            revertBtn.SetHeight(22).SetMarginLeft(4).SetChildOf(bar);
+            revertBtn.SetHeight(22).SetChildOf(bar);
+
+            var applyBtn = new Button(ApplyAll) { text = "Apply All" };
+            applyBtn.tooltip = "Apply all pending order changes to Project Settings";
+            applyBtn.SetHeight(22).SetMarginLeft(4).SetChildOf(bar);
 
             return bar;
         }
@@ -208,6 +221,53 @@ namespace DataKeeper.Editor.Windows
                 TryAddScript(MonoScript.FromMonoBehaviour(mb));
             }
             SortEntries();
+        }
+
+        private void LoadFromProjectSettings()
+        {
+            var guids = AssetDatabase.FindAssets("t:MonoScript");
+            foreach (var guid in guids)
+            {
+                var script = AssetDatabase.LoadAssetAtPath<MonoScript>(AssetDatabase.GUIDToAssetPath(guid));
+                if (script == null) continue;
+                if (MonoImporter.GetExecutionOrder(script) != 0)
+                    TryAddScript(script);
+            }
+            SortEntries();
+        }
+
+        private void LoadFromNamespace(string ns)
+        {
+            if (string.IsNullOrWhiteSpace(ns)) return;
+            var guids = AssetDatabase.FindAssets("t:MonoScript");
+            foreach (var guid in guids)
+            {
+                var script = AssetDatabase.LoadAssetAtPath<MonoScript>(AssetDatabase.GUIDToAssetPath(guid));
+                if (script == null) continue;
+                var type = script.GetClass();
+                if (type == null || type.Namespace == null) continue;
+                if (!type.Namespace.StartsWith(ns, System.StringComparison.Ordinal)) continue;
+                if (type.GetCustomAttribute<DefaultExecutionOrder>() == null) continue;
+                TryAddScript(script);
+            }
+            SortEntries();
+        }
+
+        private static List<string> CollectNamespacesWithAttribute()
+        {
+            var result = new HashSet<string>();
+            var guids = AssetDatabase.FindAssets("t:MonoScript");
+            foreach (var guid in guids)
+            {
+                var script = AssetDatabase.LoadAssetAtPath<MonoScript>(AssetDatabase.GUIDToAssetPath(guid));
+                if (script == null) continue;
+                var type = script.GetClass();
+                if (type == null || type.Namespace == null) continue;
+                if (!type.IsSubclassOf(typeof(MonoBehaviour))) continue;
+                if (type.GetCustomAttribute<DefaultExecutionOrder>() == null) continue;
+                result.Add(type.Namespace);
+            }
+            return result.OrderBy(n => n).ToList();
         }
 
         private static ScriptEntry BuildEntry(MonoScript script)
@@ -377,6 +437,61 @@ namespace DataKeeper.Editor.Windows
             entry.ProjectSettingsOrder = 0;
             entry.PendingOrder         = entry.EffectiveOrder;
             RebuildList();
+        }
+
+        // ── Namespace picker popup ────────────────────────────────────────
+
+        private class NamespacePickerPopup : PopupWindowContent
+        {
+            private readonly List<string> _all;
+            private readonly System.Action<string> _onPick;
+            private string _filter = "";
+            private Vector2 _scroll;
+            private bool _focusSearch = true;
+
+            public NamespacePickerPopup(List<string> all, System.Action<string> onPick)
+            {
+                _all    = all;
+                _onPick = onPick;
+            }
+
+            public override Vector2 GetWindowSize() => new Vector2(300, 220);
+
+            public override void OnGUI(Rect rect)
+            {
+                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+                GUI.SetNextControlName("nsSearch");
+                _filter = EditorGUILayout.TextField(_filter, EditorStyles.toolbarSearchField);
+                if (GUILayout.Button("×", EditorStyles.toolbarButton, GUILayout.Width(20)))
+                {
+                    _filter = "";
+                    GUI.FocusControl(null);
+                }
+                EditorGUILayout.EndHorizontal();
+
+                if (_focusSearch) { GUI.FocusControl("nsSearch"); _focusSearch = false; }
+
+                if (_all.Count == 0)
+                {
+                    EditorGUILayout.HelpBox("No MonoBehaviour with [DefaultExecutionOrder] found.", MessageType.Info);
+                    return;
+                }
+
+                _scroll = EditorGUILayout.BeginScrollView(_scroll);
+                foreach (var ns in _all)
+                {
+                    if (!string.IsNullOrEmpty(_filter) &&
+                        ns.IndexOf(_filter, System.StringComparison.OrdinalIgnoreCase) < 0)
+                        continue;
+
+                    if (GUILayout.Button(ns, EditorStyles.label))
+                    {
+                        _onPick(ns);
+                        editorWindow.Close();
+                    }
+                }
+                EditorGUILayout.EndScrollView();
+            }
         }
 
         // ── Data model ────────────────────────────────────────────────────
