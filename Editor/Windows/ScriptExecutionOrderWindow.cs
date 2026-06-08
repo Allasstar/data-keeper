@@ -15,20 +15,21 @@ namespace DataKeeper.Editor.Windows
         private static readonly Color ColorAttr    = new Color(1.00f, 0.80f, 0.25f);
         private static readonly Color ColorDefault = new Color(0.55f, 0.55f, 0.55f);
         private static readonly Color RowBorder    = new Color(0.25f, 0.25f, 0.25f);
+        private static readonly Color DirtyBorder  = new Color(0.80f, 0.60f, 0.10f);
+        private static readonly Color DirtyBg      = new Color(0.20f, 0.18f, 0.08f);
 
-        // Fixed pixel widths — every row uses the same values so columns align.
         private const float ColOrder   = 50f;
         private const float ColSource  = 68f;
         private const float ColField   = 50f;
-        private const float ColSet     = 38f;
         private const float ColUnset   = 38f;
         private const float ColRemove  = 20f;
-        private const float ColActions = ColField + ColSet + ColUnset + ColRemove + 10f; // 10 = inner margins
+        private const float ColActions = ColField + ColUnset + ColRemove + 8f;
 
         [SerializeField] private List<MonoScript> _savedScripts = new();
 
         private readonly List<ScriptEntry> _entries = new();
         private ScrollView _listContainer;
+        private string _searchFilter = "";
 
         [MenuItem("Tools/Windows/Script Execution Order", priority = 20)]
         public static void ShowWindow()
@@ -36,16 +37,7 @@ namespace DataKeeper.Editor.Windows
             var window = GetWindow<ScriptExecutionOrderWindow>();
             window.titleContent = new GUIContent("Execution Order",
                 EditorGUIUtility.IconContent("UnityEditor.HierarchyWindow").image);
-            window.minSize = new Vector2(520, 300);
-        }
-
-        private void OnEnable()  => EditorApplication.playModeStateChanged += OnPlayModeChanged;
-        private void OnDisable() => EditorApplication.playModeStateChanged -= OnPlayModeChanged;
-
-        private void OnPlayModeChanged(PlayModeStateChange state)
-        {
-            if (state != PlayModeStateChange.EnteredPlayMode) return;
-            ScanScene();
+            window.minSize = new Vector2(480, 300);
         }
 
         public void CreateGUI()
@@ -53,14 +45,17 @@ namespace DataKeeper.Editor.Windows
             var root = rootVisualElement;
             root.SetPadding(8);
 
-            root.Add(CreateDropZone());
-            root.Add(CreateToolbar());
-            root.Add(CreateHeaders());
+            var dropZone = CreateDropZone();   dropZone.style.flexShrink   = 0; root.Add(dropZone);
+            var toolbar  = CreateToolbar();    toolbar.style.flexShrink    = 0; root.Add(toolbar);
+            var search   = CreateSearchBar();  search.style.flexShrink     = 0; root.Add(search);
+            var headers  = CreateHeaders();    headers.style.flexShrink    = 0; root.Add(headers);
 
             _listContainer = new ScrollView(ScrollViewMode.Vertical)
                 .SetFlexGrow(1)
                 .SetMarginTop(2);
             root.Add(_listContainer);
+
+            var bottomBar = CreateBottomBar(); bottomBar.style.flexShrink  = 0; root.Add(bottomBar);
 
             foreach (var script in _savedScripts)
             {
@@ -115,15 +110,31 @@ namespace DataKeeper.Editor.Windows
         private static bool IsValidDrag()
             => DragAndDrop.objectReferences.Any(o => o is MonoScript || o is GameObject);
 
-        // ── Toolbar & headers ─────────────────────────────────────────────
+        // ── Toolbar, search & headers ─────────────────────────────────────
 
         private VisualElement CreateToolbar()
         {
             var bar = new VisualElement().SetFlexRow().SetMarginBottom(4);
 
-            new Button(SortEntries)  { text = "Sort by Order" } .SetHeight(22).SetChildOf(bar);
-            new Button(ScanScene)    { text = "From Scene" }    .SetHeight(22).SetMarginLeft(4).SetChildOf(bar);
-            new Button(ClearAll)     { text = "Clear All" }     .SetHeight(22).SetMarginLeft(4).SetChildOf(bar);
+            new Button(SortEntries) { text = "Sort by Order" }.SetHeight(22).SetChildOf(bar);
+            new Button(ScanScene)   { text = "From Scene" }   .SetHeight(22).SetMarginLeft(4).SetChildOf(bar);
+            new Button(ClearAll)    { text = "Clear All" }    .SetHeight(22).SetMarginLeft(4).SetChildOf(bar);
+
+            return bar;
+        }
+
+        private VisualElement CreateSearchBar()
+        {
+            var bar = new VisualElement().SetFlexRow().SetMarginBottom(4).SetAlignItems(Align.Center);
+
+            var searchField = new ToolbarSearchField();
+            searchField.style.flexGrow = 1;
+            searchField.RegisterValueChangedCallback(evt =>
+            {
+                _searchFilter = evt.newValue;
+                RebuildList();
+            });
+            bar.Add(searchField);
 
             return bar;
         }
@@ -137,10 +148,10 @@ namespace DataKeeper.Editor.Windows
                 .SetBorderRadius(2)
                 .SetMarginBottom(2);
 
-            MakeHeaderLabel("Order",   ColOrder).SetChildOf(row);
-            MakeHeaderLabel("Source",  ColSource).SetChildOf(row);
-            MakeHeaderLabel("Script",  0, flex: true).SetChildOf(row);
-            MakeHeaderLabel("",        ColActions).SetChildOf(row);
+            MakeHeaderLabel("Order",  ColOrder).SetChildOf(row);
+            MakeHeaderLabel("Source", ColSource).SetChildOf(row);
+            MakeHeaderLabel("Script", 0, flex: true).SetChildOf(row);
+            MakeHeaderLabel("",       ColActions).SetChildOf(row);
 
             return row;
         }
@@ -149,6 +160,21 @@ namespace DataKeeper.Editor.Windows
         {
             var l = new Label(text).SetFontStyle(FontStyle.Bold).SetFontSize(11);
             return flex ? l.SetFlexGrow(1) : l.SetWidth(width);
+        }
+
+        private VisualElement CreateBottomBar()
+        {
+            var bar = new VisualElement().SetFlexRow().SetMarginTop(4);
+
+            var applyBtn = new Button(ApplyAll) { text = "Apply All" };
+            applyBtn.tooltip = "Apply all pending order changes to Project Settings";
+            applyBtn.SetHeight(22).SetChildOf(bar);
+
+            var revertBtn = new Button(RevertAll) { text = "Revert" };
+            revertBtn.tooltip = "Revert all pending changes back to current applied values";
+            revertBtn.SetHeight(22).SetMarginLeft(4).SetChildOf(bar);
+
+            return bar;
         }
 
         // ── Data helpers ──────────────────────────────────────────────────
@@ -202,6 +228,7 @@ namespace DataKeeper.Editor.Windows
                 entry.AttributeOrder = attr.order;
             }
 
+            entry.PendingOrder = entry.EffectiveOrder;
             return entry;
         }
 
@@ -209,8 +236,6 @@ namespace DataKeeper.Editor.Windows
 
         private void SortEntries()
         {
-            // Stable sort: primary by effective order, secondary alphabetical so same-order
-            // scripts always appear in the same deterministic position.
             var sorted = _entries
                 .OrderBy(e => e.EffectiveOrder)
                 .ThenBy(e => e.Script.name)
@@ -231,11 +256,18 @@ namespace DataKeeper.Editor.Windows
         {
             _listContainer.Clear();
             foreach (var entry in _entries)
+            {
+                if (!string.IsNullOrEmpty(_searchFilter) &&
+                    entry.Script.name.IndexOf(_searchFilter, System.StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
                 _listContainer.Add(BuildRow(entry));
+            }
         }
 
         private VisualElement BuildRow(ScriptEntry entry)
         {
+            bool dirty = entry.IsDirty;
+
             var row = new VisualElement()
                 .SetFlexRow()
                 .SetAlignItems(Align.Center)
@@ -243,71 +275,60 @@ namespace DataKeeper.Editor.Windows
                 .SetMarginBottom(2)
                 .SetBorderRadius(3)
                 .SetBorderWidth(1)
-                .SetBorderColor(RowBorder);
+                .SetBorderColor(dirty ? DirtyBorder : RowBorder);
+
+            if (dirty)
+                row.SetBackgroundColor(DirtyBg);
 
             var color = entry.IsInProjectSettings ? ColorCustom
                       : entry.HasAttribute        ? ColorAttr
                       :                             ColorDefault;
 
-            // Order value
             new Label(entry.EffectiveOrder.ToString())
                 .SetWidth(ColOrder)
                 .SetColor(color)
                 .SetFontStyle(FontStyle.Bold)
                 .SetChildOf(row);
 
-            // Source badge
             new Label(entry.SourceLabel)
                 .SetWidth(ColSource)
                 .SetFontSize(10)
                 .SetColor(color)
                 .SetChildOf(row);
 
-            // Script field — stays enabled so user can click to ping the asset
             var scriptField = new ObjectField { objectType = typeof(MonoScript) };
             scriptField.SetValueWithoutNotify(entry.Script);
             scriptField.RegisterValueChangedCallback(_ => scriptField.SetValueWithoutNotify(entry.Script));
             scriptField.SetFlexGrow(1).SetHeight(18).SetChildOf(row);
 
-            // ── Fixed-width action zone ───────────────────────────────────
             var actions = new VisualElement()
                 .SetFlexRow()
                 .SetAlignItems(Align.Center)
                 .SetMarginLeft(4)
                 .SetWidth(ColActions);
 
-            // Order field
-            int currentOrder = entry.IsInProjectSettings ? entry.ProjectSettingsOrder
-                             : entry.HasAttribute        ? entry.AttributeOrder : 0;
-
             var orderField = new IntegerField();
-            orderField.SetValueWithoutNotify(currentOrder);
+            orderField.SetValueWithoutNotify(entry.PendingOrder);
             orderField.SetWidth(ColField).SetHeight(18).SetChildOf(actions);
 
-            // Set — always rendered but visibility-toggled so it holds its column width.
-            var setBtn = new Button(() => ApplyOrder(entry, orderField.value)) { text = "Set" };
-            setBtn.tooltip = entry.IsInProjectSettings
-                ? "Apply new order to Project Settings"
-                : "Add custom execution order to Project Settings";
-            setBtn.SetWidth(ColSet).SetHeight(18).SetMarginLeft(2);
-            setBtn.style.visibility = Visibility.Hidden; // hidden until value changes
-            setBtn.SetChildOf(actions);
-
-            // Show Set only when the field value differs from the stored order.
             orderField.RegisterValueChangedCallback(evt =>
             {
-                bool changed = evt.newValue != entry.EffectiveOrder;
-                setBtn.style.visibility = changed ? Visibility.Visible : Visibility.Hidden;
+                entry.PendingOrder = evt.newValue;
+                bool nowDirty = entry.IsDirty;
+                row.SetBorderColor(nowDirty ? DirtyBorder : RowBorder);
+                row.SetBackgroundColor(nowDirty ? DirtyBg : new Color(0, 0, 0, 0));
             });
 
-            // Unset — always rendered, disabled when not in Project Settings.
-            var unsetBtn = new Button(() => RemoveFromPS(entry)) { text = "Unset" };
+            var unsetBtn = new Button(() =>
+            {
+                RemoveFromPS(entry);
+                orderField.SetValueWithoutNotify(entry.PendingOrder);
+            }) { text = "Unset" };
             unsetBtn.tooltip = "Remove custom order — reverts to attribute or default (0)";
             unsetBtn.SetWidth(ColUnset).SetHeight(18).SetMarginLeft(2);
             unsetBtn.SetEnabled(entry.IsInProjectSettings);
             unsetBtn.SetChildOf(actions);
 
-            // Remove from list
             var removeBtn = new Button(() =>
             {
                 _entries.Remove(entry);
@@ -323,16 +344,29 @@ namespace DataKeeper.Editor.Windows
 
         // ── Execution order mutations ─────────────────────────────────────
 
-        private void ApplyOrder(ScriptEntry entry, int order)
+        private void ApplyAll()
         {
-            if (order == 0)
+            bool any = false;
+            foreach (var entry in _entries)
             {
-                Debug.LogWarning("[Execution Order] 0 is the default — use a non-zero value to set a custom order.");
-                return;
+                if (!entry.IsDirty) continue;
+                if (entry.PendingOrder == 0)
+                {
+                    Debug.LogWarning($"[Execution Order] Skipping {entry.Script.name}: 0 is the default — use a non-zero value.");
+                    continue;
+                }
+                MonoImporter.SetExecutionOrder(entry.Script, entry.PendingOrder);
+                entry.ProjectSettingsOrder = entry.PendingOrder;
+                entry.IsInProjectSettings  = true;
+                any = true;
             }
-            MonoImporter.SetExecutionOrder(entry.Script, order);
-            entry.ProjectSettingsOrder = order;
-            entry.IsInProjectSettings  = true;
+            if (any) RebuildList();
+        }
+
+        private void RevertAll()
+        {
+            foreach (var entry in _entries)
+                entry.PendingOrder = entry.EffectiveOrder;
             RebuildList();
         }
 
@@ -341,6 +375,7 @@ namespace DataKeeper.Editor.Windows
             MonoImporter.SetExecutionOrder(entry.Script, 0);
             entry.IsInProjectSettings  = false;
             entry.ProjectSettingsOrder = 0;
+            entry.PendingOrder         = entry.EffectiveOrder;
             RebuildList();
         }
 
@@ -353,10 +388,13 @@ namespace DataKeeper.Editor.Windows
             public bool IsInProjectSettings;
             public int  AttributeOrder;
             public bool HasAttribute;
+            public int  PendingOrder;
 
             public int EffectiveOrder =>
                 IsInProjectSettings ? ProjectSettingsOrder :
                 HasAttribute        ? AttributeOrder       : 0;
+
+            public bool IsDirty => PendingOrder != EffectiveOrder;
 
             public string SourceLabel =>
                 IsInProjectSettings ? "Custom"    :
