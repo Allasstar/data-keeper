@@ -3,29 +3,21 @@ using UnityEngine;
 
 namespace DataKeeper.SingletonPattern
 {
-    public class MonoSingleton<T> : MonoBehaviour where T : MonoBehaviour
+    public class MonoSingleton<T> : MonoBehaviour where T : Component
     {
         private static T _instance;
-        public static T Instance => _instance ??= CreateInstance();
-
-        private static Transform _container;
-        private static Transform Container => _container ??= CreateContainer();
-     
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void Reset()
+        public static T Instance
         {
-            _instance = null;
+            get
+            {
+                if (_instance == null) _instance = CreateInstance();
+                return _instance;
+            }
         }
-        
+
         private static T CreateInstance()
         {
-            return MonoFactory.Create<T>($"{typeof(T).Name} (Singleton)", Container);
-        }
-
-        private static Transform CreateContainer()
-        {
-            return MonoFactory.Create($"[Singletons]", true).transform;
+            return MonoFactory.Create<T>($"{typeof(T).Name} (Singleton)", MonoSingletonContainer.Get().transform);
         }
     }
 }
-

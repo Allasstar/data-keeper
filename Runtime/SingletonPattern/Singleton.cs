@@ -1,19 +1,22 @@
 using System;
-using UnityEngine;
 
-public class Singleton<T>
+namespace DataKeeper.SingletonPattern
 {
-    private static T _instance;
-    public static T Instance => _instance ??= CreateInstance();
-    
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void Reset()
+    public class Singleton<T> where T : new()
     {
-        _instance = default;
-    }
-    
-    private static T CreateInstance()
-    {
-        return Activator.CreateInstance<T>();
+        private static T _instance;
+        public static T Instance
+        {
+            get
+            {
+                if (_instance == null) _instance = CreateInstance();
+                return _instance;
+            }
+        }
+
+        private static T CreateInstance()
+        {
+            return Activator.CreateInstance<T>();
+        }
     }
 }

@@ -11,14 +11,14 @@ namespace DataKeeper.Extensions
             return go;
         }
         
-        public static T Create<T>(string gameObjectName, Transform parent = null) where T : MonoBehaviour
+        public static T Create<T>(string gameObjectName, Transform parent = null) where T : Component
         {
             var go = new GameObject(gameObjectName);
             if (parent != null) go.SetParent(parent);
             return go.AddComponent<T>();
         }
         
-        public static GameObject Create<T>(string gameObjectName, out T component) where T : MonoBehaviour
+        public static GameObject Create<T>(string gameObjectName, out T component) where T : Component
         {
             var go = new GameObject(gameObjectName);
             component = go.AddComponent<T>();
