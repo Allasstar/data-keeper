@@ -5,23 +5,13 @@ using UnityEngine;
 namespace DataKeeper.BeeTween
 {
     [Serializable]
-    public class EaseFuncProvider : EaseProvider
+    public class EaseFuncProvider : IEaseProvider
     {
         [field: SerializeField] public EaseType EaseType { get; private set; }
 
-        public EaseFuncProvider()
-        {
-            EaseType = EaseType.Linear;
-        }
-        
-        public EaseFuncProvider(EaseType easeType)
-        {
-            EaseType = easeType;
-        }
+        public EaseFuncProvider() => EaseType = EaseType.Linear;
+        public EaseFuncProvider(EaseType easeType) => EaseType = easeType;
 
-        public float Evaluate(IBeeTweenContext context, float t)
-        {
-            return MathFunc.Easing.Apply(t, EaseType);
-        }
+        public float Evaluate(float t) => MathFunc.Easing.Apply(t, EaseType);
     }
 }

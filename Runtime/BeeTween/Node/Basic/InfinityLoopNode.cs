@@ -9,15 +9,12 @@ namespace DataKeeper.BeeTween
     public class InfinityLoopNode : IBeeTweenNode
     {
         [SerializeReference, SerializeReferenceSelector] public IBeeTweenNode updateNode;
-        
-        public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
+
+        public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
-            if(updateNode == null) return;
-            
-            while (cancellationToken.Token.IsCancellationRequested == false)
-            {
-                await updateNode.ExecuteAsync(context, cancellationToken);
-            }
+            if (updateNode == null) return;
+            while (!cancellationToken.Token.IsCancellationRequested)
+                await updateNode.ExecuteAsync(cancellationToken);
         }
     }
 }

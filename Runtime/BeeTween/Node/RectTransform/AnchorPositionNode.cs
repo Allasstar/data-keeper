@@ -5,46 +5,36 @@ using UnityEngine;
 
 namespace DataKeeper.BeeTween
 {
-    /// <summary>
-    /// Anchor position tween node - tweens a RectTransform's anchoredPosition
-    /// </summary>
     [Serializable]
     public class AnchorPositionNode : IBeeTweenNode
     {
+        [field: SerializeReference, SerializeReferenceSelector] public IRectTransformProvider TargetProvider { get; set; }
         public Vector2 TargetPosition;
-        public float Duration;
-        
-        [field: SerializeReference, SerializeReferenceSelector]
-        public EaseProvider Ease { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IFloatProvider Duration { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IEaseProvider Ease { get; set; }
 
         public AnchorPositionNode()
         {
-            Ease = new EaseFuncProvider();
+            TargetProvider = new RectTransformValueProvider();
+            Duration       = new FloatValueProvider();
+            Ease           = new EaseFuncProvider();
         }
 
-        public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
+        public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
-            RectTransform rectTransform = null;
-
-            if (context is IBeeTweenContext<RectTransform> rtContext)
-                rectTransform = rtContext.Target;
-            else if (context is IBeeTweenContext<GameObject> goContext && goContext.Target != null)
-                rectTransform = goContext.Target.GetComponent<RectTransform>();
-
+            var rectTransform = TargetProvider?.GetValue();
             if (rectTransform == null) return;
 
-            var easeProvider = Ease ?? new EaseFuncProvider();
+            var easeProvider  = Ease ?? new EaseFuncProvider();
             var startPosition = rectTransform.anchoredPosition;
-            var elapsedTime = 0f;
+            var duration      = Duration.GetValue();
+            var elapsedTime   = 0f;
 
-            while (elapsedTime < Duration)
+            while (elapsedTime < duration)
             {
                 await Awaitable.EndOfFrameAsync(cancellationToken.Token);
                 elapsedTime += Time.deltaTime;
-                
-                var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = easeProvider.Evaluate(context, t);
-                rectTransform.anchoredPosition = MathFunc.Lerp.LerpVector2Unclamped(startPosition, TargetPosition, easeT);
+                rectTransform.anchoredPosition = MathFunc.Lerp.LerpVector2Unclamped(startPosition, TargetPosition, easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / duration)));
             }
 
             rectTransform.anchoredPosition = TargetPosition;

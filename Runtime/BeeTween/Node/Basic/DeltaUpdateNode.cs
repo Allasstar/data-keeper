@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using DataKeeper.Attributes;
+using DataKeeper.BlackboardSystem;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
@@ -8,15 +9,15 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class DeltaUpdateNode : IBeeTweenNode
     {
-        [SerializeReference, SerializeReferenceSelector] public FloatProvider deltaTimeProvider = new DeltaTimeProvider();
+        [SerializeReference, SerializeReferenceSelector] public IFloatProvider deltaTimeProvider = new DeltaTimeProvider();
         [SerializeReference, SerializeReferenceSelector] public IBeeTweenNode updateNode;
-        
-        public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
+
+        public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
-            while (cancellationToken.Token.IsCancellationRequested == false)
+            while (!cancellationToken.Token.IsCancellationRequested)
             {
-                updateNode?.ExecuteAsync(context, cancellationToken);
-                await Awaitable.WaitForSecondsAsync(deltaTimeProvider.GetValue(context), cancellationToken.Token);
+                updateNode?.ExecuteAsync(cancellationToken);
+                await Awaitable.WaitForSecondsAsync(deltaTimeProvider.GetValue(), cancellationToken.Token);
             }
         }
     }

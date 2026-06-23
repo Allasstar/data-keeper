@@ -11,8 +11,8 @@ namespace DataKeeper.BeeTween
 
         public DebugLogNode() => message = "Hello, World!";
         public DebugLogNode(string message) => this.message = message;
-        
-        public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
+
+        public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
             Debug.Log(message);
         }

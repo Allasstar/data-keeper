@@ -5,42 +5,39 @@ using UnityEngine;
 
 namespace DataKeeper.BeeTween
 {
-    /// <summary>
-    /// Rotate node - rotates a GameObject
-    /// </summary>
     [Serializable]
     public class RotateNode : IBeeTweenNode
     {
+        [field: SerializeReference, SerializeReferenceSelector] public ITransformProvider TargetProvider { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IFloatProvider DurationProvider { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IEaseProvider Ease { get; set; }
         public Quaternion TargetRotation;
-        public float Duration;
-        
-        [field: SerializeReference, SerializeReferenceSelector]
-        public EaseProvider Ease { get; set; }
 
         public RotateNode()
         {
-            Ease = new EaseFuncProvider();
+            TargetProvider   = new TransformValueProvider();
+            DurationProvider = new FloatValueProvider();
+            Ease             = new EaseFuncProvider();
         }
 
-        public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
+        public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
-            if (context is not IBeeTweenContext<Transform> goContext || goContext.Target == null) return;
+            var target = TargetProvider?.GetValue();
+            if (target == null) return;
 
-            var easeProvider = Ease ?? new EaseFuncProvider();
-            var startRotation = goContext.Target.transform.rotation;
-            var elapsedTime = 0f;
+            var easeProvider  = Ease ?? new EaseFuncProvider();
+            var startRotation = target.rotation;
+            var duration      = DurationProvider.GetValue();
+            var elapsedTime   = 0f;
 
-            while (elapsedTime < Duration)
+            while (elapsedTime < duration)
             {
                 await Awaitable.EndOfFrameAsync(cancellationToken.Token);
                 elapsedTime += Time.deltaTime;
-                
-                var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = easeProvider.Evaluate(context, t);
-                goContext.Target.transform.rotation = MathFunc.Lerp.LerpQuaternionUnclamped(startRotation, TargetRotation, easeT);
+                target.rotation = MathFunc.Lerp.LerpQuaternionUnclamped(startRotation, TargetRotation, easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / duration)));
             }
 
-            goContext.Target.transform.rotation = TargetRotation;
+            target.rotation = TargetRotation;
         }
     }
 }

@@ -9,12 +9,12 @@ namespace DataKeeper.BeeTween
     public class UpdateNode : IBeeTweenNode
     {
         [SerializeReference, SerializeReferenceSelector] public IBeeTweenNode updateNode;
-        
-        public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
+
+        public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
-            while (cancellationToken.Token.IsCancellationRequested == false)
+            while (!cancellationToken.Token.IsCancellationRequested)
             {
-                updateNode?.ExecuteAsync(context, cancellationToken);
+                updateNode?.ExecuteAsync(cancellationToken);
                 await Awaitable.EndOfFrameAsync(cancellationToken.Token);
             }
         }

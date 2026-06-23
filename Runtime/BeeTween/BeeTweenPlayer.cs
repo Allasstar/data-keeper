@@ -6,21 +6,17 @@ using UnityEngine;
 
 namespace DataKeeper.BeeTween
 {
-    /// <summary>
-    /// Main player component that executes tween sequences
-    /// </summary>
     [AddComponentMenu("DataKeeper/BeeTween/Bee Tween Player")]
     public class BeeTweenPlayer : MonoBehaviour
     {
         public bool runOnEnable = false;
         public bool stopBeforeRun = false;
-        public bool waitContext = false;
-        
-        [field: SerializeField] public Optional<float> RestartOnEnd { get; private set; } = new Optional<float>(1, false);
+
+        [field: SerializeField] public Optional<float> RestartOnEnd  { get; private set; } = new Optional<float>(1, false);
         [field: SerializeField] public Optional<float> RestartOnFail { get; private set; } = new Optional<float>(1, false);
-        
+
         [SerializeReference, SerializeReferenceSelector]
-        public IBeeTweenContext Context;
+        public IBeeTweenNode RootNode;
 
         private CancellationTokenSource _cts;
 
@@ -29,12 +25,12 @@ namespace DataKeeper.BeeTween
             if (!runOnEnable) return;
             Run();
         }
-        
+
         private void OnDisable()
         {
             Stop();
         }
-        
+
         [ContextMenu(nameof(Run))]
         public void Run()
         {
@@ -54,23 +50,18 @@ namespace DataKeeper.BeeTween
                 _cts.Cancel();
                 _cts = null;
             }
-            
+
             _cts = new CancellationTokenSource();
 
-            while (waitContext && (Context == null || !Context.IsValid()))
-            {
-                await Awaitable.EndOfFrameAsync(_cts.Token);
-            }
-            
-            if (Context?.RootNode == null) return;
+            if (RootNode == null) return;
 
             try
             {
-                await Context.RootNode.ExecuteAsync(Context, _cts);
+                await RootNode.ExecuteAsync(_cts);
 
                 if (RestartOnEnd.Enabled)
                 {
-                    await Awaitable.WaitForSecondsAsync(RestartOnFail.Value, _cts.Token);
+                    await Awaitable.WaitForSecondsAsync(RestartOnEnd.Value, _cts.Token);
                     Run();
                 }
             }

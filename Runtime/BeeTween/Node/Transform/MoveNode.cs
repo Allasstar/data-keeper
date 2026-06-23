@@ -5,60 +5,45 @@ using UnityEngine;
 
 namespace DataKeeper.BeeTween
 {
-    /// <summary>
-    /// Move node - moves a GameObject from current position to target
-    /// </summary>
     [Serializable]
     public class MoveNode : IBeeTweenNode
     {
-        [field: SerializeReference, SerializeReferenceSelector]
-        public Vector3Provider EndPositionProvider { get; set; }
-        
-        [field: SerializeReference, SerializeReferenceSelector]
-        public FloatProvider DurationProvider { get; set; }
-        
-        [field: SerializeReference, SerializeReferenceSelector]
-        public EaseProvider Ease { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public ITransformProvider TargetProvider { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IVector3Provider EndPositionProvider { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IFloatProvider DurationProvider { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IEaseProvider Ease { get; set; }
 
-        [SerializeField, ReadOnlyInspector] private float _duratuion;
+        [SerializeField, ReadOnlyInspector] private float _duration;
         [SerializeField, ReadOnlyInspector] private Vector3 _startPoint;
         [SerializeField, ReadOnlyInspector] private Vector3 _endPoint;
 
         public MoveNode()
         {
+            TargetProvider      = new TransformValueProvider();
             EndPositionProvider = new Vector3ValueProvider();
-            DurationProvider = new FloatValueProvider();
-            Ease = new EaseFuncProvider();
+            DurationProvider    = new FloatValueProvider();
+            Ease                = new EaseFuncProvider();
         }
 
-        void UpdateValues(IBeeTweenContext context, Transform target)
+        public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
-            _duratuion = DurationProvider.GetValue(context);
+            var target = TargetProvider?.GetValue();
+            if (target == null) return;
+
+            _duration   = DurationProvider.GetValue();
             _startPoint = target.position;
-            _endPoint = EndPositionProvider.GetValue(context);
-        }
-
-        public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
-        {
-            if (context is not IBeeTweenContext<Transform> trContext || trContext.Target == null) return;
-            
+            _endPoint   = EndPositionProvider.GetValue();
             var easeProvider = Ease ?? new EaseFuncProvider();
-            var elapsedTime = 0f;
-            
-            UpdateValues(context, trContext.Target);
+            var elapsedTime  = 0f;
 
-            while (elapsedTime < _duratuion)
+            while (elapsedTime < _duration)
             {
                 elapsedTime += Time.deltaTime;
-                
-                var t = Mathf.Clamp01(elapsedTime / _duratuion);
-                var easeT = easeProvider.Evaluate(context, t);
-                trContext.Target.position = MathFunc.Lerp.LerpVector3Unclamped(_startPoint, _endPoint, easeT);
-                
+                target.position = MathFunc.Lerp.LerpVector3Unclamped(_startPoint, _endPoint, easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / _duration)));
                 await Awaitable.EndOfFrameAsync(cancellationToken.Token);
             }
 
-            trContext.Target.position = _endPoint;
+            target.position = _endPoint;
         }
     }
 }

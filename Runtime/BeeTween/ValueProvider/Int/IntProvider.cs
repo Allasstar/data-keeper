@@ -1,30 +1,41 @@
 using System;
+using DataKeeper.Attributes;
+using DataKeeper.BlackboardSystem;
+using DataKeeper.Extensions;
+using DataKeeper.GameTagSystem;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
 {
-    public interface IntProvider
+    public interface IIntProvider
     {
-        int GetValue(IBeeTweenContext context);
+        int GetValue();
     }
-    
+
     [Serializable]
-    public class IntValueProvider : IntProvider
+    public class IntValueProvider : IIntProvider
     {
         [field: SerializeField] public int Value { get; set; }
-        
-        public int GetValue(IBeeTweenContext context)
+
+        public int GetValue() => Value;
+    }
+
+    [Serializable]
+    public class IntBlackboardProvider : IIntProvider
+    {
+        [SerializeField] private GameTag _key;
+        [RequireInterface(typeof(IBlackboardOwner))]
+        [SerializeField] private MonoBehaviour _blackboardSource;
+
+        public int GetValue()
         {
-            return Value;
+            return _blackboardSource.Cast<IBlackboardOwner>().Blackboard.GetInt(_key);
         }
     }
-    
+
     [Serializable]
-    public class FrameCountProvider : IntProvider
+    public class FrameCountProvider : IIntProvider
     {
-        public int GetValue(IBeeTweenContext context)
-        {
-            return Time.frameCount;
-        }
+        public int GetValue() => Time.frameCount;
     }
 }

@@ -1,100 +1,87 @@
 using System;
+using DataKeeper.Attributes;
+using DataKeeper.BlackboardSystem;
+using DataKeeper.Extensions;
+using DataKeeper.GameTagSystem;
 using DataKeeper.Generic;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
 {
-    public interface FloatProvider
+    public interface IFloatProvider
     {
-        float GetValue(IBeeTweenContext context);
+        float GetValue();
     }
-    
+
     [Serializable]
-    public class FloatValueProvider : FloatProvider
+    public class FloatValueProvider : IFloatProvider
     {
         [field: SerializeField] public float Value { get; set; }
-        
-        public float GetValue(IBeeTweenContext context)
+
+        public float GetValue() => Value;
+    }
+
+    [Serializable]
+    public class FloatBlackboardProvider : IFloatProvider
+    {
+        [SerializeField] private GameTag _key;
+        [RequireInterface(typeof(IBlackboardOwner))]
+        [SerializeField] private MonoBehaviour _blackboardSource;
+
+        public float GetValue()
         {
-            return Value;
+            var bb = _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard;
+            return bb.GetFloat(_key);
         }
     }
-    
+
     [Serializable]
-    public class DeltaTimeProvider : FloatProvider
+    public class DeltaTimeProvider : IFloatProvider
     {
-        public float GetValue(IBeeTweenContext context)
-        {
-            return Time.deltaTime;
-        }
+        public float GetValue() => Time.deltaTime;
     }
-    
+
     [Serializable]
-    public class FixedDeltaTimeProvider : FloatProvider
+    public class FixedDeltaTimeProvider : IFloatProvider
     {
-        public float GetValue(IBeeTweenContext context)
-        {
-            return Time.fixedDeltaTime;
-        }
+        public float GetValue() => Time.fixedDeltaTime;
     }
-    
+
     [Serializable]
-    public class TimeProvider : FloatProvider
+    public class TimeProvider : IFloatProvider
     {
-        public float GetValue(IBeeTweenContext context)
-        {
-            return Time.time;
-        }
+        public float GetValue() => Time.time;
     }
-    
+
     [Serializable]
-    public class TimeScaleProvider : FloatProvider
+    public class TimeScaleProvider : IFloatProvider
     {
-        public float GetValue(IBeeTweenContext context)
-        {
-            return Time.timeScale;
-        }
+        public float GetValue() => Time.timeScale;
     }
-    
+
     [Serializable]
-    public class SinTimeProvider : FloatProvider
+    public class SinTimeProvider : IFloatProvider
     {
-        public float GetValue(IBeeTweenContext context)
-        {
-            return Mathf.Sin(Time.time);
-        }
+        public float GetValue() => Mathf.Sin(Time.time);
     }
-    
+
     [Serializable]
-    public class CosTimeProvider : FloatProvider
+    public class CosTimeProvider : IFloatProvider
     {
-        public float GetValue(IBeeTweenContext context)
-        {
-            return Mathf.Cos(Time.time);
-        }
+        public float GetValue() => Mathf.Cos(Time.time);
     }
-    
+
     [Serializable]
-    public class DistanceProvider : FloatProvider
+    public class DistanceProvider : IFloatProvider
     {
-        [field: SerializeField] public Optional<Transform> OverrideTarget { get; set; } = new Optional<Transform>(null, false);
-        [field: SerializeField] public Transform OtherTarget { get; set; }
-        
-        public float GetValue(IBeeTweenContext context)
+        [field: SerializeReference, SerializeReferenceSelector] public ITransformProvider TargetA { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public ITransformProvider TargetB { get; set; }
+
+        public float GetValue()
         {
-            if(OtherTarget == null) return 0;
+            if (TargetA == null || TargetB == null) return 0;
             
-            if(OverrideTarget.Enabled && OverrideTarget.Value != null)
-            {
-                return Vector3.Distance(OverrideTarget.Value.position, OtherTarget.position);
-            }
-            
-            if (context.Target is Transform transform)
-            {
-                return Vector3.Distance(transform.position, OtherTarget.position);
-            }
-         
-            return 0;
+            return Vector3.Distance(TargetA.GetValue().position, TargetB.GetValue().position);
         }
     }
 }

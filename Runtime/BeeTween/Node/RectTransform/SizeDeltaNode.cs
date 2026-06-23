@@ -5,46 +5,36 @@ using UnityEngine;
 
 namespace DataKeeper.BeeTween
 {
-    /// <summary>
-    /// Size delta tween node - tweens a RectTransform's sizeDelta
-    /// </summary>
     [Serializable]
     public class SizeDeltaNode : IBeeTweenNode
     {
+        [field: SerializeReference, SerializeReferenceSelector] public IRectTransformProvider TargetProvider { get; set; }
         public Vector2 TargetSize;
-        public float Duration;
-        
-        [field: SerializeReference, SerializeReferenceSelector]
-        public EaseProvider Ease { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IFloatProvider Duration { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IEaseProvider Ease { get; set; }
 
         public SizeDeltaNode()
         {
-            Ease = new EaseFuncProvider();
+            TargetProvider = new RectTransformValueProvider();
+            Duration       = new FloatValueProvider();
+            Ease           = new EaseFuncProvider();
         }
 
-        public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
+        public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
-            RectTransform rectTransform = null;
-
-            if (context is IBeeTweenContext<RectTransform> rtContext)
-                rectTransform = rtContext.Target;
-            else if (context is IBeeTweenContext<GameObject> goContext && goContext.Target != null)
-                rectTransform = goContext.Target.GetComponent<RectTransform>();
-
+            var rectTransform = TargetProvider?.GetValue();
             if (rectTransform == null) return;
 
             var easeProvider = Ease ?? new EaseFuncProvider();
-            var startSize = rectTransform.sizeDelta;
-            var elapsedTime = 0f;
+            var startSize    = rectTransform.sizeDelta;
+            var duration     = Duration.GetValue();
+            var elapsedTime  = 0f;
 
-            while (elapsedTime < Duration)
+            while (elapsedTime < duration)
             {
                 await Awaitable.EndOfFrameAsync(cancellationToken.Token);
                 elapsedTime += Time.deltaTime;
-                
-                var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = easeProvider.Evaluate(context, t);
-                rectTransform.sizeDelta = MathFunc.Lerp.LerpVector2Unclamped(startSize, TargetSize, easeT);
+                rectTransform.sizeDelta = MathFunc.Lerp.LerpVector2Unclamped(startSize, TargetSize, easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / duration)));
             }
 
             rectTransform.sizeDelta = TargetSize;

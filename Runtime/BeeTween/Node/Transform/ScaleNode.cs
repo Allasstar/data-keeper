@@ -5,42 +5,41 @@ using UnityEngine;
 
 namespace DataKeeper.BeeTween
 {
-    /// <summary>
-    /// Scale node - scales a GameObject
-    /// </summary>
     [Serializable]
     public class ScaleNode : IBeeTweenNode
     {
-        public Vector3 TargetScale;
-        public float Duration;
-        
-        [field: SerializeReference, SerializeReferenceSelector]
-        public EaseProvider Ease { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public ITransformProvider TargetProvider { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IVector3Provider TargetScaleProvider { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IFloatProvider DurationProvider { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IEaseProvider Ease { get; set; }
 
         public ScaleNode()
         {
-            Ease = new EaseFuncProvider();
+            TargetProvider      = new TransformValueProvider();
+            TargetScaleProvider = new Vector3ValueProvider();
+            DurationProvider    = new FloatValueProvider();
+            Ease                = new EaseFuncProvider();
         }
 
-        public async Awaitable ExecuteAsync(IBeeTweenContext context, CancellationTokenSource cancellationToken)
+        public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
-            if (context is not IBeeTweenContext<Transform> goContext || goContext.Target == null) return;
+            var target = TargetProvider?.GetValue();
+            if (target == null) return;
 
             var easeProvider = Ease ?? new EaseFuncProvider();
-            var startScale = goContext.Target.transform.localScale;
-            var elapsedTime = 0f;
+            var startScale   = target.localScale;
+            var targetScale  = TargetScaleProvider.GetValue();
+            var duration     = DurationProvider.GetValue();
+            var elapsedTime  = 0f;
 
-            while (elapsedTime < Duration)
+            while (elapsedTime < duration)
             {
                 await Awaitable.EndOfFrameAsync(cancellationToken.Token);
                 elapsedTime += Time.deltaTime;
-                
-                var t = Mathf.Clamp01(elapsedTime / Duration);
-                var easeT = easeProvider.Evaluate(context, t);
-                goContext.Target.transform.localScale = MathFunc.Lerp.LerpVector3Unclamped(startScale, TargetScale, easeT);
+                target.localScale = MathFunc.Lerp.LerpVector3Unclamped(startScale, targetScale, easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / duration)));
             }
 
-            goContext.Target.transform.localScale = TargetScale;
+            target.localScale = targetScale;
         }
     }
 }

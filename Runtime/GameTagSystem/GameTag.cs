@@ -9,20 +9,32 @@ namespace DataKeeper.GameTagSystem
     public struct GameTag : IEquatable<GameTag>
     {
         public const string SEPARATOR = "/";
-        
+
         private static readonly Dictionary<string, GameTag[]> _nodesCache = new();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ClearNodesCache() => _nodesCache.Clear();
-        
+
 
         [SerializeField] private string _value;
         [SerializeField] private bool _autoRegister;
+        [NonSerialized] private int _hash;
 
         public string Value => _value;
 
+        public int Hash
+        {
+            get
+            {
+                if (_hash == 0 && !string.IsNullOrEmpty(_value))
+                    _hash = Animator.StringToHash(_value);
+                return _hash;
+            }
+        }
+
         public GameTag(string value, bool autoRegister = false)
         {
+            _hash = 0;
             _autoRegister = autoRegister;
             _value = value?.TrimEnd()?.TrimEnd(SEPARATOR[0]);
 
@@ -55,6 +67,8 @@ namespace DataKeeper.GameTagSystem
             if (other is GameTag tag) return Equals(tag);
             return false;
         }
+
+        public override int GetHashCode() => Hash;
 
         public bool StartsWithAndNotEquals(GameTag other)
         {

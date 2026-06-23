@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DataKeeper.Attributes;
+using DataKeeper.GameTagSystem;
 using DataKeeper.Generic;
 using UnityEngine;
 
@@ -23,8 +24,8 @@ namespace DataKeeper.ServiceLocatorPattern
         [Serializable]
         public abstract class RegInContext
         {
-            [field: SerializeField] public Optional<string> ComponentID { get; private set; }
-            [field: SerializeField] public Component Component { get; private set; }
+            [field: SerializeField] public Optional<GameTag> ComponentID { get; private set; }
+            [field: SerializeField, ObjectComponentPicker] public Component Component { get; private set; }
             
             public abstract ContextType GetContextType();
             public abstract void Register(GameObject owner);
@@ -39,7 +40,7 @@ namespace DataKeeper.ServiceLocatorPattern
             {
                 if (ComponentID.Enabled)
                 {
-                    ServiceLocator.ForGlobal().Reg(Component, ComponentID.Value);
+                    ServiceLocator.ForGlobal().Reg(Component, ComponentID.Value.Value);
                 }
                 else
                 {
@@ -57,7 +58,7 @@ namespace DataKeeper.ServiceLocatorPattern
             {
                 if (ComponentID.Enabled)
                 {
-                    ServiceLocator.ForSceneOf(owner).Reg(Component, ComponentID.Value);
+                    ServiceLocator.ForSceneOf(owner).Reg(Component, ComponentID.Value.Value);
                 }
                 else
                 {
@@ -75,7 +76,7 @@ namespace DataKeeper.ServiceLocatorPattern
             {
                 if (ComponentID.Enabled)
                 {
-                    ServiceLocator.ForGameObjectOf(owner).Reg(Component, ComponentID.Value);
+                    ServiceLocator.ForGameObjectOf(owner).Reg(Component, ComponentID.Value.Value);
                 }
                 else
                 {
@@ -95,7 +96,7 @@ namespace DataKeeper.ServiceLocatorPattern
             {
                 if (ComponentID.Enabled)
                 {
-                    ServiceLocator.ForTableOf(TableName).Reg(Component, ComponentID.Value);
+                    ServiceLocator.ForTableOf(TableName).Reg(Component, ComponentID.Value.Value);
                 }
                 else
                 {

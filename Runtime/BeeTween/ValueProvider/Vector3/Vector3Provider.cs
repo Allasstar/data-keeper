@@ -1,162 +1,76 @@
 using System;
+using DataKeeper.Attributes;
+using DataKeeper.BlackboardSystem;
+using DataKeeper.Extensions;
+using DataKeeper.GameTagSystem;
 using DataKeeper.Generic;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
 {
-    public enum Vector3Type
+    public enum Vector3Type { Position = 0, EulerRotation = 1, Scale = 2 }
+    public enum SpaceType   { Global = 0, Local = 1 }
+    public enum LookAtType  { ToTarget = 0, ToOther = 1 }
+
+    public interface IVector3Provider
     {
-        Position = 0,
-        EulerRotation = 1,
-        Scale = 2,
+        Vector3 GetValue();
     }
-    
-    public enum SpaceType
-    {
-        Global = 0,
-        Local = 1,
-    }
-    
-    public enum LookAtType
-    {
-        ToTarget = 0,
-        ToOther = 1,
-    }
-    
-    public interface Vector3Provider
-    {
-        Vector3 GetValue(IBeeTweenContext context);
-    }
-    
+
     [Serializable]
-    public class Vector3ValueProvider : Vector3Provider
+    public class Vector3ValueProvider : IVector3Provider
     {
         [field: SerializeField] public Vector3 Value { get; set; }
-        
-        public Vector3 GetValue(IBeeTweenContext context)
-        {
-            return Value;
-        }
+
+        public Vector3 GetValue() => Value;
     }
-    
+
     [Serializable]
-    public class TargetVector3Provider : Vector3Provider
+    public class Vector3BlackboardProvider : IVector3Provider
     {
-        [field: SerializeField] public Optional<Transform> OverrideTarget { get; set; } = new Optional<Transform>(null, false);
+        [SerializeField] private GameTag _key;
+        [RequireInterface(typeof(IBlackboardOwner))]
+        [SerializeField] private MonoBehaviour _blackboardSource;
+
+        public Vector3 GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetVector3(_key) ?? default;
+    }
+
+    [Serializable]
+    public class TargetVector3Provider : IVector3Provider
+    {
+        [field: SerializeReference, SerializeReferenceSelector] public ITransformProvider Target { get; set; }
         [field: SerializeField] public Vector3Type Vector3Type { get; set; }
         [field: SerializeField] public SpaceType SpaceType { get; set; }
         [field: SerializeField] public Vector3 Offset { get; set; }
-        
-        public Vector3 GetValue(IBeeTweenContext context)
+
+        public Vector3 GetValue()
         {
+            var t = Target?.GetValue();
+            if (t == null) return Vector3.zero;
             return Vector3Type switch
             {
-                Vector3Type.Position => GetPosition(context),
-                Vector3Type.EulerRotation => GetEulerRotation(context),
-                Vector3Type.Scale => GetScale(context),
-                _ => Vector3.zero
+                Vector3Type.Position      => SpaceType == SpaceType.Global ? t.position      + Offset : t.localPosition      + Offset,
+                Vector3Type.EulerRotation => SpaceType == SpaceType.Global ? t.eulerAngles   + Offset : t.localEulerAngles   + Offset,
+                Vector3Type.Scale         => SpaceType == SpaceType.Global ? t.lossyScale    + Offset : t.localScale         + Offset,
+                _                         => Vector3.zero
             };
         }
-
-        private Vector3 GetPosition(IBeeTweenContext context)
-        {
-            if (OverrideTarget.Enabled && OverrideTarget.Value != null)
-            {
-                return SpaceType == SpaceType.Global 
-                    ? OverrideTarget.Value.position + Offset
-                    : OverrideTarget.Value.localPosition + Offset;
-            } 
-            
-            if (context.Target is Transform transform)
-            {
-                return SpaceType == SpaceType.Global 
-                    ? transform.position + Offset
-                    : transform.localPosition + Offset;
-            }
-            
-            return Vector3.zero;
-        }
-
-        private Vector3 GetEulerRotation(IBeeTweenContext context)
-        {
-            if (OverrideTarget.Enabled && OverrideTarget.Value != null)
-            {
-                return SpaceType == SpaceType.Global 
-                    ? OverrideTarget.Value.eulerAngles + Offset
-                    : OverrideTarget.Value.localEulerAngles + Offset;
-            } 
-            
-            if (context.Target is Transform transform)
-            {
-                return SpaceType == SpaceType.Global 
-                    ? transform.eulerAngles + Offset
-                    : transform.localEulerAngles + Offset;
-            }
-            
-            return Vector3.zero;
-        }
-
-        private Vector3 GetScale(IBeeTweenContext context)
-        {
-            if (OverrideTarget.Enabled && OverrideTarget.Value != null)
-            {
-                return SpaceType == SpaceType.Global 
-                    ? OverrideTarget.Value.lossyScale + Offset
-                    : OverrideTarget.Value.localScale + Offset;
-            } 
-            
-            if (context.Target is Transform transform)
-            {
-                return SpaceType == SpaceType.Global 
-                    ? transform.lossyScale + Offset
-                    : transform.localScale + Offset;
-            }
-            
-            return Vector3.zero;
-        }
     }
-    
+
     [Serializable]
-    public class DirectionProvider : Vector3Provider
+    public class DirectionProvider : IVector3Provider
     {
-        [field: SerializeField] public Optional<Transform> OverrideTarget { get; set; } = new Optional<Transform>(null, false);
-        [field: SerializeField] public Transform OtherTransform { get; set; }
-        [field: SerializeField] public LookAtType LookAtType { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public ITransformProvider From { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public ITransformProvider To   { get; set; }
         [field: SerializeField] public bool IsNormalized { get; set; }
-        
-        public Vector3 GetValue(IBeeTweenContext context)
+
+        public Vector3 GetValue()
         {
-            if(OtherTransform == null) return Vector3.zero;
-            
-            if(OverrideTarget.Enabled && OverrideTarget.Value != null)
-            {
-                return LookAtType switch
-                {
-                    LookAtType.ToTarget => IsNormalized 
-                        ? (OverrideTarget.Value.position - OtherTransform.position).normalized 
-                        : OverrideTarget.Value.position - OtherTransform.position,
-                    LookAtType.ToOther => IsNormalized 
-                        ? ( OtherTransform.position - OverrideTarget.Value.position).normalized 
-                        :  OtherTransform.position - OverrideTarget.Value.position,
-                    _ => Vector3.zero
-                };
-            }
-            
-            if (context.Target is Transform transform)
-            {
-                return LookAtType switch
-                {
-                    LookAtType.ToTarget => IsNormalized 
-                        ? (transform.position - OtherTransform.position).normalized 
-                        : transform.position - OtherTransform.position,
-                    LookAtType.ToOther => IsNormalized 
-                        ? (OtherTransform.position - transform.position).normalized 
-                        : OtherTransform.position - transform.position,
-                    _ => Vector3.zero
-                };
-            }
-         
-            return Vector3.zero;
+            var from = From?.GetValue();
+            var to   = To?.GetValue();
+            if (from == null || to == null) return Vector3.zero;
+            var dir = to.position - from.position;
+            return IsNormalized ? dir.normalized : dir;
         }
     }
 }

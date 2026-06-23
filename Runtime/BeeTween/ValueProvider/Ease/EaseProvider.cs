@@ -1,7 +1,7 @@
 namespace DataKeeper.BeeTween
 {
-    public interface EaseProvider
+    public interface IEaseProvider
     {
-        float Evaluate(IBeeTweenContext context, float t);
+        float Evaluate(float t);
     }
 }
