@@ -11,6 +11,11 @@ namespace DataKeeper.SingletonPattern
         private static Transform _container;
         private static Transform Container => _container ??= CreateContainer();
      
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void Reset()
+        {
+            _instance = null;
+        }
         
         private static T CreateInstance()
         {
