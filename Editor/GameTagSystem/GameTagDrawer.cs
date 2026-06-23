@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using DataKeeper.GameTagSystem;
 using UnityEditor;
@@ -33,11 +32,10 @@ namespace DataKeeper.Editor.GameTagSystem
             {
                 GameTagPickerWindow.Show(
                     _registry,
-                    current != null ? new[] { current } : Array.Empty<string>(),
-                    multiSelect: false,
+                    current,
                     selected =>
                     {
-                        valueProp.stringValue = selected.Count > 0 ? selected[0] : string.Empty;
+                        valueProp.stringValue = selected ?? string.Empty;
                         property.serializedObject.ApplyModifiedProperties();
                     });
             }
