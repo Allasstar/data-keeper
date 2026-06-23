@@ -16,7 +16,7 @@ namespace DataKeeper.SingletonPattern
 
         private static T CreateInstance()
         {
-            return Activator.CreateInstance<T>();
+            return new T();
         }
     }
 }
