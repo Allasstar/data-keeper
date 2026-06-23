@@ -88,6 +88,8 @@ namespace DataKeeper.Editor.Enhance
             typeof(UnityEngine.UI.HorizontalLayoutGroup),
             typeof(UnityEngine.UI.VerticalLayoutGroup),
             typeof(UnityEngine.UI.HorizontalOrVerticalLayoutGroup),
+            typeof(DataKeeper.BeeTween.BeeTweenPlayer),
+            typeof(DataKeeper.BlackboardSystem.BlackboardBehaviour),
             typeof(DataKeeper.UI.SafeAreaUI),
             typeof(DataKeeper.DynamicScene.AddressableLoader),
             typeof(DataKeeper.DynamicScene.SubScene),
@@ -294,7 +296,7 @@ namespace DataKeeper.Editor.Enhance
             foreach (var componentType in priorityComponents)
             {
                 Component component = gameObject.GetComponent(componentType);
-                if (component != null && component != exclude)
+                if (component != null && component != exclude && !secondaryComponentsFound.Contains(component))
                 {
                     secondaryComponentsFound.Add(component);
                 }
