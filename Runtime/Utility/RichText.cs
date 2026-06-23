@@ -257,8 +257,20 @@ namespace DataKeeper.Utility
 
         public static Color TextToColor(string value)
         {
-            var hue = (uint)value.GetHashCode() / (float)uint.MaxValue;
+            var hue = StableHash(value) / (float)uint.MaxValue;
             return UnityEngine.Color.HSVToRGB(hue, 0.6f, 1f);
+        }
+        
+        // FNV-1a — deterministic everywhere
+        public static uint StableHash(string s)
+        {
+            uint hash = 2166136261u;
+            for (int i = 0; i < s.Length; i++)
+            {
+                hash ^= s[i];
+                hash *= 16777619u;
+            }
+            return hash;
         }
 
         public static string ColorToHex(Color color)
