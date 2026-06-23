@@ -90,6 +90,7 @@ namespace DataKeeper.Editor.Enhance
             typeof(UnityEngine.UI.HorizontalOrVerticalLayoutGroup),
             typeof(DataKeeper.BeeTween.BeeTweenPlayer),
             typeof(DataKeeper.BlackboardSystem.BlackboardBehaviour),
+            typeof(DataKeeper.ServiceLocatorPattern.ServiceLocatorRegister),
             typeof(DataKeeper.UI.SafeAreaUI),
             typeof(DataKeeper.DynamicScene.AddressableLoader),
             typeof(DataKeeper.DynamicScene.SubScene),
