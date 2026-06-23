@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DataKeeper.Attributes;
+using DataKeeper.Utility;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEditor.SceneManagement;
@@ -24,6 +25,11 @@ namespace DataKeeper.Editor.Attributes
         private const float BUTTON_W = 18f;
         private const float BUTTON_H = 18f;
         private const float BUTTON_SPACING = 2f;
+
+        private const float BAR_W = 2f;
+        private const float FOOTER_SPACE = 10f;
+        private const float FOLDOUT_ARROW_CENTER = -6f; // ~center of the foldout arrow from the indented left edge
+        private const float BODY_TOP_PADDING = 0f; // gap below the header row before the bar starts
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
@@ -67,22 +73,34 @@ namespace DataKeeper.Editor.Attributes
 
             string currentTypeName = NULL_TYPE_NAME;
             Texture2D currentIcon = null;
+            bool hasValue = property.managedReferenceValue != null;
+            Color accent = Color.gray;
 
-            if (property.managedReferenceValue != null)
+            if (hasValue)
             {
                 Type currentType = property.managedReferenceValue.GetType();
                 currentTypeName = ObjectNames.NicifyVariableName(currentType.Name);
                 currentIcon = GetScriptIcon(currentType);
+                accent = RichText.TextToColor(currentType.Name);
+            }
+
+            // Accent bar running down from under the foldout chevron, only when unfolded.
+            // position.x does NOT include the indent for a property drawer (indent is
+            // applied inside EditorGUI calls via indentLevel), so use IndentedRect to get
+            // the real left edge of the foldout block, then center the bar under the arrow.
+            if (hasValue && property.isExpanded)
+            {
+                float chevronX = EditorGUI.IndentedRect(position).x;
+                float barX = chevronX + FOLDOUT_ARROW_CENTER - BAR_W * 0.5f;
+                float barY = position.y + EditorGUIUtility.singleLineHeight + BODY_TOP_PADDING;
+                float barH = position.yMax - FOOTER_SPACE - barY;
+                EditorGUI.DrawRect(new Rect(barX, barY, BAR_W, barH), accent);
             }
 
             Rect popupRect = EditorGUI.PrefixLabel(labelRect, GUIUtility.GetControlID(FocusType.Passive), label);
             popupRect.height = EditorGUIUtility.singleLineHeight;
 
-            GUIContent buttonContent = currentIcon != null
-                ? new GUIContent($" {currentTypeName}", currentIcon)
-                : new GUIContent($"{currentTypeName}");
-
-            if (GUI.Button(popupRect, buttonContent, EditorStyles.popup))
+            if (GUI.Button(popupRect, GUIContent.none, EditorStyles.popup))
             {
                 var dropdown = new TypeDropdown(s_DropdownState, validTypes, baseType, selectedType =>
                 {
@@ -97,10 +115,31 @@ namespace DataKeeper.Editor.Attributes
                 dropdown.Show(popupRect);
             }
 
+            DrawPopupContent(popupRect, currentTypeName, currentIcon, hasValue);
+
             DrawBufferButtons(stripRect, property, baseType);
 
-            if (property.managedReferenceValue != null)
+            if (hasValue)
                 EditorGUI.PropertyField(position, property, GUIContent.none, true);
+        }
+
+        private static void DrawPopupContent(Rect rect, string typeName, Texture2D icon, bool hasValue)
+        {
+            const float pad = 4f;
+            const float arrowReserve = 16f; // room for the popup's dropdown glyph on the right
+            const float iconSize = 14f;
+
+            float x = rect.x + pad;
+
+            if (hasValue && icon != null)
+            {
+                Rect iconRect = new Rect(x, rect.y + (rect.height - iconSize) * 0.5f, iconSize, iconSize);
+                GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit);
+                x = iconRect.xMax + pad;
+            }
+
+            Rect textRect = new Rect(x, rect.y, Mathf.Max(0f, rect.xMax - x - arrowReserve), rect.height);
+            EditorGUI.LabelField(textRect, typeName);
         }
 
         private static void DrawBufferButtons(Rect strip, SerializedProperty property, Type baseType)
@@ -252,7 +291,13 @@ namespace DataKeeper.Editor.Attributes
             if (property.propertyType != SerializedPropertyType.ManagedReference)
                 return EditorGUI.GetPropertyHeight(property, GUIContent.none, true);
 
-            return EditorGUI.GetPropertyHeight(property, label, true);
+            float height = EditorGUI.GetPropertyHeight(property, label, true);
+
+            // Reserve trailing space for the separator only when unfolded.
+            if (property.managedReferenceValue != null && property.isExpanded)
+                height += FOOTER_SPACE;
+
+            return height;
         }
 
         private class TypeDropdown : AdvancedDropdown
