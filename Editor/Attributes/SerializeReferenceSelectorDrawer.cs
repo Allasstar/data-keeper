@@ -14,7 +14,6 @@ namespace DataKeeper.Editor.Attributes
     public class SerializeReferenceSelectorDrawer : PropertyDrawer
     {
         private const string NULL_TYPE_NAME = "- null -";
-        private const string MANAGED_REFERENCE = "managedReference";
 
         private const bool SHOW_INSPECTOR_ICON = true;
         private const bool SHOW_DROPDOWN_ICON = true;
@@ -150,7 +149,10 @@ namespace DataKeeper.Editor.Attributes
             }
 
             Rect textRect = new Rect(x, rect.y, Mathf.Max(0f, rect.xMax - x - arrowReserve), rect.height);
-            EditorGUI.LabelField(textRect, typeName);
+            // Raw GUI.Label, NOT EditorGUI.LabelField: the latter shifts the rect by
+            // indentLevel * 15px, which on nested fields pushes the label far to the right of the
+            // icon (icon/button are drawn at raw coordinates and ignore indent). Keeps them aligned.
+            GUI.Label(textRect, typeName, EditorStyles.label);
         }
 
         private static void DrawBufferButtons(Rect strip, SerializedProperty property, Type baseType)
