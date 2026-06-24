@@ -1,5 +1,6 @@
 using UnityEngine;
 
+using DataKeeper.ValueProviders;
 namespace DataKeeper.Generic.Data
 {
     [CreateAssetMenu(menuName = "DataKeeper/Value Provider/Vector2 Provider", fileName = "Vector2 Provider")]

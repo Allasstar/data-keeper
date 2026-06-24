@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+using DataKeeper.ValueProviders;
 namespace DataKeeper.Generic.Data
 {
     [CreateAssetMenu(menuName = "DataKeeper/Value Provider/ColorBlock Provider", fileName = "ColorBlock Provider")]
