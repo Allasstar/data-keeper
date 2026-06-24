@@ -1,7 +1,6 @@
 using UnityEngine;
 
-using DataKeeper.ValueProviders;
-namespace DataKeeper.Generic.Data
+namespace DataKeeper.ValueProviders
 {
     [CreateAssetMenu(menuName = "DataKeeper/Value Provider/LayerMask Provider", fileName = "LayerMask Provider")]
     public class LayerMaskProvider : ScriptableObject, IValueProvider<LayerMask>

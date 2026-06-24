@@ -1,7 +1,6 @@
 using UnityEngine;
 
-using DataKeeper.ValueProviders;
-namespace DataKeeper.Generic.Data
+namespace DataKeeper.ValueProviders
 {
     [CreateAssetMenu(menuName = "DataKeeper/Value Provider/Quaternion Provider", fileName = "Quaternion Provider")]
     public class QuaternionProvider : ScriptableObject, IValueProvider<Quaternion>

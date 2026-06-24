@@ -1,7 +1,6 @@
 using UnityEngine;
 
-using DataKeeper.ValueProviders;
-namespace DataKeeper.Generic.Data
+namespace DataKeeper.ValueProviders
 {
     [CreateAssetMenu(menuName = "DataKeeper/Value Provider/AudioClip Provider", fileName = "AudioClip Provider")]
     public class AudioClipProvider : ScriptableObject, IValueProvider<AudioClip>

@@ -1,7 +1,6 @@
 using UnityEngine;
 
-using DataKeeper.ValueProviders;
-namespace DataKeeper.Generic.Data
+namespace DataKeeper.ValueProviders
 {
     [CreateAssetMenu(menuName = "DataKeeper/Value Provider/Rigidbody2D Provider", fileName = "Rigidbody2D Provider")]
     public class Rigidbody2DProvider : ScriptableObject, IValueProvider<Rigidbody2D>

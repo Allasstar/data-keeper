@@ -1,7 +1,6 @@
 using UnityEngine;
 
-using DataKeeper.ValueProviders;
-namespace DataKeeper.Generic.Data
+namespace DataKeeper.ValueProviders
 {
     [CreateAssetMenu(menuName = "DataKeeper/Value Provider/Texture Provider", fileName = "Texture Provider")]
     public class TextureProvider : ScriptableObject, IValueProvider<Texture>

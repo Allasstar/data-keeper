@@ -1,7 +1,6 @@
 using UnityEngine;
 
-using DataKeeper.ValueProviders;
-namespace DataKeeper.Generic.Data
+namespace DataKeeper.ValueProviders
 {
     [CreateAssetMenu(menuName = "DataKeeper/Value Provider/Collider2D Provider", fileName = "Collider2D Provider")]
     public class Collider2DProvider : ScriptableObject, IValueProvider<Collider2D>

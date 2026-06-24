@@ -341,12 +341,14 @@ namespace DataKeeper.Editor.Attributes
             List<Type> derivedTypes = new List<Type>();
 
             // GetTypesDerivedFrom excludes baseType itself; include it when it's instantiable.
-            if (!baseType.IsAbstract && !baseType.IsInterface)
+            // UnityEngine.Object types (e.g. ScriptableObject providers) are excluded: they can't
+            // be stored as managed references, so they must never appear in the selector.
+            if (!baseType.IsAbstract && !baseType.IsInterface && !typeof(UnityEngine.Object).IsAssignableFrom(baseType))
                 derivedTypes.Add(baseType);
 
             foreach (Type type in TypeCache.GetTypesDerivedFrom(baseType))
             {
-                if (!type.IsAbstract && !type.IsInterface)
+                if (!type.IsAbstract && !type.IsInterface && !typeof(UnityEngine.Object).IsAssignableFrom(type))
                     derivedTypes.Add(type);
             }
 

@@ -1,7 +1,6 @@
 using UnityEngine;
 
-using DataKeeper.ValueProviders;
-namespace DataKeeper.Generic.Data
+namespace DataKeeper.ValueProviders
 {
     [CreateAssetMenu(menuName = "DataKeeper/Value Provider/RectTransform Provider", fileName = "RectTransform Provider")]
     public class RectTransformProvider : ScriptableObject, IValueProvider<RectTransform>
