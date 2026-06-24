@@ -88,7 +88,7 @@ namespace DataKeeper.ServiceLocatorPattern
         [Serializable]
         public class RegInTableContext : RegInContext
         {
-            [field: SerializeField] public string TableName { get; private set; }
+            [field: SerializeField] public GameTag TableName { get; private set; }
 
             public override ContextType GetContextType() => ContextType.Table;
 
@@ -96,11 +96,11 @@ namespace DataKeeper.ServiceLocatorPattern
             {
                 if (ComponentID.Enabled)
                 {
-                    ServiceLocator.ForTableOf(TableName).Reg(Component, ComponentID.Value.Value);
+                    ServiceLocator.ForTableOf(TableName.Value).Reg(Component, ComponentID.Value.Value);
                 }
                 else
                 {
-                    ServiceLocator.ForTableOf(TableName).Reg(Component);
+                    ServiceLocator.ForTableOf(TableName.Value).Reg(Component);
                 }
             }
         }
