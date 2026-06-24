@@ -10,13 +10,16 @@ namespace DataKeeper.BeeTween
     public class FadeNode : IBeeTweenNode
     {
         [field: SerializeReference, SerializeReferenceSelector] public IImageProvider TargetProvider { get; set; }
-        public float TargetAlpha;
-        public float Duration;
+        [field: SerializeReference, SerializeReferenceSelector] public IFloatProvider TargetAlphaProvider { get; set; }
+        [field: SerializeReference, SerializeReferenceSelector] public IFloatProvider DurationProvider { get; set; }
         [field: SerializeReference, SerializeReferenceSelector] public IEaseProvider Ease { get; set; }
 
         public FadeNode()
         {
-            Ease = new EaseFuncProvider();
+            TargetProvider      = new ImageDirectProvider();
+            TargetAlphaProvider = new FloatConstantProvider();
+            DurationProvider    = new FloatConstantProvider();
+            Ease                = new EaseFuncProvider();
         }
 
         public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
@@ -25,21 +28,23 @@ namespace DataKeeper.BeeTween
             if (image == null) return;
 
             var easeProvider = Ease ?? new EaseFuncProvider();
-            var startAlpha = image.color.a;
-            var elapsedTime = 0f;
+            var startAlpha   = image.color.a;
+            var targetAlpha  = TargetAlphaProvider.GetValue();
+            var duration     = DurationProvider.GetValue();
+            var elapsedTime  = 0f;
 
-            while (elapsedTime < Duration)
+            while (elapsedTime < duration)
             {
                 await Awaitable.EndOfFrameAsync(cancellationToken.Token);
                 elapsedTime += Time.deltaTime;
-                var easeT = easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / Duration));
+                var easeT = easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / duration));
                 var color = image.color;
-                color.a = MathFunc.Lerp.FloatUnclamped(startAlpha, TargetAlpha, easeT);
+                color.a = MathFunc.Lerp.FloatUnclamped(startAlpha, targetAlpha, easeT);
                 image.color = color;
             }
 
             var final = image.color;
-            final.a = TargetAlpha;
+            final.a = targetAlpha;
             image.color = final;
         }
     }

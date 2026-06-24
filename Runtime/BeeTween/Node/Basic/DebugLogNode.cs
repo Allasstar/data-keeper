@@ -1,5 +1,7 @@
 using System;
 using System.Threading;
+using DataKeeper.Attributes;
+using DataKeeper.ValueProviders;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
@@ -7,14 +9,14 @@ namespace DataKeeper.BeeTween
     [Serializable]
     public class DebugLogNode : IBeeTweenNode
     {
-        public string message;
+        [SerializeReference, SerializeReferenceSelector] public IStringProvider MessageProvider;
 
-        public DebugLogNode() => message = "Hello, World!";
-        public DebugLogNode(string message) => this.message = message;
+        public DebugLogNode() => MessageProvider = new StringConstantProvider { Value = "Hello, World!" };
+        public DebugLogNode(IStringProvider messageProvider) => MessageProvider = messageProvider;
 
         public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
         {
-            Debug.Log(message);
+            Debug.Log(MessageProvider?.GetValue());
         }
     }
 }

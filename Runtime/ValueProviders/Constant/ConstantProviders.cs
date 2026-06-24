@@ -37,12 +37,44 @@ namespace DataKeeper.ValueProviders
     }
 
     [Serializable]
+    public class StringConstantProvider : IStringProvider
+    {
+        [field: SerializeField] public string Value { get; set; }
+
+        public string GetValue() => Value;
+    }
+
+    [Serializable]
+    public class Vector2ConstantProvider : IVector2Provider
+    {
+        [field: SerializeField] public Vector2 Value { get; set; }
+
+        public Vector2 GetValue() => Value;
+    }
+
+    [Serializable]
     [MovedFrom(true, "DataKeeper.BeeTween", null, "Vector3ValueProvider")]
     public class Vector3ConstantProvider : IVector3Provider
     {
         [field: SerializeField] public Vector3 Value { get; set; }
 
         public Vector3 GetValue() => Value;
+    }
+
+    [Serializable]
+    public class ColorConstantProvider : IColorProvider
+    {
+        [field: SerializeField] public Color Value { get; set; } = Color.white;
+
+        public Color GetValue() => Value;
+    }
+
+    [Serializable]
+    public class QuaternionConstantProvider : IQuaternionProvider
+    {
+        [field: SerializeField] public Quaternion Value { get; set; } = Quaternion.identity;
+
+        public Quaternion GetValue() => Value;
     }
 
     [Serializable]

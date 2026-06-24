@@ -10,15 +10,16 @@ namespace DataKeeper.BeeTween
     public class SizeDeltaNode : IBeeTweenNode
     {
         [field: SerializeReference, SerializeReferenceSelector] public IRectTransformProvider TargetProvider { get; set; }
-        public Vector2 TargetSize;
+        [field: SerializeReference, SerializeReferenceSelector] public IVector2Provider TargetSizeProvider { get; set; }
         [field: SerializeReference, SerializeReferenceSelector] public IFloatProvider Duration { get; set; }
         [field: SerializeReference, SerializeReferenceSelector] public IEaseProvider Ease { get; set; }
 
         public SizeDeltaNode()
         {
-            TargetProvider = new RectTransformDirectProvider();
-            Duration       = new FloatConstantProvider();
-            Ease           = new EaseFuncProvider();
+            TargetProvider    = new RectTransformDirectProvider();
+            TargetSizeProvider = new Vector2ConstantProvider();
+            Duration          = new FloatConstantProvider();
+            Ease              = new EaseFuncProvider();
         }
 
         public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
@@ -28,6 +29,7 @@ namespace DataKeeper.BeeTween
 
             var easeProvider = Ease ?? new EaseFuncProvider();
             var startSize    = rectTransform.sizeDelta;
+            var targetSize   = TargetSizeProvider.GetValue();
             var duration     = Duration.GetValue();
             var elapsedTime  = 0f;
 
@@ -35,10 +37,10 @@ namespace DataKeeper.BeeTween
             {
                 await Awaitable.EndOfFrameAsync(cancellationToken.Token);
                 elapsedTime += Time.deltaTime;
-                rectTransform.sizeDelta = MathFunc.Lerp.LerpVector2Unclamped(startSize, TargetSize, easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / duration)));
+                rectTransform.sizeDelta = MathFunc.Lerp.LerpVector2Unclamped(startSize, targetSize, easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / duration)));
             }
 
-            rectTransform.sizeDelta = TargetSize;
+            rectTransform.sizeDelta = targetSize;
         }
     }
 }

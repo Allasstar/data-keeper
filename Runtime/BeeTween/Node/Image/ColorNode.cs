@@ -11,15 +11,16 @@ namespace DataKeeper.BeeTween
     public class ColorNode : IBeeTweenNode
     {
         [field: SerializeReference, SerializeReferenceSelector] public IImageProvider TargetProvider { get; set; }
-        public Color TargetColor;
+        [field: SerializeReference, SerializeReferenceSelector] public IColorProvider TargetColorProvider { get; set; }
         [field: SerializeReference, SerializeReferenceSelector] public IFloatProvider Duration { get; set; }
         [field: SerializeReference, SerializeReferenceSelector] public IEaseProvider Ease { get; set; }
 
         public ColorNode()
         {
-            TargetProvider = new ImageDirectProvider();
-            Duration       = new FloatConstantProvider();
-            Ease           = new EaseFuncProvider();
+            TargetProvider      = new ImageDirectProvider();
+            TargetColorProvider = new ColorConstantProvider();
+            Duration            = new FloatConstantProvider();
+            Ease                = new EaseFuncProvider();
         }
 
         public async Awaitable ExecuteAsync(CancellationTokenSource cancellationToken)
@@ -29,6 +30,7 @@ namespace DataKeeper.BeeTween
 
             var easeProvider = Ease ?? new EaseFuncProvider();
             var startColor   = image.color;
+            var targetColor  = TargetColorProvider.GetValue();
             var duration     = Duration.GetValue();
             var elapsedTime  = 0f;
 
@@ -38,14 +40,14 @@ namespace DataKeeper.BeeTween
                 elapsedTime += Time.deltaTime;
                 var easeT = easeProvider.Evaluate(Mathf.Clamp01(elapsedTime / duration));
                 image.color = new Color(
-                    MathFunc.Lerp.FloatUnclamped(startColor.r, TargetColor.r, easeT),
-                    MathFunc.Lerp.FloatUnclamped(startColor.g, TargetColor.g, easeT),
-                    MathFunc.Lerp.FloatUnclamped(startColor.b, TargetColor.b, easeT),
-                    MathFunc.Lerp.FloatUnclamped(startColor.a, TargetColor.a, easeT)
+                    MathFunc.Lerp.FloatUnclamped(startColor.r, targetColor.r, easeT),
+                    MathFunc.Lerp.FloatUnclamped(startColor.g, targetColor.g, easeT),
+                    MathFunc.Lerp.FloatUnclamped(startColor.b, targetColor.b, easeT),
+                    MathFunc.Lerp.FloatUnclamped(startColor.a, targetColor.a, easeT)
                 );
             }
 
-            image.color = TargetColor;
+            image.color = targetColor;
         }
     }
 }

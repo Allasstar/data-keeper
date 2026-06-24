@@ -112,4 +112,44 @@ namespace DataKeeper.ValueProviders
             return _blackboardSource.Cast<IBlackboardOwner>().Blackboard.GetObject<Image>(_key);
         }
     }
+
+    [Serializable]
+    public class StringBlackboardProvider : IStringProvider
+    {
+        [SerializeField] private GameTag _key;
+        [RequireInterface(typeof(IBlackboardOwner))]
+        [SerializeField] private Object _blackboardSource;
+
+        public string GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetString(_key);
+    }
+
+    [Serializable]
+    public class Vector2BlackboardProvider : IVector2Provider
+    {
+        [SerializeField] private GameTag _key;
+        [RequireInterface(typeof(IBlackboardOwner))]
+        [SerializeField] private Object _blackboardSource;
+
+        public Vector2 GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetVector2(_key) ?? default;
+    }
+
+    [Serializable]
+    public class ColorBlackboardProvider : IColorProvider
+    {
+        [SerializeField] private GameTag _key;
+        [RequireInterface(typeof(IBlackboardOwner))]
+        [SerializeField] private Object _blackboardSource;
+
+        public Color GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetColor(_key) ?? default;
+    }
+
+    [Serializable]
+    public class QuaternionBlackboardProvider : IQuaternionProvider
+    {
+        [SerializeField] private GameTag _key;
+        [RequireInterface(typeof(IBlackboardOwner))]
+        [SerializeField] private Object _blackboardSource;
+
+        public Quaternion GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetQuaternion(_key) ?? Quaternion.identity;
+    }
 }

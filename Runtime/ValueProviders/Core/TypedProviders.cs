@@ -14,7 +14,11 @@ namespace DataKeeper.ValueProviders
     public interface IBoolProvider          : IValueProvider<bool> { }
     public interface IFloatProvider         : IValueProvider<float> { }
     public interface IIntProvider           : IValueProvider<int> { }
+    public interface IStringProvider        : IValueProvider<string> { }
+    public interface IVector2Provider       : IValueProvider<Vector2> { }
     public interface IVector3Provider       : IValueProvider<Vector3> { }
+    public interface IColorProvider         : IValueProvider<Color> { }
+    public interface IQuaternionProvider    : IValueProvider<Quaternion> { }
     public interface ITransformProvider     : IValueProvider<Transform> { }
     public interface IRectTransformProvider : IValueProvider<RectTransform> { }
     public interface IImageProvider         : IValueProvider<Image> { }
