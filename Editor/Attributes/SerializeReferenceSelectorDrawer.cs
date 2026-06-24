@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DataKeeper.Attributes;
-using DataKeeper.Editor.Utility;
 using DataKeeper.Utility;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
@@ -19,6 +18,7 @@ namespace DataKeeper.Editor.Attributes
 
         private static Dictionary<Type, Type[]> s_TypeCache = new Dictionary<Type, Type[]>();
         private static AdvancedDropdownState s_DropdownState = new AdvancedDropdownState();
+        private static Dictionary<Type, Texture2D> s_IconCache = new Dictionary<Type, Texture2D>();
 
         private static object s_Buffer = null;
 
@@ -80,7 +80,7 @@ namespace DataKeeper.Editor.Attributes
             {
                 Type currentType = property.managedReferenceValue.GetType();
                 currentTypeName = ObjectNames.NicifyVariableName(currentType.Name);
-                currentIcon = ScriptIconCache.GetIcon(currentType);
+                currentIcon = GetScriptIcon(currentType);
                 accent = RichText.TextToColor(currentType.Name);
             }
 
@@ -238,44 +238,52 @@ namespace DataKeeper.Editor.Attributes
             return style;
         }
 
-        // All SerializeReference-eligible concrete types in the domain, scanned once per
-        // session (statics are cleared on domain reload / recompile, so this stays fresh).
-        // Per-baseType results are just a cheap IsAssignableFrom filter over this pool.
-        private static Type[] s_AllCandidates;
-
-        private static Type[] GetAllCandidates()
+        private static Texture2D GetScriptIcon(Type type)
         {
-            if (s_AllCandidates != null) return s_AllCandidates;
+            if (type == null) return null;
+            if (s_IconCache.TryGetValue(type, out Texture2D cached)) return cached;
 
-            Type unityObject = typeof(UnityEngine.Object);
+            Texture2D icon = null;
+            MonoScript script = FindMonoScript(type);
+            if (script != null)
+                icon = EditorGUIUtility.GetIconForObject(script) as Texture2D;
 
-            s_AllCandidates = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(assembly =>
-                {
-                    try { return assembly.GetTypes(); }
-                    catch { return Type.EmptyTypes; }
-                })
-                .Where(type => type.IsClass                              // managed references are reference types
-                               && !type.IsAbstract
-                               && !type.IsGenericTypeDefinition
-                               && !unityObject.IsAssignableFrom(type)    // SerializeReference cannot hold UnityEngine.Object
-                               && type.GetConstructor(Type.EmptyTypes) != null) // Activator.CreateInstance needs a parameterless ctor
-                .ToArray();
+            if (icon == null)
+                icon = EditorGUIUtility.FindTexture("cs Script Icon")
+                    ?? EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D;
 
-            return s_AllCandidates;
+            s_IconCache[type] = icon;
+            return icon;
+        }
+
+        private static MonoScript FindMonoScript(Type type)
+        {
+            string[] guids = AssetDatabase.FindAssets($"t:MonoScript {type.Name}");
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                MonoScript script = AssetDatabase.LoadAssetAtPath<MonoScript>(path);
+                if (script != null && script.GetClass() == type) return script;
+            }
+            return null;
         }
 
         private Type[] GetValidTypes(Type baseType)
         {
             if (s_TypeCache.TryGetValue(baseType, out Type[] types)) return types;
 
-            types = GetAllCandidates()
-                .Where(baseType.IsAssignableFrom)
+            List<Type> derivedTypes = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(assembly =>
+                {
+                    try { return assembly.GetTypes(); }
+                    catch { return Type.EmptyTypes; }
+                })
+                .Where(type => baseType.IsAssignableFrom(type) && !type.IsAbstract && !type.IsInterface)
                 .OrderBy(type => type.Name)
-                .ToArray();
+                .ToList();
 
-            s_TypeCache[baseType] = types;
-            return types;
+            s_TypeCache[baseType] = derivedTypes.ToArray();
+            return s_TypeCache[baseType];
         }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
@@ -340,7 +348,7 @@ namespace DataKeeper.Editor.Attributes
             {
                 var tdi = new TypeDropdownItem(ObjectNames.NicifyVariableName(type.Name), type);
                 
-                Texture2D currentIcon = ScriptIconCache.GetIcon(type);
+                Texture2D currentIcon = GetScriptIcon(type);
                 if(currentIcon != null)
                 {
                     tdi.icon = currentIcon;
