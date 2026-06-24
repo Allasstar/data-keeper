@@ -1,9 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace DataKeeper.Signals
 {
-    [CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Chanel Vector2", fileName = "Signal Chanel Vector2", order = 4)]
-    public class SignalChanelVector2 : SignalChanelBase<Vector2>
+    [CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Channel Vector3", fileName = "Signal Channel Vector3", order = 5)]
+    public class SignalChannelVector3 : SignalChannelBase<Vector3>
     {
 #if UNITY_EDITOR
         [ContextMenu("Log Listeners")]

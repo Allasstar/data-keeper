@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using DataKeeper.Extensions;
 using DataKeeper.Signals;
 using Newtonsoft.Json;
@@ -151,7 +152,7 @@ namespace DataKeeper.Generic
     
         public override string ToString()
         {
-            return value.ToString();
+            return value?.ToString() ?? "null";
         }
 
         public void Reset()
@@ -176,19 +177,19 @@ namespace DataKeeper.Generic
                     PlayerPrefs.SetInt(Key, b ? 1 : 0);
                     break;
                 case Vector2 v2:
-                    PlayerPrefs.SetString(Key, v2.ToString());
+                    PlayerPrefs.SetString(Key, v2.ToString("R", CultureInfo.InvariantCulture));
                     break;
                 case Vector3 v3:
-                    PlayerPrefs.SetString(Key, v3.ToString());
+                    PlayerPrefs.SetString(Key, v3.ToString("R", CultureInfo.InvariantCulture));
                     break;
                 case Vector4 v4:
-                    PlayerPrefs.SetString(Key, v4.ToString());
+                    PlayerPrefs.SetString(Key, v4.ToString("R", CultureInfo.InvariantCulture));
                     break;
                 case Color col:
-                    PlayerPrefs.SetString(Key, col.ToString());
+                    PlayerPrefs.SetString(Key, col.ToString("R", CultureInfo.InvariantCulture));
                     break;
                 case Rect rec:
-                    PlayerPrefs.SetString(Key, rec.ToString());
+                    PlayerPrefs.SetString(Key, rec.ToString("R", CultureInfo.InvariantCulture));
                     break;
                 default:
                     PlayerPrefs.SetString(Key, JsonConvert.SerializeObject(value));

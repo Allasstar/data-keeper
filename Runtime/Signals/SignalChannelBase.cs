@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace DataKeeper.Signals
 {
-   public abstract class SignalChanelBase<T> : ScriptableObject
+   public abstract class SignalChannelBase<T> : ScriptableObject
    {
       /// <summary>
       /// On List Changed event.
@@ -19,7 +19,7 @@ namespace DataKeeper.Signals
       {
          Signal.AddListener(call);
       }
-    
+
       /// <summary>
       /// Remove Listener.
       /// </summary>
@@ -36,7 +36,7 @@ namespace DataKeeper.Signals
       {
          Signal.RemoveAllListeners();
       }
-      
+
       /// <summary>
       /// Invoke all registered callbacks (runtime and persistent).
       /// </summary>

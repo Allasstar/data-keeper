@@ -2,8 +2,8 @@ using UnityEngine;
 
 namespace DataKeeper.Signals
 {
-    [CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Chanel Int", fileName = "Signal Chanel Int", order = 3)]
-    public class SignalChanelInt : SignalChanelBase<int>
+    [CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Channel Rect", fileName = "Signal Channel Rect", order = 3)]
+    public class SignalChannelRect : SignalChannelBase<Rect>
     {
 #if UNITY_EDITOR
         [ContextMenu("Log Listeners")]
@@ -11,7 +11,7 @@ namespace DataKeeper.Signals
         {
             foreach (var listener in Signal.Listeners)
             {
-                Debug.Log( $"Listener: {listener.Target}.{listener.Method.Name}");
+                Debug.Log($"Listener: {listener.Target}.{listener.Method.Name}");
             }
         }
 #endif

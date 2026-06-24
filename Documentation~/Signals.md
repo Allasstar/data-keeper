@@ -7,8 +7,8 @@ It includes foundational `Signal` classes for event invocation and listener mana
   - [SignalBase]()
   - [Signal]()
   - [Signal (Generic Variants)]()
-  - [SignalChanel]()
-  - [SignalChanelBase]()
+  - [SignalChannel]()
+  - [SignalChannelBase]()
 
 - [Features]()
 - [Example Usage]()
@@ -69,7 +69,6 @@ The `Signal` class has several generic variants for supporting events with diffe
 #### Use Case
 - Events that require one or more arguments, such as passing data between systems or components.
 
-### SignalChanel
 #### Description
 A `ScriptableObject` implementation of a parameterless signal (`Signal`), specifically developed for integration with Unity. It allows creating persistent signal channels that can be referenced across the Unity project.
 #### Key Features
@@ -83,11 +82,11 @@ A `ScriptableObject` implementation of a parameterless signal (`Signal`), specif
 - **`Invoke()`**: Triggers callbacks for all listeners.
 
 #### Unity-Specific Features
-- **`[CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Chanel")]`**: Enables easy creation of signal channels via Unity's Asset menu.
+- **`[CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Channel")]`**: Enables easy creation of signal channels via Unity's Asset menu.
 - **Context Menu Debugging**:
   - **`Log Listeners()`**: Logs all registered listeners for debugging purposes in the Unity Editor.
 
-### SignalChanelBase
+### SignalChannelBase
 #### Description
 An abstract base class for creating Unity-specific `ScriptableObject` signal channels that handle events with one parameter (`Signal<T>`).
 #### Features
@@ -112,7 +111,7 @@ An abstract base class for creating Unity-specific `ScriptableObject` signal cha
 
 ### Unity-Specific
 - `ScriptableObject` Integration:
-  - Persistent `SignalChanel` and `SignalChanelBase` for longer-term lifecycle management.
+  - Persistent `SignalChannel` and `SignalChannelBase` for longer-term lifecycle management.
   - Editor features like debugging and centralized data usage.
 
 - Easy creation through Unity's asset workflow.
@@ -134,43 +133,43 @@ signalWithParam.Invoke(42);  // Output: "Received Value: 42"
 
 signalWithParam.RemoveAllListeners();
 ```
-### Unity-Specific SignalChanel
+### Unity-Specific SignalChannel
 ``` c#
-[CreateAssetMenu(menuName = "Custom/MySignalChanel")]
-public class MySignalChanel : SignalChanel { }
+[CreateAssetMenu(menuName = "Custom/MySignalChannel")]
+public class MySignalChannel : SignalChannel { }
 
-// In Unity Editor, create an instance via "Assets -> Create -> Custom -> MySignalChanel"
+// In Unity Editor, create an instance via "Assets -> Create -> Custom -> MySignalChannel"
 public class ExampleUsage : MonoBehaviour
 {
-    public MySignalChanel signalChanel;
+    public MySignalChannel signalChannel;
 
     private void Start()
     {
-        signalChanel.AddListener(OnEventTriggered);
+        signalChannel.AddListener(OnEventTriggered);
     }
 
     private void OnEventTriggered()
     {
-        Debug.Log("SignalChanel Event Triggered!");
+        Debug.Log("SignalChannel Event Triggered!");
     }
 
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            signalChanel.Invoke();  // Triggers all registered listeners.
+            signalChannel.Invoke();  // Triggers all registered listeners.
         }
     }
 
     private void OnDestroy()
     {
-        signalChanel.RemoveAllListeners();  // Clean up listeners.
+        signalChannel.RemoveAllListeners();  // Clean up listeners.
     }
 }
 ```
-### Unity-Specific SignalChanelBase with Parameters
+### Unity-Specific SignalChannelBase with Parameters
 ``` c#
-public class StringSignalChanel : SignalChanelBase<string> { }
+public class StringSignalChannel : SignalChannelBase<string> { }
 ```
 ## Conclusion
 The `DataKeeper.Signals` namespace provides powerful and flexible tools for event-driven systems both within and outside of Unity. With support for parameterized events, listener management, and Unity-specific persistence, it serves as a comprehensive foundation for building event management solutions.

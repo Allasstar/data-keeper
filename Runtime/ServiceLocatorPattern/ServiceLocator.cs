@@ -14,9 +14,17 @@ namespace DataKeeper.ServiceLocatorPattern
         public static readonly Dictionary<GameObject, Register<object>> GameObjectRegisters = new Dictionary<GameObject, Register<object>>();
         public static readonly Dictionary<string, Register<object>> TableRegisters = new Dictionary<string, Register<object>>();
 
+        private static bool _sceneUnloadHooked;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void Reset()
         {
+            if (_sceneUnloadHooked)
+            {
+                Act.OnSceneUnloadedEvent.RemoveListener(OnSceneUnloaded);
+                _sceneUnloadHooked = false;
+            }
+
             GlobalRegister.Clear();
             SceneRegisters.Clear();
             GameObjectRegisters.Clear();
@@ -53,17 +61,20 @@ namespace DataKeeper.ServiceLocatorPattern
             if (!SceneRegisters.ContainsKey(sceneName))
             {
                 SceneRegisters[sceneName] = new Register<object>();
-                
-                Act.OnSceneUnloadedEvent.AddListener(SceneUnloaded);
 
-                void SceneUnloaded(Scene scene)
+                if (!_sceneUnloadHooked)
                 {
-                    Act.OnSceneUnloadedEvent.RemoveListener(SceneUnloaded);
-                    SceneRegisters.Remove(scene.name);
+                    Act.OnSceneUnloadedEvent.AddListener(OnSceneUnloaded);
+                    _sceneUnloadHooked = true;
                 }
             }
-            
+
             return SceneRegisters[sceneName];
+        }
+
+        private static void OnSceneUnloaded(Scene scene)
+        {
+            SceneRegisters.Remove(scene.name);
         }
         
         public static Register<object> ForTableOf(string tableName)

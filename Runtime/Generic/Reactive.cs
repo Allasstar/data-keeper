@@ -93,7 +93,7 @@ namespace DataKeeper.Generic
     
         public override string ToString()
         {
-            return value.ToString();
+            return value?.ToString() ?? "null";
         }
 
         public void Clear()

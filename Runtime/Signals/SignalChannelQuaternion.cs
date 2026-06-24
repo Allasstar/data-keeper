@@ -2,8 +2,8 @@ using UnityEngine;
 
 namespace DataKeeper.Signals
 {
-    [CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Chanel Rect", fileName = "Signal Chanel Rect", order = 3)]
-    public class SignalChanelRect : SignalChanelBase<Rect>
+    [CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Channel Quaternion", fileName = "Signal Channel Quaternion", order = 7)]
+    public class SignalChannelQuaternion : SignalChannelBase<Quaternion>
     {
 #if UNITY_EDITOR
         [ContextMenu("Log Listeners")]

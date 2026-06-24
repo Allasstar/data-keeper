@@ -3,8 +3,8 @@ using UnityEngine;
 
 namespace DataKeeper.Signals
 {
-   [CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Chanel", fileName = "Signal Chanel", order = 0)]
-   public class SignalChanel : ScriptableObject
+   [CreateAssetMenu(menuName = "DataKeeper/Signals/Signal Channel", fileName = "Signal Channel", order = 0)]
+   public class SignalChannel : ScriptableObject
    {
       /// <summary>
       /// On List Changed event.
@@ -20,7 +20,7 @@ namespace DataKeeper.Signals
       {
          Signal.AddListener(call);
       }
-    
+
       /// <summary>
       /// Remove Listener.
       /// </summary>
@@ -37,7 +37,7 @@ namespace DataKeeper.Signals
       {
          Signal.RemoveAllListeners();
       }
-      
+
       /// <summary>
       /// Invoke all registered callbacks (runtime and persistent).
       /// </summary>
@@ -45,7 +45,7 @@ namespace DataKeeper.Signals
       {
          this.Signal?.Invoke();
       }
-          
+
 #if UNITY_EDITOR
       [ContextMenu("Log Listeners")]
       private void ShowListeners()
