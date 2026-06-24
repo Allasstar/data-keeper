@@ -6,6 +6,7 @@ using DataKeeper.GameTagSystem;
 using UnityEngine;
 using UnityEngine.Scripting.APIUpdating;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace DataKeeper.ValueProviders
 {
@@ -19,7 +20,7 @@ namespace DataKeeper.ValueProviders
     {
         [SerializeField] private GameTag _key;
         [RequireInterface(typeof(IBlackboardOwner))]
-        [SerializeField] private MonoBehaviour _blackboardSource;
+        [SerializeField] private Object _blackboardSource;
 
         public bool GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetBool(_key) ?? default;
     }
@@ -30,7 +31,7 @@ namespace DataKeeper.ValueProviders
     {
         [SerializeField] private GameTag _key;
         [RequireInterface(typeof(IBlackboardOwner))]
-        [SerializeField] private MonoBehaviour _blackboardSource;
+        [SerializeField] private Object _blackboardSource;
 
         public float GetValue()
         {
@@ -45,7 +46,7 @@ namespace DataKeeper.ValueProviders
     {
         [SerializeField] private GameTag _key;
         [RequireInterface(typeof(IBlackboardOwner))]
-        [SerializeField] private MonoBehaviour _blackboardSource;
+        [SerializeField] private Object _blackboardSource;
 
         public int GetValue()
         {
@@ -59,7 +60,7 @@ namespace DataKeeper.ValueProviders
     {
         [SerializeField] private GameTag _key;
         [RequireInterface(typeof(IBlackboardOwner))]
-        [SerializeField] private MonoBehaviour _blackboardSource;
+        [SerializeField] private Object _blackboardSource;
 
         public Vector3 GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetVector3(_key) ?? default;
     }
@@ -70,7 +71,7 @@ namespace DataKeeper.ValueProviders
     {
         [SerializeField] private GameTag _key;
         [RequireInterface(typeof(IBlackboardOwner))]
-        [SerializeField] private MonoBehaviour _blackboardSource;
+        [SerializeField] private Object _blackboardSource;
 
         public TransformBlackboardProvider() { }
         public TransformBlackboardProvider(GameTag key) => _key = key;
@@ -87,7 +88,7 @@ namespace DataKeeper.ValueProviders
     {
         [SerializeField] private GameTag _key;
         [RequireInterface(typeof(IBlackboardOwner))]
-        [SerializeField] private MonoBehaviour _blackboardSource;
+        [SerializeField] private Object _blackboardSource;
 
         public RectTransformBlackboardProvider() { }
         public RectTransformBlackboardProvider(GameTag key) => _key = key;
@@ -101,7 +102,7 @@ namespace DataKeeper.ValueProviders
     {
         [SerializeField] private GameTag _key;
         [RequireInterface(typeof(IBlackboardOwner))]
-        [SerializeField] private MonoBehaviour _blackboardSource;
+        [SerializeField] private Object _blackboardSource;
 
         public ImageBlackboardProvider() { }
         public ImageBlackboardProvider(GameTag key) => _key = key;
