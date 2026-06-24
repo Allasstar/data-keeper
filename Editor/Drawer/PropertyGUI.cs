@@ -1,5 +1,6 @@
 using System.Reflection;
 using DataKeeper.Attributes;
+using DataKeeper.Editor.Attributes;
 using DataKeeper.Extensions;
 using DataKeeper.Generic;
 using UnityEditor;
@@ -10,6 +11,37 @@ namespace DataKeeper.Editor.Drawer
 {
     public static class PropertyGUI
     {
+        /// <summary>
+        /// Default-inspector equivalent that additionally honors <see cref="ShowIfAttribute"/>:
+        /// hidden top-level properties are skipped before drawing, so ShowIf composes with each
+        /// field's own PropertyDrawer instead of competing for Unity's single drawer slot.
+        /// </summary>
+        public static void DrawInspector(SerializedObject serializedObject)
+        {
+            serializedObject.UpdateIfRequiredOrScript();
+
+            SerializedProperty iterator = serializedObject.GetIterator();
+            bool enterChildren = true;
+
+            while (iterator.NextVisible(enterChildren))
+            {
+                enterChildren = false;
+
+                if (iterator.propertyPath == "m_Script")
+                {
+                    using (new EditorGUI.DisabledScope(true))
+                        EditorGUILayout.PropertyField(iterator, true);
+                    continue;
+                }
+
+                if (!ShowIfUtility.IsVisible(iterator)) continue;
+
+                EditorGUILayout.PropertyField(iterator, true);
+            }
+
+            serializedObject.ApplyModifiedProperties();
+        }
+
         public static void DrawButtons(Object target)
         {
             MethodInfo[] methods = target.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);

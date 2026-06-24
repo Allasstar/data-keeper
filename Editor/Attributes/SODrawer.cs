@@ -9,7 +9,7 @@ namespace DataKeeper.Editor.Attributes
     {
         public override void OnInspectorGUI()
         {
-            base.OnInspectorGUI();
+            PropertyGUI.DrawInspector(serializedObject);
             PropertyGUI.DrawButtons(target);
         }
     }
