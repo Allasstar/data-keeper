@@ -70,8 +70,6 @@ namespace DataKeeper.Editor.Attributes
             else if (baseType.IsArray)
                 baseType = baseType.GetElementType();
 
-            Type[] validTypes = GetValidTypes(baseType);
-
             Rect headerRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
 
             float stripWidth = (BUTTON_W + BUTTON_SPACING) * 2 - BUTTON_SPACING;
@@ -114,6 +112,7 @@ namespace DataKeeper.Editor.Attributes
 
             if (GUI.Button(popupRect, GUIContent.none, EditorStyles.popup))
             {
+                Type[] validTypes = GetValidTypes(baseType);
                 var dropdown = new TypeDropdown(s_DropdownState, validTypes, baseType, selectedType =>
                 {
                     string undoLabel = selectedType == null
@@ -337,18 +336,23 @@ namespace DataKeeper.Editor.Attributes
         {
             if (s_TypeCache.TryGetValue(baseType, out Type[] types)) return types;
 
-            List<Type> derivedTypes = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(assembly =>
-                {
-                    try { return assembly.GetTypes(); }
-                    catch { return Type.EmptyTypes; }
-                })
-                .Where(type => baseType.IsAssignableFrom(type) && !type.IsAbstract && !type.IsInterface)
-                .OrderBy(type => type.Name)
-                .ToList();
+            // TypeCache keeps a prebuilt derivation index, so this is near-instant compared
+            // to scanning every type in every loaded assembly by hand.
+            List<Type> derivedTypes = new List<Type>();
 
-            s_TypeCache[baseType] = derivedTypes.ToArray();
-            return s_TypeCache[baseType];
+            // GetTypesDerivedFrom excludes baseType itself; include it when it's instantiable.
+            if (!baseType.IsAbstract && !baseType.IsInterface)
+                derivedTypes.Add(baseType);
+
+            foreach (Type type in TypeCache.GetTypesDerivedFrom(baseType))
+            {
+                if (!type.IsAbstract && !type.IsInterface)
+                    derivedTypes.Add(type);
+            }
+
+            types = derivedTypes.OrderBy(type => type.Name).ToArray();
+            s_TypeCache[baseType] = types;
+            return types;
         }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
