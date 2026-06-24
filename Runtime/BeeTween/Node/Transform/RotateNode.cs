@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using DataKeeper.Attributes;
+using DataKeeper.ValueProviders;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
@@ -15,8 +16,8 @@ namespace DataKeeper.BeeTween
 
         public RotateNode()
         {
-            TargetProvider   = new TransformValueProvider();
-            DurationProvider = new FloatValueProvider();
+            TargetProvider   = new TransformDirectProvider();
+            DurationProvider = new FloatConstantProvider();
             Ease             = new EaseFuncProvider();
         }
 

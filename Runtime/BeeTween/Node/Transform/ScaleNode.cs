@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using DataKeeper.Attributes;
+using DataKeeper.ValueProviders;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
@@ -15,9 +16,9 @@ namespace DataKeeper.BeeTween
 
         public ScaleNode()
         {
-            TargetProvider      = new TransformValueProvider();
-            TargetScaleProvider = new Vector3ValueProvider();
-            DurationProvider    = new FloatValueProvider();
+            TargetProvider      = new TransformDirectProvider();
+            TargetScaleProvider = new Vector3ConstantProvider();
+            DurationProvider    = new FloatConstantProvider();
             Ease                = new EaseFuncProvider();
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using DataKeeper.Attributes;
+using DataKeeper.ValueProviders;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,8 +17,8 @@ namespace DataKeeper.BeeTween
 
         public ColorNode()
         {
-            TargetProvider = new ImageValueProvider();
-            Duration       = new FloatValueProvider();
+            TargetProvider = new ImageDirectProvider();
+            Duration       = new FloatConstantProvider();
             Ease           = new EaseFuncProvider();
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using DataKeeper.Attributes;
+using DataKeeper.ValueProviders;
 using UnityEngine;
 
 namespace DataKeeper.BeeTween
@@ -15,8 +16,8 @@ namespace DataKeeper.BeeTween
 
         public SizeDeltaNode()
         {
-            TargetProvider = new RectTransformValueProvider();
-            Duration       = new FloatValueProvider();
+            TargetProvider = new RectTransformDirectProvider();
+            Duration       = new FloatConstantProvider();
             Ease           = new EaseFuncProvider();
         }
 
