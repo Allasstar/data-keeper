@@ -22,6 +22,15 @@ namespace DataKeeper.Editor.Attributes
         private static Dictionary<Type, Type[]> s_TypeCache = new Dictionary<Type, Type[]>();
         private static AdvancedDropdownState s_DropdownState = new AdvancedDropdownState();
         private static Dictionary<Type, Texture2D> s_IconCache = new Dictionary<Type, Texture2D>();
+        private static readonly Queue<Type> s_IconQueue = new Queue<Type>();
+        private static readonly HashSet<Type> s_IconPending = new HashSet<Type>();
+        private static bool s_IconWorkerActive;
+        private static Texture2D s_DefaultScriptIcon;
+        private const int ICONS_PER_TICK = 6;
+
+        // Raised after a batch of icons finishes resolving, so already-open UI (the
+        // dropdown) can swap its placeholder icons for the real ones.
+        private static event Action IconsResolved;
 
         private static object s_Buffer = null;
 
@@ -246,17 +255,70 @@ namespace DataKeeper.Editor.Attributes
             if (type == null) return null;
             if (s_IconCache.TryGetValue(type, out Texture2D cached)) return cached;
 
+            // Resolving touches AssetDatabase (main-thread only + slow per type), so defer it
+            // across editor ticks and hand back a cheap placeholder for now.
+            EnqueueIcon(type);
+            return GetDefaultScriptIcon();
+        }
+
+        private static void EnqueueIcon(Type type)
+        {
+            if (!s_IconPending.Add(type)) return;
+            s_IconQueue.Enqueue(type);
+
+            if (!s_IconWorkerActive)
+            {
+                s_IconWorkerActive = true;
+                EditorApplication.update += ProcessIconQueue;
+            }
+        }
+
+        private static void ProcessIconQueue()
+        {
+            int budget = ICONS_PER_TICK;
+            bool resolvedAny = false;
+
+            while (budget-- > 0 && s_IconQueue.Count > 0)
+            {
+                Type type = s_IconQueue.Dequeue();
+                s_IconPending.Remove(type);
+
+                if (s_IconCache.ContainsKey(type)) continue;
+
+                s_IconCache[type] = ResolveScriptIcon(type);
+                resolvedAny = true;
+            }
+
+            if (resolvedAny)
+            {
+                IconsResolved?.Invoke();
+                UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
+            }
+
+            if (s_IconQueue.Count == 0)
+            {
+                EditorApplication.update -= ProcessIconQueue;
+                s_IconWorkerActive = false;
+            }
+        }
+
+        private static Texture2D ResolveScriptIcon(Type type)
+        {
             Texture2D icon = null;
             MonoScript script = FindMonoScript(type);
             if (script != null)
                 icon = EditorGUIUtility.GetIconForObject(script) as Texture2D;
 
-            if (icon == null)
-                icon = EditorGUIUtility.FindTexture("cs Script Icon")
+            return icon != null ? icon : GetDefaultScriptIcon();
+        }
+
+        private static Texture2D GetDefaultScriptIcon()
+        {
+            if (s_DefaultScriptIcon == null)
+                s_DefaultScriptIcon = EditorGUIUtility.FindTexture("cs Script Icon")
                     ?? EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D;
 
-            s_IconCache[type] = icon;
-            return icon;
+            return s_DefaultScriptIcon;
         }
 
         private static MonoScript FindMonoScript(Type type)
@@ -308,6 +370,7 @@ namespace DataKeeper.Editor.Attributes
             private readonly Type[] _validTypes;
             private readonly Type _baseType;
             private readonly Action<Type> _onSelected;
+            private readonly List<TypeDropdownItem> _iconItems = new List<TypeDropdownItem>();
 
             public TypeDropdown(AdvancedDropdownState state, Type[] validTypes, Type baseType, Action<Type> onSelected)
                 : base(state)
@@ -345,7 +408,30 @@ namespace DataKeeper.Editor.Attributes
                     }
                 }
 
+                // Some icons may still be resolving in the background; refresh them live
+                // while the window is open, then detach once everything is cached.
+                if (_iconItems.Any(i => i.Type != null && !s_IconCache.ContainsKey(i.Type)))
+                    IconsResolved += OnIconsResolved;
+
                 return root;
+            }
+
+            private void OnIconsResolved()
+            {
+                bool allResolved = true;
+
+                foreach (var item in _iconItems)
+                {
+                    if (item.Type == null) continue;
+
+                    if (s_IconCache.TryGetValue(item.Type, out var icon))
+                        item.icon = icon;
+                    else
+                        allResolved = false;
+                }
+
+                if (allResolved)
+                    IconsResolved -= OnIconsResolved;
             }
 
             private static AdvancedDropdownItem GetOrCreateNamespaceGroup(AdvancedDropdownItem root, string ns, Dictionary<string, AdvancedDropdownItem> cache)
@@ -374,19 +460,16 @@ namespace DataKeeper.Editor.Attributes
                 return parent;
             }
 
-            private static TypeDropdownItem BuildTypeItem(Type type)
+            private TypeDropdownItem BuildTypeItem(Type type)
             {
                 var tdi = new TypeDropdownItem(ObjectNames.NicifyVariableName(type.Name), type);
-                
+
                 if (SHOW_DROPDOWN_ICON)
                 {
-                    Texture2D currentIcon = GetScriptIcon(type);
-                    if (currentIcon != null)
-                    {
-                        tdi.icon = currentIcon;
-                    }
+                    tdi.icon = GetScriptIcon(type);
+                    _iconItems.Add(tdi);
                 }
-                
+
                 return tdi;
             }
 
