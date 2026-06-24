@@ -18,17 +18,7 @@ namespace DataKeeper.Editor.Attributes
 
         private static Dictionary<Type, Type[]> s_TypeCache = new Dictionary<Type, Type[]>();
         private static AdvancedDropdownState s_DropdownState = new AdvancedDropdownState();
-
-        // Resolved icons. A cache hit is allocation-free and returns immediately.
         private static Dictionary<Type, Texture2D> s_IconCache = new Dictionary<Type, Texture2D>();
-        // Types whose icon is still being resolved (queued or in flight).
-        private static HashSet<Type> s_IconRequested = new HashSet<Type>();
-        private static Queue<Type> s_IconQueue = new Queue<Type>();
-        private static Texture2D s_FallbackIcon;
-        private static bool s_IconWorkerHooked;
-        // AssetDatabase is main-thread only, so we amortize resolution across
-        // update ticks instead of blocking the repaint. Keep this small.
-        private const int ICONS_PER_TICK = 4;
 
         private static object s_Buffer = null;
 
@@ -253,64 +243,17 @@ namespace DataKeeper.Editor.Attributes
             if (type == null) return null;
             if (s_IconCache.TryGetValue(type, out Texture2D cached)) return cached;
 
-            // Not resolved yet. The real lookup hits AssetDatabase (main-thread
-            // only and slow), so we don't run it inside this repaint. Queue it,
-            // show the generic script icon now, and swap it in once resolved.
-            if (s_IconRequested.Add(type))
-            {
-                s_IconQueue.Enqueue(type);
-                HookIconWorker();
-            }
-
-            return FallbackIcon();
-        }
-
-        private static Texture2D FallbackIcon()
-        {
-            if (s_FallbackIcon == null)
-                s_FallbackIcon = EditorGUIUtility.FindTexture("cs Script Icon")
-                    ?? EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D;
-            return s_FallbackIcon;
-        }
-
-        private static void HookIconWorker()
-        {
-            if (s_IconWorkerHooked) return;
-            s_IconWorkerHooked = true;
-            EditorApplication.update += ProcessIconQueue;
-        }
-
-        // Drains a few queued icons per editor tick, then repaints so the
-        // freshly resolved icons replace the placeholder without a stutter.
-        private static void ProcessIconQueue()
-        {
-            bool resolvedAny = false;
-
-            for (int i = 0; i < ICONS_PER_TICK && s_IconQueue.Count > 0; i++)
-            {
-                Type type = s_IconQueue.Dequeue();
-                s_IconCache[type] = ResolveScriptIcon(type);
-                resolvedAny = true;
-            }
-
-            if (resolvedAny)
-                UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
-
-            if (s_IconQueue.Count == 0)
-            {
-                EditorApplication.update -= ProcessIconQueue;
-                s_IconWorkerHooked = false;
-            }
-        }
-
-        private static Texture2D ResolveScriptIcon(Type type)
-        {
             Texture2D icon = null;
             MonoScript script = FindMonoScript(type);
             if (script != null)
                 icon = EditorGUIUtility.GetIconForObject(script) as Texture2D;
 
-            return icon != null ? icon : FallbackIcon();
+            if (icon == null)
+                icon = EditorGUIUtility.FindTexture("cs Script Icon")
+                    ?? EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D;
+
+            s_IconCache[type] = icon;
+            return icon;
         }
 
         private static MonoScript FindMonoScript(Type type)
