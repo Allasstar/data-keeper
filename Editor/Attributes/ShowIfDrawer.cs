@@ -13,17 +13,14 @@ namespace DataKeeper.Editor.Attributes
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            var enableIfAttribute = (ShowIfAttribute)attribute;
-            
-            if (enableIfAttribute.FieldToCheck == null) return;
-            
-            var targetObject = property.serializedObject.targetObject.GetType();
-            PropertyInfo propertyInfo = targetObject.GetProperty(enableIfAttribute.FieldToCheck, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-            
-            if (propertyInfo != null)
+            var showIfAttribute = (ShowIfAttribute)attribute;
+
+            if (showIfAttribute.FieldToCheck == null) return;
+
+            if (TryGetBoolValue(property, showIfAttribute.FieldToCheck, out var value))
             {
-                _isEnabled = (bool)propertyInfo.GetValue(property.serializedObject.targetObject);
-                
+                _isEnabled = showIfAttribute.Inverse ? !value : value;
+
                 if (_isEnabled)
                 {
                     PropertyGUI.DrawGUI(position, property, label);
@@ -31,8 +28,34 @@ namespace DataKeeper.Editor.Attributes
             }
             else
             {
-                Debug.LogError("Property not found: " + enableIfAttribute.FieldToCheck);
+                _isEnabled = true;
+                Debug.LogError("Field or property not found (or not bool): " + showIfAttribute.FieldToCheck);
             }
+        }
+
+        private static bool TryGetBoolValue(SerializedProperty property, string memberName, out bool value)
+        {
+            value = false;
+
+            var targetObject = property.serializedObject.targetObject;
+            var type = targetObject.GetType();
+            const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+
+            PropertyInfo propertyInfo = type.GetProperty(memberName, flags);
+            if (propertyInfo != null && propertyInfo.PropertyType == typeof(bool))
+            {
+                value = (bool)propertyInfo.GetValue(targetObject);
+                return true;
+            }
+
+            FieldInfo fieldInfo = type.GetField(memberName, flags);
+            if (fieldInfo != null && fieldInfo.FieldType == typeof(bool))
+            {
+                value = (bool)fieldInfo.GetValue(targetObject);
+                return true;
+            }
+
+            return false;
         }
         
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)

@@ -10,10 +10,12 @@ namespace DataKeeper.Attributes
     public class ShowIfAttribute : PropertyAttribute
     {
         public string FieldToCheck { get; private set; }
-        
-        public ShowIfAttribute(string fieldToCheck)
+        public bool Inverse { get; private set; }
+
+        public ShowIfAttribute(string fieldToCheck, bool inverse = false)
         {
             FieldToCheck = fieldToCheck;
+            Inverse = inverse;
         }
     }
 }
