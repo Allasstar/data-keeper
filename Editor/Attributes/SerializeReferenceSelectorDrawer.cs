@@ -16,6 +16,9 @@ namespace DataKeeper.Editor.Attributes
         private const string NULL_TYPE_NAME = "- null -";
         private const string MANAGED_REFERENCE = "managedReference";
 
+        private const bool SHOW_INSPECTOR_ICON = true;
+        private const bool SHOW_DROPDOWN_ICON = true;
+
         private static Dictionary<Type, Type[]> s_TypeCache = new Dictionary<Type, Type[]>();
         private static AdvancedDropdownState s_DropdownState = new AdvancedDropdownState();
         private static Dictionary<Type, Texture2D> s_IconCache = new Dictionary<Type, Texture2D>();
@@ -131,7 +134,7 @@ namespace DataKeeper.Editor.Attributes
 
             float x = rect.x + pad;
 
-            if (hasValue && icon != null)
+            if (SHOW_INSPECTOR_ICON && hasValue && icon != null)
             {
                 Rect iconRect = new Rect(x, rect.y + (rect.height - iconSize) * 0.5f, iconSize, iconSize);
                 GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit);
@@ -331,10 +334,11 @@ namespace DataKeeper.Editor.Attributes
                     }
                 }
 
+                var groupCache = new Dictionary<string, AdvancedDropdownItem>();
+
                 foreach (var ns in _validTypes.Where(t => !string.IsNullOrEmpty(t.Namespace)).GroupBy(t => t.Namespace).OrderBy(g => g.Key))
                 {
-                    var nsItem = new AdvancedDropdownItem(ns.Key);
-                    root.AddChild(nsItem);
+                    var nsItem = GetOrCreateNamespaceGroup(root, ns.Key, groupCache);
                     foreach (var type in ns.OrderBy(t => t.Name))
                     {
                         nsItem.AddChild(BuildTypeItem(type));
@@ -344,14 +348,43 @@ namespace DataKeeper.Editor.Attributes
                 return root;
             }
 
+            private static AdvancedDropdownItem GetOrCreateNamespaceGroup(AdvancedDropdownItem root, string ns, Dictionary<string, AdvancedDropdownItem> cache)
+            {
+                if (cache.TryGetValue(ns, out var existing))
+                    return existing;
+
+                string[] segments = ns.Split('.');
+                AdvancedDropdownItem parent = root;
+                string path = null;
+
+                foreach (string segment in segments)
+                {
+                    path = path == null ? segment : path + "." + segment;
+
+                    if (!cache.TryGetValue(path, out var node))
+                    {
+                        node = new AdvancedDropdownItem(segment);
+                        parent.AddChild(node);
+                        cache[path] = node;
+                    }
+
+                    parent = node;
+                }
+
+                return parent;
+            }
+
             private static TypeDropdownItem BuildTypeItem(Type type)
             {
                 var tdi = new TypeDropdownItem(ObjectNames.NicifyVariableName(type.Name), type);
                 
-                Texture2D currentIcon = GetScriptIcon(type);
-                if(currentIcon != null)
+                if (SHOW_DROPDOWN_ICON)
                 {
-                    tdi.icon = currentIcon;
+                    Texture2D currentIcon = GetScriptIcon(type);
+                    if (currentIcon != null)
+                    {
+                        tdi.icon = currentIcon;
+                    }
                 }
                 
                 return tdi;
