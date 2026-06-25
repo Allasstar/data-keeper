@@ -63,6 +63,7 @@ namespace DataKeeper.Editor.GameTagSystem
         private Label _emptyLabel;
         private ScrollView _scroll;
         private VisualElement _codeWarnRow;
+        private Label _codeWarnLabel;
         private Label _footerLabel;
         private Button _renameBtn, _moveBtn, _deleteBtn;
 
@@ -209,6 +210,10 @@ namespace DataKeeper.Editor.GameTagSystem
             _missingRow.SetDisplay(DisplayStyle.None);
             root.Add(_missingRow);
 
+            _codeWarnRow = BuildCodeWarnRow();
+            _codeWarnRow.SetDisplay(DisplayStyle.None);
+            root.Add(_codeWarnRow);
+
             _scroll = new ScrollView(ScrollViewMode.Vertical).SetFlexGrow(1);
             _scroll.contentContainer.SetPadding(left: 4, top: 4, right: 4, bottom: 4);
 
@@ -219,10 +224,6 @@ namespace DataKeeper.Editor.GameTagSystem
             _scroll.Add(_emptyState);
 
             root.Add(_scroll);
-
-            _codeWarnRow = BuildCodeWarnRow();
-            _codeWarnRow.SetDisplay(DisplayStyle.None);
-            root.Add(_codeWarnRow);
 
             root.Add(BuildFooter());
 
@@ -869,23 +870,26 @@ namespace DataKeeper.Editor.GameTagSystem
                 .SetFlexRow().SetAlignItems(Align.Center)
                 .SetPadding(left: 8, top: 5, right: 6, bottom: 5)
                 .SetBackgroundColor(WarnBar)
-                .SetBorderWidth(top: 1).SetBorderColor(top: Border);
+                .SetBorderWidth(bottom: 1).SetBorderColor(bottom: Border);
 
-            var label = new Label("⚠ Generated GameTags class is out of date").SetFontSize(11).SetColor(TextHi).SetFlexGrow(1);
-            label.style.overflow = Overflow.Hidden;
-            label.SetTextOverflowEllipsis().SetTextNoWrap();
-            row.Add(label);
+            _codeWarnLabel = new Label().SetFontSize(11).SetColor(TextHi).SetFlexGrow(1);
+            _codeWarnLabel.style.overflow = Overflow.Hidden;
+            _codeWarnLabel.SetTextOverflowEllipsis().SetTextNoWrap();
+            row.Add(_codeWarnLabel);
 
-            row.Add(MakeToolButton("Regenerate", "Regenerate the GameTags C# class from the registry", RegenerateInline, accent: true));
+            row.Add(MakeToolButton("Generate", "Generate the GameTags C# class from the registry", RegenerateInline, accent: true));
             return row;
         }
 
-        // Show the warning only when a generated file exists (otherwise there's nothing to keep in sync).
+        // Show the warning after any edit this session. Wording depends on whether a generated file
+        // already exists (out of date) or not (never generated yet).
         private void RefreshCodeWarning()
         {
             if (_codeWarnRow == null) return;
-            bool show = _codeDirty && _generatedIds.Count > 0;
-            _codeWarnRow.SetDisplay(show ? DisplayStyle.Flex : DisplayStyle.None);
+            _codeWarnLabel.text = _generatedIds.Count > 0
+                ? "⚠ Generated GameTags class is out of date"
+                : "⚠ GameTags C# class not generated yet";
+            _codeWarnRow.SetDisplay(_codeDirty ? DisplayStyle.Flex : DisplayStyle.None);
         }
 
         private void RegenerateInline()
