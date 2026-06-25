@@ -26,6 +26,7 @@ namespace DataKeeper.Editor.GameTagSystem
         private static readonly Color Accent     = new Color(0.30f, 0.52f, 0.82f);
         private static readonly Color MoveBar    = new Color(0.55f, 0.42f, 0.18f);
         private static readonly Color MissingBar = new Color(0.52f, 0.22f, 0.24f);
+        private static readonly Color WarnBar    = new Color(0.40f, 0.34f, 0.14f);
         private static readonly Color TextHi     = new Color(0.92f, 0.92f, 0.92f);
         private static readonly Color TextLo     = new Color(0.78f, 0.78f, 0.78f);
         private static readonly Color TextFaint  = new Color(0.55f, 0.55f, 0.55f);
@@ -56,10 +57,12 @@ namespace DataKeeper.Editor.GameTagSystem
         private Label _missingLabel;
         private TextField _missingField;
         private int _missingId; // the dead reference id the banner offers to re-add (independent of tree selection)
+        private bool _codeDirty; // a structural edit happened this session — generated GameTags class may be stale
         private VisualElement _treeContainer;
         private VisualElement _emptyState;
         private Label _emptyLabel;
         private ScrollView _scroll;
+        private VisualElement _codeWarnRow;
         private Label _footerLabel;
         private Button _renameBtn, _moveBtn, _deleteBtn;
 
@@ -194,6 +197,11 @@ namespace DataKeeper.Editor.GameTagSystem
             _scroll.Add(_emptyState);
 
             root.Add(_scroll);
+
+            _codeWarnRow = BuildCodeWarnRow();
+            _codeWarnRow.SetDisplay(DisplayStyle.None);
+            root.Add(_codeWarnRow);
+
             root.Add(BuildFooter());
 
             // expand to reveal the initial selection
@@ -780,6 +788,8 @@ namespace DataKeeper.Editor.GameTagSystem
         {
             EditorUtility.SetDirty(_registry);
             AssetDatabase.SaveAssets();
+            _codeDirty = true; // any persisted edit can leave the generated GameTags class stale
+            RefreshCodeWarning();
         }
 
         private void OpenContextMenu()
@@ -801,6 +811,41 @@ namespace DataKeeper.Editor.GameTagSystem
         {
             GameTagsCodeGen.Regenerate(_registry);
             Close();
+        }
+
+        // ─── Generated-code staleness warning ─────────────────────────────────────
+        private VisualElement BuildCodeWarnRow()
+        {
+            var row = new VisualElement()
+                .SetFlexRow().SetAlignItems(Align.Center)
+                .SetPadding(left: 8, top: 5, right: 6, bottom: 5)
+                .SetBackgroundColor(WarnBar)
+                .SetBorderWidth(top: 1).SetBorderColor(top: Border);
+
+            var label = new Label("⚠ Generated GameTags class is out of date").SetFontSize(11).SetColor(TextHi).SetFlexGrow(1);
+            label.style.overflow = Overflow.Hidden;
+            label.SetTextOverflowEllipsis().SetTextNoWrap();
+            row.Add(label);
+
+            row.Add(MakeToolButton("Regenerate", "Regenerate the GameTags C# class from the registry", RegenerateInline, accent: true));
+            return row;
+        }
+
+        // Show the warning only when a generated file exists (otherwise there's nothing to keep in sync).
+        private void RefreshCodeWarning()
+        {
+            if (_codeWarnRow == null) return;
+            bool show = _codeDirty && _generatedIds.Count > 0;
+            _codeWarnRow.SetDisplay(show ? DisplayStyle.Flex : DisplayStyle.None);
+        }
+
+        private void RegenerateInline()
+        {
+            GameTagsCodeGen.Regenerate(_registry);
+            _generatedIds = GameTagsCodeGen.LoadGeneratedIds(_registry);
+            _codeDirty = false;
+            RefreshCodeWarning();
+            RebuildTree(); // refresh the C# badges against the freshly generated file
         }
 
         // ─── Input filtering ─────────────────────────────────────────────────────
