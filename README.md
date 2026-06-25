@@ -85,6 +85,71 @@ The `DataKeeper.Signals` namespace provides a set of utilities and abstractions 
 It includes foundational `Signal` classes for event invocation and listener management, as well as classes tailored for Unity integration via `ScriptableObjects`. These components are suitable for building reusable and extendable event systems.
 
 
+## GameTag
+
+The `DataKeeper.GameTagSystem` namespace is a port of Unreal Engine's **GameplayTags** — hierarchical, path-based tags (e.g. `Damage/Elemental/Fire`) used to classify and query gameplay state in a decoupled, data-driven way.
+
+A `GameTag` is a **lightweight, zero-GC struct** that stores only a stable `int` id into a `GameTagRegistry` asset (the source of truth for the tag tree). Because references hold the id and not the path, **renaming or moving a tag never breaks existing references**, and deleting a tag can redirect old references to a replacement.
+
+### Concepts
+
+- **Tree** — tags form a path-separated hierarchy. A leaf carries its whole ancestry, so `Damage/Elemental/Fire` belongs to both the `Damage/Elemental` and `Damage` branches.
+- **Registry** — `GameTagRegistry` (a `ScriptableObject`) bakes the authored tag list into runtime caches (paths, depth, parent/child links, redirects). The active one is `GameTagRegistry.Default`, loaded from `Resources`.
+- **Redirects** — when a tag is deleted/merged, its old id can resolve to a replacement, so stored references keep working.
+
+### Matching (`GameTag`)
+
+All matching mirrors Unreal's semantics and is redirect-aware. Tree used below: `Damage/Elemental/{Fire,Ice}`, `Damage/Physical`, `Status/Burning`.
+
+```csharp
+var fire = GameTag.Find("Damage/Elemental/Fire");
+
+// Hierarchical — true for the tag itself or any ancestor branch
+fire.MatchesTag(GameTag.Find("Damage/Elemental")); // true  — immediate parent
+fire.MatchesTag(GameTag.Find("Damage"));           // true  — deeper ancestor
+fire.MatchesTag(GameTag.Find("Damage/Physical"));  // false — cousin branch
+GameTag.Find("Damage").MatchesTag(fire);           // false — a parent never matches its child
+
+// Exact — same node only (ignores hierarchy), redirect-aware
+fire.MatchesTagExact(GameTag.Find("Damage/Elemental")); // false
+
+// Strictly under (descendant, not self)
+fire.IsChildOf(GameTag.Find("Damage"));            // true
+
+// Match closeness — shared ancestor count (0 = unrelated)
+fire.MatchesTagDepth(GameTag.Find("Damage/Elemental/Ice")); // 2 (share Damage/Elemental)
+```
+
+| Method | Meaning | Unreal equivalent |
+| --- | --- | --- |
+| `MatchesTag(other)` | this tag, or any ancestor, equals `other` | `MatchesTag` |
+| `MatchesTagExact(other)` | same node only (redirect-aware) | `MatchesTagExact` |
+| `MatchesAny(container)` / `MatchesAnyExact(container)` | matches any tag in a set | `MatchesAny` / `MatchesAnyExact` |
+| `MatchesTagDepth(other)` | shared ancestor count (`int`) | `MatchesTagDepth` |
+| `IsChildOf(other)` | strict descendant (extension) | — |
+| `==` / `Equals` / `GetHashCode` | structural identity by raw id (collection key) | `operator==` |
+
+> `==`/`Equals` compare the raw id (a stable, zero-GC dictionary key) and are **not** redirect-aware; use `MatchesTagExact` for "is this the same tag" after a rename/merge.
+
+### Containers (`GameTagContainer`)
+
+A set of tags with the same hierarchical queries — the port of `FGameplayTagContainer`. Hierarchical queries (`HasTag`, `HasAny`, `HasAll`, …) match against the parent branches of contained tags; the `*Exact` variants only match literal members.
+
+```csharp
+var tags = new GameTagContainer();
+tags.AddTag(GameTag.Find("Damage/Elemental/Fire"));
+
+tags.HasTag(GameTag.Find("Damage"));      // true  — covered via hierarchy
+tags.HasTagExact(GameTag.Find("Damage")); // false — "Damage" was never added explicitly
+```
+
+Key methods (Unreal parity): `HasTag`/`HasTagExact`, `HasAny`/`HasAnyExact`, `HasAll`/`HasAllExact`, `AddTag`/`AddTagFast`/`AddLeafTag`, `RemoveTag`/`RemoveTags`, `Reset`, `AppendTags`, `Num`/`IsEmpty`/`IsValid`, `GetByIndex`/`First`/`Last`, `Filter`, `GetGameTagParents`.
+
+### Authoring
+
+Edit the tag tree on a `GameTagRegistry` asset (`Create > DataKeeper > GameTagRegistry`); use the picker/drawer in the inspector. The registry can regenerate a static `GameTags` C# class so tags are available as compile-time constants. Every type member is documented with XML doc comments (hover in your IDE for per-case examples).
+
+
 
 # DataKeeper Namespace Documentation
 
@@ -97,6 +162,7 @@ The `DataKeeper` namespace provides a suite of tools and utilities designed to e
 -   **`DataKeeper.Editor.Enhance`**: Contains scripts to enhance the editor, such as adding icons to the hierarchy.
 -   **`DataKeeper.Editor.Settings`**: Includes settings providers for the DataKeeper package, allowing users to configure preferences via the Unity settings window.
 -   **`DataKeeper.FSM`**: Provides classes for implementing Finite State Machines (FSM).
+-   **`DataKeeper.GameTagSystem`**: A port of Unreal's GameplayTags — hierarchical, path-based tags with zero-GC handles and hierarchical queries.
 -   **`DataKeeper.Generic`**: Offers generic data structures and classes, including reactive variables, data files, and fixed-size queues.
 -   **`DataKeeper.Helpers`**: Contains helper classes and utility functions.
 -   **`DataKeeper.Init`**: Includes the `Initializator` class for initializing Scriptable Objects.
@@ -135,6 +201,19 @@ The `DataKeeper` namespace provides a suite of tools and utilities designed to e
     -   `OnEnter()`: Called when the state is entered.
     -   `OnExit()`: Called when the state is exited.
     -   `OnUpdate()`: Called every frame while the state is active.
+
+### `DataKeeper.GameTagSystem`
+
+-   **`GameTag`**: A zero-GC struct handle to a node in the tag tree; resolves name/path/hierarchy through the registry.
+    -   `MatchesTag(other)` / `MatchesTagExact(other)`: Hierarchical / exact (redirect-aware) match.
+    -   `MatchesAny(container)` / `MatchesAnyExact(container)`: Match against any tag in a set.
+    -   `MatchesTagDepth(other)`: Shared-ancestor count (match closeness).
+    -   `IsChildOf(other)`: Strict descendant test.
+    -   `Find(path)` / `FromId(id)`: Look up an existing tag by path or raw id.
+-   **`GameTagContainer`**: A set of `GameTag`s with hierarchical queries (port of `FGameplayTagContainer`).
+    -   `HasTag` / `HasTagExact`, `HasAny` / `HasAll` (+ `*Exact`): Membership queries.
+    -   `AddTag` / `AddLeafTag` / `RemoveTag` / `Filter` / `GetGameTagParents`: Mutation and derivation.
+-   **`GameTagRegistry`**: The `ScriptableObject` source of truth that bakes the authored tag tree (paths, hierarchy, redirects) into runtime caches.
 
 ### `DataKeeper.Generic`
 

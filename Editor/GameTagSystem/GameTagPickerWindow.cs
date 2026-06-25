@@ -252,10 +252,6 @@ namespace DataKeeper.Editor.GameTagSystem
             
             hdr.Add(new VisualElement().SetFlexGrow(1));
 
-            var refreshBtn = MakeToolButton("Refresh", "Refresh from the registry (pick up edits made elsewhere)", RefreshFromRegistry);
-            refreshBtn.style.marginLeft = 4;
-            hdr.Add(refreshBtn);
-
             var menuBtn = MakeToolButton("⋮", "More actions", OpenContextMenu);
             menuBtn.style.marginLeft = 4;
             menuBtn.style.width = 24;
@@ -846,8 +842,15 @@ namespace DataKeeper.Editor.GameTagSystem
         {
             var menu = new GenericMenu();
             menu.AddItem(new GUIContent("Select GameTagRegistry"), false, PingRegistry);
+            menu.AddItem(new GUIContent("Open as Editor"), false, OpenEditor);
             menu.AddItem(new GUIContent("Generate C# Tags Class"), false, GenerateCode);
             menu.ShowAsContext();
+        }
+
+        private void OpenEditor()
+        {
+            Close();
+            ShowEditor();
         }
 
         private void PingRegistry()

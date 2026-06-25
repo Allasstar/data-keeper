@@ -226,6 +226,49 @@ namespace DataKeeper.GameTagSystem
             return false;
         }
 
+        // Exact identity, redirect-aware: true only when both ids resolve to the SAME live node
+        // (ignores hierarchy). Two ids that both resolve to NONE — e.g. deprecated tags whose
+        // redirect points nowhere — never match (this is the guard MatchesExact adds over a raw
+        // Resolve(a) == Resolve(b)).
+        public bool MatchesExact(int aId, int bId)
+        {
+            EnsureBaked();
+            aId = Resolve(aId);
+            bId = Resolve(bId);
+            return aId != NONE && aId == bId;
+        }
+
+        // Strict descendant: hierarchical match but NOT the same node (Unreal "is a child of").
+        public bool IsChildOf(int childId, int ancestorId)
+            => !MatchesExact(childId, ancestorId) && Matches(childId, ancestorId);
+
+        // Number of shared ancestor nodes between two tags (Unreal MatchesTagDepth).
+        // The tree is strict (one parent per node), so the common ancestors are a path prefix and
+        // the result is that prefix's length: "A/B/C" vs "A/B/D" -> 2; "A/B" vs "A/B" -> 2; "A" vs "X" -> 0.
+        public int MatchDepth(int aId, int bId)
+        {
+            EnsureBaked();
+            aId = Resolve(aId);
+            bId = Resolve(bId);
+            if (aId == NONE || bId == NONE) return 0;
+            if (!_byId.TryGetValue(aId, out var an) || !_byId.TryGetValue(bId, out var bn)) return 0;
+
+            int guard = 0;
+            // Raise the deeper node up until both sit at the same depth.
+            while (an.Depth > bn.Depth && guard++ < MAX_DEPTH)
+                if (!_byId.TryGetValue(an.ParentId, out an)) return 0;
+            while (bn.Depth > an.Depth && guard++ < MAX_DEPTH)
+                if (!_byId.TryGetValue(bn.ParentId, out bn)) return 0;
+
+            // Walk both up in lockstep until they meet (the deepest common ancestor) or run out.
+            while (an.Id != bn.Id && guard++ < MAX_DEPTH)
+            {
+                if (an.ParentId == NONE || bn.ParentId == NONE) return 0;
+                if (!_byId.TryGetValue(an.ParentId, out an) || !_byId.TryGetValue(bn.ParentId, out bn)) return 0;
+            }
+            return an.Id == bn.Id ? an.Depth + 1 : 0;
+        }
+
         // ── Authoring (editor) ───────────────────────────────────────────────────
         // Resolve a path to an id, creating any missing nodes along the way.
         public int GetOrCreate(string path)
