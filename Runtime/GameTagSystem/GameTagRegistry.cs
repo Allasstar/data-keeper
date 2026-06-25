@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using DataKeeper.Attributes;
 using DataKeeper.Base;
+using DataKeeper.Utility;
 using UnityEngine;
 
 namespace DataKeeper.GameTagSystem
@@ -37,7 +38,16 @@ namespace DataKeeper.GameTagSystem
 
         private const string DEFAULT_REGISTRY_NAME = "GameTagRegistry";
 
-        [SerializeField] private int _nextId = 1;                       // monotonic, never reused (0 == None)
+        private int GetNewId()
+        {
+            var id = UID.Int32Id();
+            while (id == NONE || _byId.ContainsKey(id))
+            {
+                id = UID.Int32Id();
+            }
+            return id;
+        }
+
         [SerializeField] private List<GameTagEntry> _entries = new();
         [SerializeField] private List<GameTagRedirect> _redirects = new();
 
@@ -137,7 +147,7 @@ namespace DataKeeper.GameTagSystem
             {
                 if (_entries[i].Id != NONE) continue;
                 var e = _entries[i];
-                e.Id = _nextId++;
+                e.Id = GetNewId();
                 _entries[i] = e;
                 changed = true;
             }
@@ -148,32 +158,6 @@ namespace DataKeeper.GameTagSystem
         // Bridges the inspector button to the editor-only code generator (GameTagsCodeGen
         // registers this on load), so the runtime assembly needn't reference editor code.
         public static System.Action<GameTagRegistry> RegenerateCodeHook;
-        
-        // Repairs _nextId so it sits safely past every id ever handed out (entries + redirects).
-        // Use after a bad hand-edit. Raise-only on purpose: it never lowers _nextId, because a
-        // smaller value could re-mint a retired id and silently re-point dead references to a new tag.
-        [Button("Repair Next Id")]
-        private void RepairNextId()
-        {
-            int maxUsed = NONE;
-            foreach (var e in _entries) if (e.Id > maxUsed) maxUsed = e.Id;
-            foreach (var r in _redirects)
-            {
-                if (r.FromId > maxUsed) maxUsed = r.FromId;
-                if (r.ToId > maxUsed) maxUsed = r.ToId;
-            }
-
-            int corrected = Mathf.Max(_nextId, maxUsed + 1);
-            if (corrected == _nextId)
-            {
-                Debug.Log($"[GameTag] _nextId already safe ({_nextId}); highest id in use = {maxUsed}.");
-                return;
-            }
-
-            Debug.Log($"[GameTag] Repaired _nextId: {_nextId} → {corrected} (highest id in use = {maxUsed}).");
-            _nextId = corrected;
-            UnityEditor.EditorUtility.SetDirty(this);
-        }
         
         [Button("Regenerate GameTags Class")]
         private void RegenerateGameTags()
@@ -281,7 +265,7 @@ namespace DataKeeper.GameTagSystem
                 return rootId;
             }
 
-            int id = _nextId++;
+            int id = GetNewId();
             _entries.Add(new GameTagEntry { Id = id, Name = name, ParentId = parentId });
             MarkDirtyAndBake();
             return id;
