@@ -68,15 +68,7 @@ namespace DataKeeper.ValueProviders
 
         public Color GetValue() => Value;
     }
-
-    [Serializable]
-    public class QuaternionConstantProvider : IQuaternionProvider
-    {
-        [field: SerializeField] public Quaternion Value { get; set; } = Quaternion.identity;
-
-        public Quaternion GetValue() => Value;
-    }
-
+    
     [Serializable]
     [MovedFrom(true, "DataKeeper.BeeTween", null, "TransformValueProvider")]
     public class TransformDirectProvider : ITransformProvider

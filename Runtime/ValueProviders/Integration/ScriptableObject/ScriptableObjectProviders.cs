@@ -77,15 +77,6 @@ namespace DataKeeper.ValueProviders
     }
 
     [Serializable]
-    public class QuaternionScriptableObjectProvider : IQuaternionProvider
-    {
-        [RequireInterface(typeof(IValueProvider<Quaternion>))]
-        [SerializeField] private Object _asset;
-
-        public Quaternion GetValue() => _asset.Cast<IValueProvider<Quaternion>>()?.GetValue() ?? Quaternion.identity;
-    }
-
-    [Serializable]
     public class TransformScriptableObjectProvider : ITransformProvider
     {
         [RequireInterface(typeof(IValueProvider<Transform>))]

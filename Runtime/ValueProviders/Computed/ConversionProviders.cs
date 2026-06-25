@@ -8,37 +8,6 @@ namespace DataKeeper.ValueProviders
     // Dependency-free; they compose other providers through the SerializeReference selector.
 
     /// <summary>
-    /// Builds a rotation from Euler angles (degrees) supplied by a Vector3 provider —
-    /// the author-friendly way to drive a Quaternion field (e.g. RotateNode).
-    /// </summary>
-    [Serializable]
-    public class EulerToQuaternionProvider : IQuaternionProvider
-    {
-        [field: SerializeReference, SerializeReferenceSelector] public IVector3Provider Euler { get; set; } = new Vector3ConstantProvider();
-
-        public Quaternion GetValue() => Quaternion.Euler(Euler?.GetValue() ?? Vector3.zero);
-    }
-
-    /// <summary>
-    /// Builds a rotation that looks along a forward direction, with an optional up vector.
-    /// </summary>
-    [Serializable]
-    public class LookRotationProvider : IQuaternionProvider
-    {
-        [field: SerializeReference, SerializeReferenceSelector] public IVector3Provider Forward { get; set; } = new Vector3ConstantProvider();
-        [field: SerializeReference, SerializeReferenceSelector] public IVector3Provider Up { get; set; }
-
-        public Quaternion GetValue()
-        {
-            var forward = Forward?.GetValue() ?? Vector3.forward;
-            if (forward == Vector3.zero) return Quaternion.identity;
-
-            var up = Up?.GetValue() ?? Vector3.up;
-            return Quaternion.LookRotation(forward, up);
-        }
-    }
-
-    /// <summary>
     /// Composes a Color from an RGB Vector3 provider and a separate alpha provider —
     /// useful when colour and opacity come from different sources.
     /// </summary>

@@ -142,14 +142,4 @@ namespace DataKeeper.ValueProviders
 
         public Color GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetColor(_key) ?? default;
     }
-
-    [Serializable]
-    public class QuaternionBlackboardProvider : IQuaternionProvider
-    {
-        [SerializeField] private GameTag _key;
-        [RequireInterface(typeof(IBlackboardOwner))]
-        [SerializeField] private Object _blackboardSource;
-
-        public Quaternion GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetQuaternion(_key) ?? Quaternion.identity;
-    }
 }

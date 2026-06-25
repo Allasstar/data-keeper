@@ -68,16 +68,4 @@ namespace DataKeeper.ValueProviders
             Random.Range(_min.b, _max.b),
             Random.Range(_min.a, _max.a));
     }
-
-    [Serializable]
-    public class RandomRotationProvider : IQuaternionProvider
-    {
-        [SerializeField] private Vector3 _minEuler = Vector3.zero;
-        [SerializeField] private Vector3 _maxEuler = new Vector3(0f, 360f, 0f);
-
-        public Quaternion GetValue() => Quaternion.Euler(
-            Random.Range(_minEuler.x, _maxEuler.x),
-            Random.Range(_minEuler.y, _maxEuler.y),
-            Random.Range(_minEuler.z, _maxEuler.z));
-    }
 }
