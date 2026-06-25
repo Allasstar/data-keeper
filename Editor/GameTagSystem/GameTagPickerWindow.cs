@@ -245,10 +245,11 @@ namespace DataKeeper.Editor.GameTagSystem
                 .SetBackgroundColor(BgBar)
                 .SetBorderWidth(bottom: 1).SetBorderColor(bottom: Border);
 
-            hdr.Add(new Label("Game Tags").SetFontSize(12).SetFontStyle(FontStyle.Bold).SetColor(TextHi));
-            hdr.Add(new VisualElement().SetFlexGrow(1));
+            // hdr.Add(new Label("Game Tags").SetFontSize(12).SetFontStyle(FontStyle.Bold).SetColor(TextHi));
 
             hdr.Add(MakeToolButton("＋ New Tag", "Add a tag under the selection (or at root)", OpenAddRow, accent: true));
+            
+            hdr.Add(new VisualElement().SetFlexGrow(1));
 
             var refreshBtn = MakeToolButton("Refresh", "Refresh from the registry (pick up edits made elsewhere)", RefreshFromRegistry);
             refreshBtn.style.marginLeft = 4;
@@ -290,10 +291,19 @@ namespace DataKeeper.Editor.GameTagSystem
             _deleteBtn = MakeToolButton("🗑 Delete", "Delete the selected tag and its children", DeleteSelected);
             _moveBtn.style.marginLeft = 4;
             _deleteBtn.style.marginLeft = 4;
+            
+
 
             bar.Add(_renameBtn);
             bar.Add(_moveBtn);
             bar.Add(_deleteBtn);
+            
+            bar.Add(new VisualElement().SetFlexGrow(1));
+
+            var refreshBtn = MakeToolButton("↻ Refresh", "Refresh from the registry (pick up edits made elsewhere)", RefreshFromRegistry);
+            refreshBtn.style.marginLeft = 4;
+            bar.Add(refreshBtn);
+            
             return bar;
         }
 
