@@ -1,194 +1,68 @@
 using NUnit.Framework;
+using UnityEngine;
 using DataKeeper.GameTagSystem;
 
 namespace DataKeeper.Tests.GameTagSystem
 {
     public class GameTagContainerTests
     {
+        private GameTagRegistry _registry;
         private GameTagContainer _container;
 
         [SetUp]
         public void SetUp()
         {
+            _registry = ScriptableObject.CreateInstance<GameTagRegistry>();
+            _registry.GetOrCreate("Enemy/Boss/Elite");
+            _registry.GetOrCreate("Enemy/Minion");
+            _registry.GetOrCreate("Player");
+            GameTagRegistry.SetDefault(_registry);
             _container = new GameTagContainer();
         }
 
-        // --- AddTag / HasTag ---
-
-        [Test]
-        public void HasTag_AfterAdd_ReturnsTrue()
+        [TearDown]
+        public void TearDown()
         {
-            var tag = new GameTag("Enemy");
-            _container.AddTag(tag);
-            Assert.IsTrue(_container.HasTag(tag));
+            GameTagRegistry.SetDefault(null);
+            Object.DestroyImmediate(_registry);
         }
 
-        [Test]
-        public void HasTag_NeverAdded_ReturnsFalse()
+        private static GameTag Tag(string path) => GameTag.Find(path);
+
+        private static GameTagContainer Container(params string[] paths)
         {
-            Assert.IsFalse(_container.HasTag(new GameTag("Enemy")));
+            var c = new GameTagContainer();
+            foreach (var p in paths) c.AddTag(Tag(p));
+            return c;
         }
 
+        // --- Add / HasTagExact / Remove ---
+        [Test] public void HasTagExact_AfterAdd_True()    { _container.AddTag(Tag("Enemy")); Assert.IsTrue(_container.HasTagExact(Tag("Enemy"))); }
+        [Test] public void HasTagExact_NeverAdded_False() => Assert.IsFalse(_container.HasTagExact(Tag("Enemy")));
+        [Test] public void AddTag_Duplicate_NotAddedTwice() { _container.AddTag(Tag("Enemy")); _container.AddTag(Tag("Enemy")); Assert.AreEqual(1, _container.Count); }
+        [Test] public void AddTag_Invalid_Ignored()       { _container.AddTag(Tag("Nope")); Assert.AreEqual(0, _container.Count); }
+        [Test] public void RemoveTag_Existing_Removes()   { var t = Tag("Enemy"); _container.AddTag(t); _container.RemoveTag(t); Assert.IsFalse(_container.HasTagExact(t)); }
+        [Test] public void RemoveTag_NotPresent_DoesNotThrow() => Assert.DoesNotThrow(() => _container.RemoveTag(Tag("Enemy")));
+
+        // --- HasTag (hierarchical) ---
+        [Test] public void HasTag_ContainedDescendant_MatchesAncestorQuery() { _container.AddTag(Tag("Enemy/Boss/Elite")); Assert.IsTrue(_container.HasTag(Tag("Enemy"))); }
+        [Test] public void HasTag_Exact_True()       { _container.AddTag(Tag("Enemy")); Assert.IsTrue(_container.HasTag(Tag("Enemy"))); }
+        [Test] public void HasTag_Unrelated_False()  { _container.AddTag(Tag("Enemy/Boss")); Assert.IsFalse(_container.HasTag(Tag("Player"))); }
+        [Test] public void HasTag_AncestorContained_DoesNotMatchDescendantQuery() { _container.AddTag(Tag("Enemy")); Assert.IsFalse(_container.HasTag(Tag("Enemy/Boss"))); }
+
+        // --- HasAny / HasAll ---
+        [Test] public void HasAny_OneMatches_True()  { _container.AddTag(Tag("Enemy/Boss")); Assert.IsTrue(_container.HasAny(Container("Enemy", "Player"))); }
+        [Test] public void HasAny_NoneMatch_False()  { _container.AddTag(Tag("Enemy/Boss")); Assert.IsFalse(_container.HasAny(Container("Player"))); }
+        [Test] public void HasAll_AllMatch_True()    { _container.AddTag(Tag("Enemy/Boss/Elite")); _container.AddTag(Tag("Player")); Assert.IsTrue(_container.HasAll(Container("Enemy", "Player"))); }
+        [Test] public void HasAll_OneMissing_False() { _container.AddTag(Tag("Enemy/Boss")); Assert.IsFalse(_container.HasAll(Container("Enemy", "Player"))); }
+
+        // --- Exact variants ignore hierarchy ---
         [Test]
-        public void AddTag_Duplicate_DoesNotAddTwice()
+        public void HasAnyExact_OnlyExactMatches()
         {
-            var tag = new GameTag("Enemy");
-            _container.AddTag(tag);
-            _container.AddTag(tag);
-            Assert.AreEqual(1, _container.Tags.Count);
-        }
-
-        // --- RemoveTag ---
-
-        [Test]
-        public void RemoveTag_ExistingTag_RemovesIt()
-        {
-            var tag = new GameTag("Enemy");
-            _container.AddTag(tag);
-            _container.RemoveTag(tag);
-            Assert.IsFalse(_container.HasTag(tag));
-        }
-
-        [Test]
-        public void RemoveTag_NotPresent_DoesNotThrow()
-        {
-            Assert.DoesNotThrow(() => _container.RemoveTag(new GameTag("Enemy")));
-        }
-
-        // --- Tags (IReadOnlyList) ---
-
-        [Test]
-        public void Tags_ReflectsAddedTags()
-        {
-            _container.AddTag(new GameTag("Enemy"));
-            _container.AddTag(new GameTag("Player"));
-            Assert.AreEqual(2, _container.Tags.Count);
-        }
-
-        // --- HasStartWith ---
-
-        [Test]
-        public void HasStartWith_MatchingPrefix_ReturnsTrue()
-        {
-            _container.AddTag(new GameTag("Enemy/Boss"));
-            Assert.IsTrue(_container.HasStartsWithAndNotEquals(new GameTag("Enemy")));
-        }
-        
-        [Test]
-        public void HasStartWith_MatchingPrefix_ReturnsFalse()
-        {
-            _container.AddTag(new GameTag("Enemy"));
-            Assert.IsFalse(_container.HasStartsWithAndNotEquals(new GameTag("Enemy")));
-        }
-
-        [Test]
-        public void HasStartWith_NoMatchingPrefix_ReturnsFalse()
-        {
-            _container.AddTag(new GameTag("Enemy/Boss"));
-            Assert.IsFalse(_container.HasStartsWithAndNotEquals(new GameTag("Player")));
-        }
-
-        [Test]
-        public void HasStartWith_ExactMatch_ReturnsTrue()
-        {
-            // StartsWith requires the separator — exact value doesn't count
-            _container.AddTag(new GameTag("Enemy"));
-            Assert.IsTrue(_container.HasStartWithOrEquals(new GameTag("Enemy")));
-        }
-        
-        [Test]
-        public void HasStartWith_ExactMatch_ReturnsTrue2()
-        {
-            // StartsWith requires the separator — exact value doesn't count
-            _container.AddTag(new GameTag("Enemy/Boss"));
-            Assert.IsTrue(_container.HasStartWithOrEquals(new GameTag("Enemy")));
-        }
-        
-        [Test]
-        public void HasStartWith_ExactMatch_ReturnsTrue3()
-        {
-            // StartsWith requires the separator — exact value doesn't count
-            _container.AddTag(new GameTag("Enemy"));
-            _container.AddTag(new GameTag("Enemy/Boss"));
-            Assert.IsTrue(_container.HasStartWithOrEquals(new GameTag("Enemy")));
-        }
-
-        // --- GetTagsStartsWithAndNotEquals (GameTag overload) ---
-
-        [Test]
-        public void GetTagsStartsWith_GameTag_ReturnsMatchingTags()
-        {
-            _container.AddTag(new GameTag("Enemy/Boss"));
-            _container.AddTag(new GameTag("Enemy/Minion"));
-            _container.AddTag(new GameTag("Player"));
-
-            var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWithAndNotEquals(new GameTag("Enemy")));
-
-            Assert.AreEqual(2, results.Count);
-            Assert.IsTrue(results.Exists(t => t.Value == "Enemy/Boss"));
-            Assert.IsTrue(results.Exists(t => t.Value == "Enemy/Minion"));
-        }
-
-        [Test]
-        public void GetTagsStartsWith_GameTag_NoMatch_ReturnsEmpty()
-        {
-            _container.AddTag(new GameTag("Player"));
-
-            var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWithAndNotEquals(new GameTag("Player")));
-
-            Assert.AreEqual(0, results.Count);
-        }
-
-        // --- GetTagsStartsWithOrEquals (string overload) ---
-
-        [Test]
-        public void GetTagsStartsWith_String_ReturnsMatchingTags1()
-        {
-            _container.AddTag(new GameTag("Enemy"));
-            _container.AddTag(new GameTag("Enemy/Boss"));
-            _container.AddTag(new GameTag("Enemy/Boss/Elite"));
-            _container.AddTag(new GameTag("Player/Enemy"));
-
-            var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWithOrEquals(new GameTag("Enemy")));
-            
-            Assert.AreEqual(3, results.Count);
-        }
-        
-        [Test]
-        public void GetTagsStartsWith_String_ReturnsMatchingTags()
-        {
-            _container.AddTag(new GameTag("Enemy/Boss"));
-            _container.AddTag(new GameTag("Enemy/Minion"));
-            _container.AddTag(new GameTag("Player"));
-
-            var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWithOrEquals(new GameTag("Player")));
-
-            
-            Assert.AreEqual(1, results.Count);
-        }
-
-        [Test]
-        public void GetTagsStartsWith_String_NoMatch_ReturnsEmpty()
-        {
-            _container.AddTag(new GameTag("Player"));
-
-            var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWithOrEquals(new GameTag("Enemy")));
-
-            Assert.AreEqual(0, results.Count);
-        }
-
-        [Test]
-        public void GetTagsStartsWith_EmptyContainer_ReturnsEmpty()
-        {
-            var results = new System.Collections.Generic.List<GameTag>(
-                _container.GetTagsStartsWithOrEquals(new GameTag("Enemy")));
-
-            Assert.AreEqual(0, results.Count);
+            _container.AddTag(Tag("Enemy/Boss"));
+            Assert.IsFalse(_container.HasAnyExact(Container("Enemy")));
+            Assert.IsTrue(_container.HasAnyExact(Container("Enemy/Boss")));
         }
     }
 }

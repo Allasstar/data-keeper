@@ -1,167 +1,106 @@
 using NUnit.Framework;
+using UnityEngine;
 using DataKeeper.GameTagSystem;
 
 namespace DataKeeper.Tests.GameTagSystem
 {
     public class GameTagTests
     {
-        // --- Value & ToString ---
-        
-        [Test]
-        public void Value_ReturnsConstructorString()
+        private GameTagRegistry _registry;
+        private int _enemy, _boss, _elite, _minion, _player;
+
+        [SetUp]
+        public void SetUp()
         {
-            var tag = new GameTag("Enemy/Boss");
-            Assert.AreEqual("Enemy/Boss", tag.Value);
+            _registry = ScriptableObject.CreateInstance<GameTagRegistry>();
+            _elite  = _registry.GetOrCreate("Enemy/Boss/Elite");
+            _minion = _registry.GetOrCreate("Enemy/Minion");
+            _player = _registry.GetOrCreate("Player");
+            _enemy  = _registry.FindByPath("Enemy");
+            _boss   = _registry.FindByPath("Enemy/Boss");
+            GameTagRegistry.SetDefault(_registry);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            GameTagRegistry.SetDefault(null);
+            Object.DestroyImmediate(_registry);
+        }
+
+        private static GameTag Tag(string path) => GameTag.Find(path);
+
+        // --- Find / validity ---
+        [Test] public void Find_ExistingPath_IsValid()  => Assert.IsTrue(Tag("Enemy/Boss").IsValid);
+        [Test] public void Find_UnknownPath_IsInvalid() => Assert.IsFalse(Tag("Nope/Nope").IsValid);
+        [Test] public void Default_Tag_IsInvalid()      => Assert.IsFalse(default(GameTag).IsValid);
+        [Test] public void Branch_IsFirstClassValidTag()=> Assert.IsTrue(Tag("Enemy").IsValid);
+
+        // --- Name / Path / Parent ---
+        [Test] public void Path_ReturnsFullPath()    => Assert.AreEqual("Enemy/Boss/Elite", Tag("Enemy/Boss/Elite").Path);
+        [Test] public void Name_ReturnsLeafSegment() => Assert.AreEqual("Elite", Tag("Enemy/Boss/Elite").Name);
+        [Test] public void ToString_ReturnsPath()    => Assert.AreEqual("Enemy/Boss", Tag("Enemy/Boss").ToString());
+        [Test] public void Parent_ReturnsParentTag() => Assert.IsTrue(Tag("Enemy/Boss/Elite").Parent.MatchesTagExact(Tag("Enemy/Boss")));
+
+        // --- Equality / hash (by id) ---
+        [Test] public void Equals_SamePath_True()       => Assert.IsTrue(Tag("Enemy").Equals(Tag("Enemy")));
+        [Test] public void Equals_DifferentPath_False() => Assert.IsFalse(Tag("Enemy").Equals(Tag("Player")));
+        [Test] public void Operator_Equals_True()       => Assert.IsTrue(Tag("Enemy") == Tag("Enemy"));
+        [Test] public void Hash_EqualsId()              => Assert.AreEqual(_enemy, Tag("Enemy").Hash);
+
+        // --- GetOrCreate dedupes ---
+        [Test] public void GetOrCreate_SamePath_ReturnsSameId()
+            => Assert.AreEqual(_elite, _registry.GetOrCreate("Enemy/Boss/Elite"));
+
+        // --- MatchesTag (hierarchical, Unreal semantics) ---
+        [Test] public void MatchesTag_Ancestor_True()      => Assert.IsTrue(Tag("Enemy/Boss/Elite").MatchesTag(Tag("Enemy")));
+        [Test] public void MatchesTag_Self_True()          => Assert.IsTrue(Tag("Enemy/Boss").MatchesTag(Tag("Enemy/Boss")));
+        [Test] public void MatchesTag_NonAncestor_False()  => Assert.IsFalse(Tag("Enemy/Boss").MatchesTag(Tag("Player")));
+        [Test] public void MatchesTag_Descendant_False()   => Assert.IsFalse(Tag("Enemy").MatchesTag(Tag("Enemy/Boss")));
+        [Test] public void MatchesTag_UnregisteredQuery_False() => Assert.IsFalse(Tag("Enemy/Boss/Elite").MatchesTag(Tag("Ene")));
+
+        // --- MatchesTagExact / IsChildOf ---
+        [Test] public void MatchesTagExact_Same_True()      => Assert.IsTrue(Tag("Enemy/Boss").MatchesTagExact(Tag("Enemy/Boss")));
+        [Test] public void MatchesTagExact_Ancestor_False() => Assert.IsFalse(Tag("Enemy/Boss").MatchesTagExact(Tag("Enemy")));
+        [Test] public void IsChildOf_Descendant_True()      => Assert.IsTrue(Tag("Enemy/Boss").IsChildOf(Tag("Enemy")));
+        [Test] public void IsChildOf_Self_False()           => Assert.IsFalse(Tag("Enemy").IsChildOf(Tag("Enemy")));
+
+        // --- Rename keeps references (the headline feature) ---
+        [Test]
+        public void Rename_KeepsId_ReferenceResolvesToNewPath()
+        {
+            var tag = GameTag.FromId(_boss); // a "stored reference" holding the id
+
+            _registry.Rename(_boss, "Champion");
+
+            Assert.AreEqual(GameTagRegistry.NONE, _registry.FindByPath("Enemy/Boss"), "old path is gone");
+            Assert.AreEqual(_boss, _registry.FindByPath("Enemy/Champion"), "same id, new path");
+            Assert.AreEqual("Enemy/Champion", tag.Path, "the reference now resolves to the renamed path");
+            Assert.IsTrue(tag.MatchesTag(Tag("Enemy")), "hierarchy still holds after rename");
+        }
+
+        // --- Reparent keeps id and updates descendant paths ---
+        [Test]
+        public void Reparent_KeepsId_UpdatesDescendantPaths()
+        {
+            _registry.Reparent(_boss, _player);
+            Assert.AreEqual("Player/Boss", GameTag.FromId(_boss).Path);
+            Assert.AreEqual("Player/Boss/Elite", _registry.GetPath(_elite));
         }
 
         [Test]
-        public void Value_ReturnsConstructorString2()
+        public void Reparent_IntoOwnSubtree_IsRefused()
         {
-            var tag = new GameTag("Enemy/Boss/ ");
-            Assert.AreEqual("Enemy/Boss", tag.Value);
+            _registry.Reparent(_enemy, _elite); // _elite is under _enemy -> cycle
+            Assert.AreEqual("Enemy", GameTag.FromId(_enemy).Path, "reparent was refused");
         }
 
+        // --- Delete with redirect resolves old references to the replacement ---
         [Test]
-        public void ToString_ReturnsValue()
+        public void Delete_WithRedirect_OldIdResolvesToReplacement()
         {
-            var tag = new GameTag("Player/    ");
-            Assert.AreEqual("Player", tag.ToString());
-        }
-
-        [Test]
-        public void ToString_NullValue_ReturnsEmptyString()
-        {
-            var tag = new GameTag(null);
-            Assert.AreEqual(string.Empty, tag.ToString());
-        }
-
-        // --- Equals ---
-
-        [Test]
-        public void Equals_SameValue_ReturnsTrue()
-        {
-            var a = new GameTag("Enemy");
-            var b = new GameTag("Enemy");
-            Assert.IsTrue(a.Equals(b));
-        }
-
-        [Test]
-        public void Equals_DifferentValue_ReturnsFalse()
-        {
-            var a = new GameTag("Enemy");
-            var b = new GameTag("Player");
-            Assert.IsFalse(a.Equals(b));
-        }
-
-        [Test]
-        public void Equals_String_DifferentValue_ReturnsTrue()
-        {
-            var tag = new GameTag("Enemy");
-            Assert.IsTrue(tag.Equals("Enemy"));
-        }
-        
-
-        [Test]
-        public void Equals_String_DifferentValue_ReturnsFalse()
-        {
-            var tag = new GameTag("Enemy");
-            Assert.IsFalse(tag.Equals("Player"));
-        }
-
-        // --- StartsWith ---
-
-        [Test]
-        public void StartsWith_GameTag_DirectParent_ReturnsTrue()
-        {
-            var child = new GameTag("Enemy/Boss/Elite");
-            var parent = new GameTag("Enemy");
-            Assert.IsTrue(child.StartsWithAndNotEquals(parent));
-        }
-
-        [Test]
-        public void StartsWith_GameTag_NotParent_ReturnsFalse()
-        {
-            var tag = new GameTag("Enemy/Boss");
-            var other = new GameTag("Player");
-            Assert.IsFalse(tag.StartsWithAndNotEquals(other));
-        }
-        
-        [Test]
-        public void StartsWith_GameTag_NotParent_ReturnsFalse2()
-        {
-            var tag = new GameTag("Enemy/Boss");
-            var other = new GameTag("Enemy/Boss");
-            Assert.IsFalse(tag.StartsWithAndNotEquals(other));
-        }
-
-        // --- StartsWithOrEquals ---
-
-        [Test]
-        public void Contains_GameTag_SubstringPresent_ReturnsTrue()
-        {
-            var tag = new GameTag("Enemy/Boss/Elite");
-            Assert.IsTrue(tag.StartsWithOrEquals(new GameTag("Enemy/Boss")));
-        }
-        
-        [Test]
-        public void Contains_GameTag_SubstringPresent2_ReturnsTrue()
-        {
-            var tag = new GameTag("Enemy/Boss/Elite");
-            Assert.IsTrue(tag.StartsWithOrEquals(new GameTag("Enemy/Boss/Elite")));
-        }
-
-        [Test]
-        public void Contains_GameTag_SubstringAbsent_ReturnsFalse()
-        {
-            var tag = new GameTag("Enemy/Boss/Elite");
-            Assert.IsFalse(tag.StartsWithOrEquals(new GameTag("Player")));
-        }
-        
-        [Test]
-        public void Contains_GameTag_SubstringAbsent_ReturnsFalse2()
-        {
-            var tag = new GameTag("Enemy/Boss/Elite");
-            Assert.IsFalse(tag.StartsWithOrEquals(new GameTag("Ene")));
-        }
-
-
-        // --- GetNodes ---
-
-        [Test]
-        public void GetNodes_SingleSegment_ReturnsSingleNode()
-        {
-            var tag = new GameTag("Enemy");
-            var nodes = tag.GetNodes();
-            Assert.AreEqual(1, nodes.Count);
-            Assert.AreEqual("Enemy", nodes[0].Value);
-        }
-
-        [Test]
-        public void GetNodes_MultiSegment_ReturnsAllNodes()
-        {
-            var tag = new GameTag("Enemy/Boss/Elite");
-            var nodes = tag.GetNodes();
-            Assert.AreEqual(3, nodes.Count);
-            Assert.AreEqual("Enemy", nodes[0].Value);
-            Assert.AreEqual("Boss", nodes[1].Value);
-            Assert.AreEqual("Elite", nodes[2].Value);
-        }
-
-        [Test]
-        public void GetNodes_NullValue_ReturnsEmpty()
-        {
-            var tag = new GameTag(null);
-            var nodes = tag.GetNodes(); // Error is not thrown
-            Assert.AreEqual(0, nodes.Count);
-        }
-
-        [Test]
-        public void GetNodes_CalledTwice_ReturnsSameNodes()
-        {
-            var tag = new GameTag("Enemy/Boss");
-            var first = tag.GetNodes();
-            var second = tag.GetNodes();
-            Assert.AreSame(first, second);
+            _registry.Delete(_minion, redirectToId: _player);
+            Assert.IsTrue(GameTag.FromId(_minion).MatchesTagExact(GameTag.FromId(_player)));
         }
     }
 }

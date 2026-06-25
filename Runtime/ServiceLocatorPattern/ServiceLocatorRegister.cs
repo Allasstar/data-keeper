@@ -40,7 +40,7 @@ namespace DataKeeper.ServiceLocatorPattern
             {
                 if (ComponentID.Enabled)
                 {
-                    ServiceLocator.ForGlobal().Reg(Component, ComponentID.Value.Value);
+                    ServiceLocator.ForGlobal().Reg(Component, ComponentID.Value.Path);
                 }
                 else
                 {
@@ -58,7 +58,7 @@ namespace DataKeeper.ServiceLocatorPattern
             {
                 if (ComponentID.Enabled)
                 {
-                    ServiceLocator.ForSceneOf(owner).Reg(Component, ComponentID.Value.Value);
+                    ServiceLocator.ForSceneOf(owner).Reg(Component, ComponentID.Value.Path);
                 }
                 else
                 {
@@ -76,7 +76,7 @@ namespace DataKeeper.ServiceLocatorPattern
             {
                 if (ComponentID.Enabled)
                 {
-                    ServiceLocator.ForGameObjectOf(owner).Reg(Component, ComponentID.Value.Value);
+                    ServiceLocator.ForGameObjectOf(owner).Reg(Component, ComponentID.Value.Path);
                 }
                 else
                 {
@@ -96,11 +96,11 @@ namespace DataKeeper.ServiceLocatorPattern
             {
                 if (ComponentID.Enabled)
                 {
-                    ServiceLocator.ForTableOf(TableName.Value).Reg(Component, ComponentID.Value.Value);
+                    ServiceLocator.ForTableOf(TableName.Path).Reg(Component, ComponentID.Value.Path);
                 }
                 else
                 {
-                    ServiceLocator.ForTableOf(TableName.Value).Reg(Component);
+                    ServiceLocator.ForTableOf(TableName.Path).Reg(Component);
                 }
             }
         }

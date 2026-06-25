@@ -1,7 +1,6 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using DataKeeper.GameTagSystem;
 using DataKeeper.UIToolkit;
 using UnityEditor;
@@ -11,70 +10,86 @@ using UnityEngine.UIElements;
 
 namespace DataKeeper.Editor.GameTagSystem
 {
+    // Tree picker over the GameTagRegistry. Nodes are real entries (stable ids); selecting a
+    // branch or a leaf returns that node's id. Supports add / rename / move / delete in place.
     public class GameTagPickerWindow : EditorWindow
     {
         // ─── Palette ──────────────────────────────────────────────────────────
-        private static readonly Color BgDeep      = new Color(0.155f, 0.155f, 0.155f);
-        private static readonly Color BgBar        = new Color(0.205f, 0.205f, 0.205f);
-        private static readonly Color BgField      = new Color(0.165f, 0.165f, 0.165f);
-        private static readonly Color BgRowHover   = new Color(1f, 1f, 1f, 0.045f);
-        private static readonly Color BgRowSel     = new Color(0.28f, 0.48f, 0.76f, 0.20f);
-        private static readonly Color Border       = new Color(0.115f, 0.115f, 0.115f);
-        private static readonly Color CheckBorder  = new Color(0.46f, 0.46f, 0.46f);
-        private static readonly Color Accent       = new Color(0.30f, 0.52f, 0.82f);
-        private static readonly Color TextHi        = new Color(0.92f, 0.92f, 0.92f);
-        private static readonly Color TextLo        = new Color(0.78f, 0.78f, 0.78f);
-        private static readonly Color TextFaint     = new Color(0.55f, 0.55f, 0.55f);
+        private static readonly Color BgDeep     = new Color(0.155f, 0.155f, 0.155f);
+        private static readonly Color BgBar      = new Color(0.205f, 0.205f, 0.205f);
+        private static readonly Color BgField    = new Color(0.165f, 0.165f, 0.165f);
+        private static readonly Color BgRowHover = new Color(1f, 1f, 1f, 0.045f);
+        private static readonly Color BgRowSel   = new Color(0.28f, 0.48f, 0.76f, 0.20f);
+        private static readonly Color Border     = new Color(0.115f, 0.115f, 0.115f);
+        private static readonly Color CheckBorder= new Color(0.46f, 0.46f, 0.46f);
+        private static readonly Color Accent     = new Color(0.30f, 0.52f, 0.82f);
+        private static readonly Color MoveBar    = new Color(0.55f, 0.42f, 0.18f);
+        private static readonly Color TextHi     = new Color(0.92f, 0.92f, 0.92f);
+        private static readonly Color TextLo     = new Color(0.78f, 0.78f, 0.78f);
+        private static readonly Color TextFaint  = new Color(0.55f, 0.55f, 0.55f);
 
         private const float IndentWidth = 14f;
 
         // ─── State ────────────────────────────────────────────────────────────
         private GameTagRegistry _registry;
-        private Action<string> _onApply;
+        private Action<int> _onApply;
 
-        private string _selected;
-        private readonly HashSet<string> _expanded = new();
+        private int _selectedId;
+        private int _renamingId;
+        private int _moveSourceId;
+        private int _addParentId;
+        private readonly HashSet<int> _expanded = new();
         private readonly List<TagNode> _roots = new();
         private readonly List<RowWidget> _rows = new();
         private string _search = string.Empty;
 
         // ─── UI refs ──────────────────────────────────────────────────────────
+        private VisualElement _moveRow;
+        private Label _moveLabel;
         private VisualElement _addRow;
         private TextField _newTagField;
+        private Label _addContext;
         private VisualElement _treeContainer;
         private VisualElement _emptyState;
         private Label _emptyLabel;
         private ScrollView _scroll;
         private Label _footerLabel;
+        private Button _renameBtn, _moveBtn, _deleteBtn;
 
         // ─── Public API ─────────────────────────────────────────────────────────
-        public static void Show(GameTagRegistry registry, string currentTag, Action<string> onApply)
+        public static void Show(GameTagRegistry registry, int currentId, Action<int> onApply)
         {
             if (registry == null)
             {
                 EditorUtility.DisplayDialog("Error",
-                    "No GameTagRegistry found.\nCreate new GameTagRegistry in Resources folder.", "OK");
+                    "No GameTagRegistry found.\nCreate a GameTagRegistry asset in a Resources folder.", "OK");
                 return;
             }
 
             var win = CreateInstance<GameTagPickerWindow>();
-            win.titleContent = new GUIContent("Game Tag Picker",
-                EditorGUIUtility.FindTexture("d_FilterByLabel"));
+            win.titleContent = new GUIContent("Game Tag Picker", EditorGUIUtility.FindTexture("d_FilterByLabel"));
             win.minSize = new Vector2(360, 480);
             win._registry = registry;
             win._onApply = onApply;
-            win._selected = string.IsNullOrEmpty(currentTag) ? null : currentTag;
+            win._selectedId = currentId;
             win.ShowAuxWindow();
         }
 
         // ─── Build UI ─────────────────────────────────────────────────────────
         public void CreateGUI()
         {
+            _registry.Bake(); // always reflect the current registry state on open
+
             var root = rootVisualElement;
             root.style.backgroundColor = BgDeep;
 
             root.Add(BuildHeader());
             root.Add(BuildSearchBar());
+            root.Add(BuildEditBar());
+
+            _moveRow = BuildMoveRow();
+            _moveRow.SetDisplay(DisplayStyle.None);
+            root.Add(_moveRow);
 
             _addRow = BuildAddRow();
             _addRow.SetDisplay(DisplayStyle.None);
@@ -92,6 +107,10 @@ namespace DataKeeper.Editor.GameTagSystem
             root.Add(_scroll);
             root.Add(BuildFooter());
 
+            // expand to reveal the initial selection
+            for (int p = _registry.GetParentId(_selectedId); p != GameTagRegistry.NONE; p = _registry.GetParentId(p))
+                _expanded.Add(p);
+
             RebuildTree();
         }
 
@@ -103,29 +122,14 @@ namespace DataKeeper.Editor.GameTagSystem
                 .SetBackgroundColor(BgBar)
                 .SetBorderWidth(bottom: 1).SetBorderColor(bottom: Border);
 
-            var titleLabel = new Label("Game Tags")
-                .SetFontSize(12).SetFontStyle(FontStyle.Bold).SetColor(TextHi);
-            hdr.Add(titleLabel);
-
+            hdr.Add(new Label("Game Tags").SetFontSize(12).SetFontStyle(FontStyle.Bold).SetColor(TextHi));
             hdr.Add(new VisualElement().SetFlexGrow(1));
 
-            hdr.Add(MakeToolButton("＋ New Tag", "Add a new tag to the registry", () =>
-            {
-                bool show = _addRow.style.display == DisplayStyle.None;
-                _addRow.SetDisplay(show ? DisplayStyle.Flex : DisplayStyle.None);
-                if (show)
-                {
-                    // Seed with the search text, else the current tag (handy when the
-                    // field holds a tag that's missing from the registry — one click to add it).
-                    _newTagField.value = !string.IsNullOrEmpty(_search) ? _search : (_selected ?? string.Empty);
-                    _newTagField.schedule.Execute(() => _newTagField.Focus());
-                }
-            }, accent: true));
+            hdr.Add(MakeToolButton("＋ New Tag", "Add a tag under the selection (or at root)", OpenAddRow, accent: true));
 
             var editBtn = MakeToolButton("Edit", "Select the GameTagRegistry asset", PingRegistry);
             editBtn.style.marginLeft = 4;
             hdr.Add(editBtn);
-
             return hdr;
         }
 
@@ -139,56 +143,88 @@ namespace DataKeeper.Editor.GameTagSystem
 
             var search = new ToolbarSearchField();
             search.SetFlexGrow(1);
-            search.RegisterValueChangedCallback(evt =>
-            {
-                _search = evt.newValue;
-                RebuildTree();
-            });
+            search.RegisterValueChangedCallback(evt => { _search = evt.newValue; RebuildTree(); });
             bar.Add(search);
             return bar;
+        }
+
+        // Selection-scoped node actions (enabled only when a node is selected).
+        private VisualElement BuildEditBar()
+        {
+            var bar = new VisualElement()
+                .SetFlexRow().SetAlignItems(Align.Center)
+                .SetPadding(left: 8, top: 4, right: 6, bottom: 4)
+                .SetBackgroundColor(BgBar)
+                .SetBorderWidth(bottom: 1).SetBorderColor(bottom: Border);
+
+            _renameBtn = MakeToolButton("✎ Rename", "Rename the selected tag (refs are kept)", BeginRenameSelected);
+            _moveBtn   = MakeToolButton("⤴ Move", "Move the selected tag under another parent", BeginMoveSelected);
+            _deleteBtn = MakeToolButton("🗑 Delete", "Delete the selected tag and its children", DeleteSelected);
+            _moveBtn.style.marginLeft = 4;
+            _deleteBtn.style.marginLeft = 4;
+
+            bar.Add(_renameBtn);
+            bar.Add(_moveBtn);
+            bar.Add(_deleteBtn);
+            return bar;
+        }
+
+        private VisualElement BuildMoveRow()
+        {
+            var row = new VisualElement()
+                .SetFlexRow().SetAlignItems(Align.Center)
+                .SetPadding(left: 8, top: 5, right: 6, bottom: 5)
+                .SetBackgroundColor(MoveBar);
+
+            _moveLabel = new Label().SetFontSize(11).SetColor(Color.white).SetFlexGrow(1);
+            _moveLabel.SetTextOverflowEllipsis().SetTextNoWrap();
+            row.Add(_moveLabel);
+
+            row.Add(MakeToolButton("To Root", "Move to the top level", () => CommitMove(GameTagRegistry.NONE)));
+            var cancel = MakeToolButton("Cancel", "Cancel move", CancelMove);
+            cancel.style.marginLeft = 4;
+            row.Add(cancel);
+            return row;
         }
 
         private VisualElement BuildAddRow()
         {
             var row = new VisualElement()
-                .SetFlexRow().SetAlignItems(Align.Center)
                 .SetPadding(left: 6, top: 4, right: 6, bottom: 4)
                 .SetBackgroundColor(BgField)
                 .SetBorderWidth(bottom: 1).SetBorderColor(bottom: Border);
 
+            _addContext = new Label().SetFontSize(10).SetColor(TextFaint);
+            _addContext.style.marginBottom = 2;
+            row.Add(_addContext);
+
+            var line = new VisualElement().SetFlexRow().SetAlignItems(Align.Center);
+
             _newTagField = new TextField { value = string.Empty };
             _newTagField.SetFlexGrow(1);
-            _newTagField.textEdition.placeholder = "Parent/Child/Tag";
+            _newTagField.textEdition.placeholder = "Name (or Sub/Path)";
             _newTagField.RegisterCallback<KeyDownEvent>(evt =>
             {
-                if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
-                {
-                    CommitNewTag();
-                    evt.StopPropagation();
-                }
-                else if (evt.keyCode == KeyCode.Escape)
-                {
-                    CloseAddRow();
-                    evt.StopPropagation();
-                }
+                if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter) { CommitNewTag(); evt.StopPropagation(); }
+                else if (evt.keyCode == KeyCode.Escape) { CloseAddRow(); evt.StopPropagation(); }
             });
-            row.Add(_newTagField);
+            line.Add(_newTagField);
 
             var add = MakeToolButton("Add", "Create tag", CommitNewTag, accent: true);
             add.style.marginLeft = 4;
-            row.Add(add);
+            line.Add(add);
 
             var cancel = MakeToolButton("✕", "Cancel", CloseAddRow);
             cancel.style.marginLeft = 2;
-            row.Add(cancel);
+            line.Add(cancel);
 
+            row.Add(line);
             return row;
         }
 
         private VisualElement BuildEmptyState()
         {
-            var wrap = new VisualElement()
-                .SetAlignItems(Align.Center).SetJustifyContent(Justify.Center);
+            var wrap = new VisualElement().SetAlignItems(Align.Center).SetJustifyContent(Justify.Center);
             wrap.style.paddingTop = 50;
             wrap.SetDisplay(DisplayStyle.None);
 
@@ -216,12 +252,7 @@ namespace DataKeeper.Editor.GameTagSystem
             _footerLabel.SetTextOverflowEllipsis().SetTextNoWrap();
             bar.Add(_footerLabel);
 
-            var clear = MakeToolButton("Clear", "Deselect", () =>
-            {
-                _selected = null;
-                RefreshSelectionVisuals();
-            });
-            bar.Add(clear);
+            bar.Add(MakeToolButton("Clear", "Deselect", () => { _selectedId = GameTagRegistry.NONE; RefreshSelectionVisuals(); }));
 
             var apply = MakeToolButton("Apply", "Confirm selection", Apply, accent: true);
             apply.style.marginLeft = 4;
@@ -234,37 +265,28 @@ namespace DataKeeper.Editor.GameTagSystem
         private void RebuildTree()
         {
             _roots.Clear();
-            var dict = new Dictionary<string, TagNode>();
-
-            IEnumerable<string> source = _registry.Tags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase);
-            if (!string.IsNullOrEmpty(_search))
-                source = source.Where(t => t.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0);
-
-            foreach (var tag in source)
-            {
-                var parts = tag.Split(GameTag.SEPARATOR);
-                TagNode parent = null;
-
-                for (int i = 0; i < parts.Length; i++)
-                {
-                    var path = string.Join(GameTag.SEPARATOR, parts[..(i + 1)]);
-                    if (!dict.TryGetValue(path, out var node))
-                    {
-                        node = new TagNode { Label = parts[i], FullPath = path };
-                        dict[path] = node;
-                        if (parent == null) _roots.Add(node);
-                        else parent.Children.Add(node);
-                    }
-
-                    if (i == parts.Length - 1)
-                        node.ExistsInRegistry = true;
-
-                    parent = node;
-                }
-            }
-
+            foreach (var rootId in _registry.RootIds)
+                _roots.Add(BuildNode(rootId));
+            _roots.Sort(CompareNodes);
             RenderTree();
         }
+
+        private TagNode BuildNode(int id)
+        {
+            var n = _registry.GetNode(id);
+            var node = new TagNode { Id = id, Label = n.Name, FullPath = n.Path };
+            foreach (var childId in n.Children)
+            {
+                var child = BuildNode(childId);
+                child.Parent = node;
+                node.Children.Add(child);
+            }
+            node.Children.Sort(CompareNodes);
+            return node;
+        }
+
+        private static int CompareNodes(TagNode a, TagNode b)
+            => string.Compare(a.Label, b.Label, StringComparison.OrdinalIgnoreCase);
 
         // ─── Tree rendering ─────────────────────────────────────────────────────
         private void RenderTree()
@@ -273,41 +295,54 @@ namespace DataKeeper.Editor.GameTagSystem
             _treeContainer.Clear();
 
             bool searching = !string.IsNullOrEmpty(_search);
-            foreach (var root in _roots)
-                RenderNode(root, 0, searching);
+            HashSet<int> visible = null;
+            if (searching)
+            {
+                visible = new HashSet<int>();
+                foreach (var r in _roots) Filter(r, _search, visible);
+            }
 
-            bool empty = _roots.Count == 0;
+            foreach (var r in _roots)
+                RenderNode(r, 0, searching, visible);
+
+            bool empty = _treeContainer.childCount == 0;
             _emptyState.SetDisplay(empty ? DisplayStyle.Flex : DisplayStyle.None);
             _emptyLabel.text = searching ? $"No tags match “{_search}”" : "No tags yet";
 
             RefreshSelectionVisuals();
         }
 
-        private void RenderNode(TagNode node, int depth, bool forceExpand)
+        private static bool Filter(TagNode node, string term, HashSet<int> visible)
         {
-            bool hasChildren = node.Children.Count > 0;
-            bool expanded = forceExpand || _expanded.Contains(node.FullPath);
+            bool match = node.FullPath.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0;
+            foreach (var c in node.Children)
+                match |= Filter(c, term, visible);
+            if (match) visible.Add(node.Id);
+            return match;
+        }
 
-            var row = new RowWidget { Node = node };
+        private void RenderNode(TagNode node, int depth, bool searching, HashSet<int> visible)
+        {
+            if (visible != null && !visible.Contains(node.Id)) return;
+
+            bool hasChildren = node.Children.Count > 0;
+            bool expanded = searching || _expanded.Contains(node.Id);
 
             var rowEl = new VisualElement()
                 .SetFlexRow().SetAlignItems(Align.Center)
                 .SetHeight(22).SetBorderRadius(3);
             rowEl.style.paddingLeft = 4 + depth * IndentWidth;
             rowEl.style.flexShrink = 0;
-            row.Element = rowEl;
 
-            // Foldout arrow (or spacer to keep alignment)
+            var row = new RowWidget { Node = node, Element = rowEl };
+
+            // Foldout arrow (or spacer)
             if (hasChildren)
             {
                 var arrow = new Label(expanded ? "▾" : "▸").SetFontSize(10).SetColor(TextLo);
                 arrow.SetWidth(IndentWidth);
                 arrow.style.unityTextAlign = TextAnchor.MiddleCenter;
-                arrow.RegisterCallback<ClickEvent>(evt =>
-                {
-                    ToggleExpand(node);
-                    evt.StopPropagation();
-                });
+                arrow.RegisterCallback<ClickEvent>(evt => { ToggleExpand(node); evt.StopPropagation(); });
                 rowEl.Add(arrow);
             }
             else
@@ -318,51 +353,49 @@ namespace DataKeeper.Editor.GameTagSystem
             // Selection checkbox
             var check = new CheckBox();
             check.style.marginRight = 6;
-            check.RegisterCallback<ClickEvent>(evt =>
-            {
-                ToggleNode(node);
-                RefreshSelectionVisuals();
-                evt.StopPropagation();
-            });
+            check.RegisterCallback<ClickEvent>(evt => { SelectNode(node); evt.StopPropagation(); });
             row.Check = check;
             rowEl.Add(check);
 
-            // Label
-            var label = new Label(node.Label).SetFontSize(12);
-            label.SetColor(node.ExistsInRegistry ? TextHi : TextFaint);
-            label.style.unityTextAlign = TextAnchor.MiddleLeft;
-            label.SetFlexGrow(1);
-            label.style.overflow = Overflow.Hidden;
-            label.SetTextOverflowEllipsis().SetTextNoWrap();
-            rowEl.Add(label);
-
-            // Child count hint for parents
-            if (hasChildren)
+            // Label or inline rename field
+            if (_renamingId == node.Id)
             {
-                var count = new Label(node.Children.Count.ToString()).SetFontSize(9).SetColor(TextFaint);
-                count.style.marginRight = 6;
-                count.style.minWidth = 14;
-                count.style.unityTextAlign = TextAnchor.MiddleRight;
-                rowEl.Add(count);
+                var field = new TextField { value = node.Label };
+                field.SetFlexGrow(1);
+                field.schedule.Execute(() => { field.Focus(); field.SelectAll(); });
+                field.RegisterCallback<KeyDownEvent>(evt =>
+                {
+                    if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter) { CommitRename(node.Id, field.value); evt.StopPropagation(); }
+                    else if (evt.keyCode == KeyCode.Escape) { _renamingId = GameTagRegistry.NONE; RenderTree(); evt.StopPropagation(); }
+                });
+                field.RegisterCallback<FocusOutEvent>(_ => { if (_renamingId == node.Id) CommitRename(node.Id, field.value); });
+                rowEl.Add(field);
             }
-
-            // Row interaction: parents expand, leaves select; double-click a leaf applies
-            rowEl.RegisterCallback<ClickEvent>(evt =>
+            else
             {
+                var label = new Label(node.Label).SetFontSize(12).SetColor(TextHi);
+                label.style.unityTextAlign = TextAnchor.MiddleLeft;
+                label.SetFlexGrow(1);
+                label.style.overflow = Overflow.Hidden;
+                label.SetTextOverflowEllipsis().SetTextNoWrap();
+                rowEl.Add(label);
+
                 if (hasChildren)
                 {
-                    ToggleExpand(node);
+                    var count = new Label(node.Children.Count.ToString()).SetFontSize(9).SetColor(TextFaint);
+                    count.style.marginRight = 6;
+                    count.style.minWidth = 14;
+                    count.style.unityTextAlign = TextAnchor.MiddleRight;
+                    rowEl.Add(count);
                 }
-                else if (evt.clickCount >= 2)
-                {
-                    _selected = node.FullPath;
-                    Apply();
-                }
-                else
-                {
-                    ToggleNode(node);
-                    RefreshSelectionVisuals();
-                }
+            }
+
+            rowEl.RegisterCallback<ClickEvent>(evt =>
+            {
+                if (_moveSourceId != GameTagRegistry.NONE) { CommitMove(node.Id); return; }
+                if (evt.clickCount >= 2 && !hasChildren) { _selectedId = node.Id; Apply(); return; }
+                if (evt.clickCount >= 2) { BeginRename(node.Id); return; }
+                SelectNode(node);
             });
 
             rowEl.RegisterCallback<MouseEnterEvent>(_ => { row.Hover = true; ApplyRowBg(row); });
@@ -373,78 +406,80 @@ namespace DataKeeper.Editor.GameTagSystem
 
             if (hasChildren && expanded)
                 foreach (var child in node.Children)
-                    RenderNode(child, depth + 1, forceExpand);
+                    RenderNode(child, depth + 1, searching, visible);
         }
 
         private void ToggleExpand(TagNode node)
         {
-            if (_expanded.Contains(node.FullPath)) _expanded.Remove(node.FullPath);
-            else _expanded.Add(node.FullPath);
+            if (!_expanded.Remove(node.Id)) _expanded.Add(node.Id);
             RenderTree();
         }
 
         // ─── Selection ────────────────────────────────────────────────────────
-        private void ToggleNode(TagNode node)
+        private void SelectNode(TagNode node)
         {
-            _selected = _selected == node.FullPath ? null : node.FullPath;
+            _selectedId = _selectedId == node.Id ? GameTagRegistry.NONE : node.Id;
+            RefreshSelectionVisuals();
         }
 
         private void RefreshSelectionVisuals()
         {
             foreach (var row in _rows)
             {
-                bool sel = row.Node.FullPath == _selected;
+                bool sel = row.Node.Id == _selectedId;
                 row.Check.Set(sel);
                 row.Selected = sel;
                 ApplyRowBg(row);
             }
-            UpdateFooter();
+
+            bool has = _selectedId != GameTagRegistry.NONE;
+            SetEnabled(_renameBtn, has);
+            SetEnabled(_moveBtn, has);
+            SetEnabled(_deleteBtn, has);
+
+            _footerLabel.text = has ? _registry.GetPath(_selectedId) : "Nothing selected";
+        }
+
+        private static void SetEnabled(VisualElement btn, bool on)
+        {
+            btn.SetEnabled(on);
+            btn.style.opacity = on ? 1f : 0.4f;
         }
 
         private void ApplyRowBg(RowWidget row)
         {
-            Color bg = row.Selected ? BgRowSel
-                : row.Hover ? BgRowHover
-                : Color.clear;
-            row.Element.style.backgroundColor = bg;
+            row.Element.style.backgroundColor = row.Selected ? BgRowSel : row.Hover ? BgRowHover : Color.clear;
         }
 
-        private void UpdateFooter()
+        // ─── Add ────────────────────────────────────────────────────────────────
+        private void OpenAddRow()
         {
-            _footerLabel.text = string.IsNullOrEmpty(_selected) ? "Nothing selected" : _selected;
+            _addParentId = _selectedId;
+            _addContext.text = _addParentId == GameTagRegistry.NONE
+                ? "New root tag"
+                : $"Under  {_registry.GetPath(_addParentId)}";
+            _addRow.SetDisplay(DisplayStyle.Flex);
+            _newTagField.value = string.Empty;
+            _newTagField.schedule.Execute(() => _newTagField.Focus());
         }
 
-        // ─── New tag ──────────────────────────────────────────────────────────
         private void CommitNewTag()
         {
             var value = (_newTagField.value ?? string.Empty).Trim();
-            if (string.IsNullOrEmpty(value) || _registry.Tags.Contains(value))
-            {
-                CloseAddRow();
-                return;
-            }
+            if (string.IsNullOrEmpty(value)) { CloseAddRow(); return; }
 
-            var so = new SerializedObject(_registry);
-            var list = so.FindProperty("_tags");
-            list.arraySize++;
-            list.GetArrayElementAtIndex(list.arraySize - 1).stringValue = value;
-            so.ApplyModifiedProperties();
-            AssetDatabase.SaveAssets();
+            string basePath = _addParentId == GameTagRegistry.NONE ? null : _registry.GetPath(_addParentId);
+            string full = string.IsNullOrEmpty(basePath) ? value : basePath + GameTagRegistry.SEPARATOR + value;
 
-            // Reveal and select the freshly created tag
-            foreach (var seg in EnumeratePrefixes(value))
-                _expanded.Add(seg);
-            _selected = value;
+            int id = _registry.GetOrCreate(full);
+            Persist();
+
+            for (int p = _registry.GetParentId(id); p != GameTagRegistry.NONE; p = _registry.GetParentId(p))
+                _expanded.Add(p);
+            _selectedId = id;
 
             CloseAddRow();
             RebuildTree();
-        }
-
-        private static IEnumerable<string> EnumeratePrefixes(string tag)
-        {
-            var parts = tag.Split(GameTag.SEPARATOR);
-            for (int i = 1; i < parts.Length; i++)
-                yield return string.Join(GameTag.SEPARATOR, parts[..i]);
         }
 
         private void CloseAddRow()
@@ -453,25 +488,114 @@ namespace DataKeeper.Editor.GameTagSystem
             _newTagField.value = string.Empty;
         }
 
-        // ─── Actions ──────────────────────────────────────────────────────────
+        // ─── Rename ───────────────────────────────────────────────────────────────
+        private void BeginRenameSelected() { if (_selectedId != GameTagRegistry.NONE) BeginRename(_selectedId); }
+
+        private void BeginRename(int id)
+        {
+            _selectedId = id;
+            _renamingId = id;
+            for (int p = _registry.GetParentId(id); p != GameTagRegistry.NONE; p = _registry.GetParentId(p))
+                _expanded.Add(p);
+            RenderTree();
+        }
+
+        private void CommitRename(int id, string newName)
+        {
+            _renamingId = GameTagRegistry.NONE;
+            newName = (newName ?? string.Empty).Trim();
+            if (!string.IsNullOrEmpty(newName) && newName != _registry.GetName(id))
+            {
+                _registry.Rename(id, newName);
+                Persist();
+            }
+            RebuildTree();
+        }
+
+        // ─── Move ─────────────────────────────────────────────────────────────────
+        private void BeginMoveSelected()
+        {
+            if (_selectedId == GameTagRegistry.NONE) return;
+            _moveSourceId = _selectedId;
+            _moveLabel.text = $"Moving  “{_registry.GetPath(_moveSourceId)}”  —  click a new parent";
+            _moveRow.SetDisplay(DisplayStyle.Flex);
+        }
+
+        private void CommitMove(int newParentId)
+        {
+            int src = _moveSourceId;
+            CancelMove();
+            if (src == GameTagRegistry.NONE || src == newParentId) return;
+
+            if (newParentId != GameTagRegistry.NONE && _registry.Matches(newParentId, src))
+            {
+                EditorUtility.DisplayDialog("Move", "Cannot move a tag into its own subtree.", "OK");
+                return;
+            }
+
+            _registry.Reparent(src, newParentId);
+            Persist();
+            if (newParentId != GameTagRegistry.NONE) _expanded.Add(newParentId);
+            _selectedId = src;
+            RebuildTree();
+        }
+
+        private void CancelMove()
+        {
+            _moveSourceId = GameTagRegistry.NONE;
+            _moveRow.SetDisplay(DisplayStyle.None);
+        }
+
+        // ─── Delete ────────────────────────────────────────────────────────────────
+        private void DeleteSelected()
+        {
+            if (_selectedId == GameTagRegistry.NONE) return;
+            var node = _registry.GetNode(_selectedId);
+            if (node == null) return;
+
+            int subtree = CountSubtree(_selectedId);
+            string msg = subtree > 1
+                ? $"Delete “{node.Path}” and its {subtree - 1} descendant tag(s)?\n\nReferences to these ids will show as [missing]."
+                : $"Delete “{node.Path}”?\n\nReferences to this id will show as [missing].";
+
+            if (!EditorUtility.DisplayDialog("Delete Tag", msg, "Delete", "Cancel")) return;
+
+            _registry.Delete(_selectedId);
+            Persist();
+            _selectedId = GameTagRegistry.NONE;
+            RebuildTree();
+        }
+
+        private int CountSubtree(int id)
+        {
+            var n = _registry.GetNode(id);
+            if (n == null) return 0;
+            int total = 1;
+            foreach (var c in n.Children) total += CountSubtree(c);
+            return total;
+        }
+
+        // ─── Actions ──────────────────────────────────────────────────────────────
         private void Apply()
         {
-            _onApply?.Invoke(_selected);
+            _onApply?.Invoke(_selectedId);
             Close();
+        }
+
+        private void Persist()
+        {
+            EditorUtility.SetDirty(_registry);
+            AssetDatabase.SaveAssets();
         }
 
         private void PingRegistry()
         {
-            var guids = AssetDatabase.FindAssets($"t:{nameof(GameTagRegistry)}");
-            if (guids.Length == 0) return;
-            var asset = AssetDatabase.LoadAssetAtPath<GameTagRegistry>(
-                AssetDatabase.GUIDToAssetPath(guids[0]));
-            Selection.activeObject = asset;
-            EditorGUIUtility.PingObject(asset);
+            Selection.activeObject = _registry;
+            EditorGUIUtility.PingObject(_registry);
             Close();
         }
 
-        // ─── Reusable button ────────────────────────────────────────────────────
+        // ─── Reusable button ─────────────────────────────────────────────────────
         private static Button MakeToolButton(string text, string tooltip, Action onClick, bool accent = false)
         {
             var btn = new Button(onClick) { text = text, tooltip = tooltip };
@@ -485,7 +609,7 @@ namespace DataKeeper.Editor.GameTagSystem
             return btn;
         }
 
-        // ─── Selection checkbox element ───────────────────────────────────────────
+        // ─── Selection checkbox element ────────────────────────────────────────────
         private class CheckBox : VisualElement
         {
             private readonly Label _mark;
@@ -495,8 +619,7 @@ namespace DataKeeper.Editor.GameTagSystem
                 this.SetSize(15, 15).SetBorderRadius(3).SetFlexShrink(0);
                 style.alignItems = Align.Center;
                 style.justifyContent = Justify.Center;
-                style.borderTopWidth = style.borderBottomWidth =
-                    style.borderLeftWidth = style.borderRightWidth = 1;
+                style.borderTopWidth = style.borderBottomWidth = style.borderLeftWidth = style.borderRightWidth = 1;
 
                 _mark = new Label { pickingMode = PickingMode.Ignore };
                 _mark.SetFontSize(11).SetColor(Color.white).SetFontStyle(FontStyle.Bold);
@@ -507,26 +630,19 @@ namespace DataKeeper.Editor.GameTagSystem
 
             public void Set(bool on)
             {
-                if (on)
-                {
-                    this.SetBackgroundColor(Accent).SetBorderColor(Accent);
-                    _mark.text = "✓";
-                }
-                else
-                {
-                    this.SetBackgroundColor(BgField).SetBorderColor(CheckBorder);
-                    _mark.text = string.Empty;
-                }
+                if (on) { this.SetBackgroundColor(Accent).SetBorderColor(Accent); _mark.text = "✓"; }
+                else { this.SetBackgroundColor(BgField).SetBorderColor(CheckBorder); _mark.text = string.Empty; }
             }
         }
 
-        // ─── Models ───────────────────────────────────────────────────────────
+        // ─── Models ───────────────────────────────────────────────────────────────
         private class TagNode
         {
-            public readonly List<TagNode> Children = new();
-            public bool ExistsInRegistry;
-            public string FullPath;
+            public int Id;
             public string Label;
+            public string FullPath;
+            public TagNode Parent;
+            public readonly List<TagNode> Children = new();
         }
 
         private class RowWidget

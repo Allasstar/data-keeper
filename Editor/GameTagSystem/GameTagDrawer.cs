@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using DataKeeper.GameTagSystem;
 using UnityEditor;
 using UnityEngine;
@@ -9,38 +8,40 @@ namespace DataKeeper.Editor.GameTagSystem
     public class GameTagDrawer : PropertyDrawer
     {
         private const string None = "(none)";
-        private static readonly HashSet<string> _loggedErrors = new();
+        private static readonly Color MissingTint = new Color(1f, 0.55f, 0.6f);
 
-        private static GameTagRegistry _registry => GameTagRegistry.Default;
+        private static GameTagRegistry Registry => GameTagRegistry.Default;
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            var valueProp = property.FindPropertyRelative("_value");
+            var idProp = property.FindPropertyRelative("_id");
+            int id = idProp.intValue;
+
             var labelRect = new Rect(position.x, position.y, EditorGUIUtility.labelWidth, position.height);
             var buttonRect = new Rect(position.x + EditorGUIUtility.labelWidth, position.y,
                 position.width - EditorGUIUtility.labelWidth, position.height);
 
             EditorGUI.LabelField(labelRect, label);
 
-            string current = valueProp.stringValue;
-            bool tagMissing = !string.IsNullOrEmpty(current) && (_registry == null || !_registry.IsExist(current));
+            var registry = Registry;
+            string path = (id != GameTagRegistry.NONE && registry != null) ? registry.GetPath(id) : null;
+            bool missing = id != GameTagRegistry.NONE && string.IsNullOrEmpty(path);
 
-            var prevColor = GUI.contentColor;
-            if (tagMissing) GUI.contentColor = Color.lightPink;
+            string display = id == GameTagRegistry.NONE ? None : missing ? $"[missing #{id}]" : path;
 
-            if (GUI.Button(buttonRect, string.IsNullOrEmpty(current) ? None : tagMissing ? $"[missing] {current}" : current, EditorStyles.popup))
+            var prev = GUI.contentColor;
+            if (missing) GUI.contentColor = MissingTint;
+
+            if (GUI.Button(buttonRect, display, EditorStyles.popup))
             {
-                GameTagPickerWindow.Show(
-                    _registry,
-                    current,
-                    selected =>
-                    {
-                        valueProp.stringValue = selected ?? string.Empty;
-                        property.serializedObject.ApplyModifiedProperties();
-                    });
+                GameTagPickerWindow.Show(registry, id, selectedId =>
+                {
+                    idProp.intValue = selectedId;
+                    property.serializedObject.ApplyModifiedProperties();
+                });
             }
 
-            if (tagMissing) GUI.contentColor = prevColor;
+            if (missing) GUI.contentColor = prev;
         }
     }
 }

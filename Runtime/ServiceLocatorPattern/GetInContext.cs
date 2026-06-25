@@ -23,7 +23,7 @@ namespace DataKeeper.ServiceLocatorPattern
         {
             var register = GetRegister();
             if (register == null) return null;
-            return ComponentID.Enabled ? register.Get<T>(ComponentID.Value.Value) : register.Get<T>();
+            return ComponentID.Enabled ? register.Get<T>(ComponentID.Value.Path) : register.Get<T>();
         }
     }
 
@@ -64,6 +64,6 @@ namespace DataKeeper.ServiceLocatorPattern
 
         public override ContextType GetContextType() => ContextType.Table;
 
-        public override Register<object> GetRegister() => ServiceLocator.ForTableOf(TableName.Value);
+        public override Register<object> GetRegister() => ServiceLocator.ForTableOf(TableName.Path);
     }
 }
