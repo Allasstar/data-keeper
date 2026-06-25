@@ -101,9 +101,11 @@ namespace DataKeeper.Editor.GameTagSystem
             string pad = new string(' ', indent * 4);
             string ident = UniqueIdentifier(node.Name, scope);
 
+            // Path + id in a doc comment so a broken reference can be recovered straight from the script.
+            sb.AppendLine($"{pad}/// <summary>Tag \"{node.Path}\" (#{id})</summary>");
             sb.AppendLine($"{pad}public static class {ident}");
             sb.AppendLine($"{pad}{{");
-            sb.AppendLine($"{pad}    private static readonly GameTag {TagField} = GameTag.FromId({id}); // {node.Path}");
+            sb.AppendLine($"{pad}    private static readonly GameTag {TagField} = GameTag.FromId({id});");
             sb.AppendLine($"{pad}    public static GameTag {TagAccessor}() => {TagField};");
 
             // Reserve this class's own members and its name (a member can't match its enclosing type — CS0542)
