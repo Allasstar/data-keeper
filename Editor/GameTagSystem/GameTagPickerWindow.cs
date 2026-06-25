@@ -25,6 +25,7 @@ namespace DataKeeper.Editor.GameTagSystem
         private static readonly Color CheckBorder= new Color(0.46f, 0.46f, 0.46f);
         private static readonly Color Accent     = new Color(0.30f, 0.52f, 0.82f);
         private static readonly Color MoveBar    = new Color(0.55f, 0.42f, 0.18f);
+        private static readonly Color MissingBar = new Color(0.52f, 0.22f, 0.24f);
         private static readonly Color TextHi     = new Color(0.92f, 0.92f, 0.92f);
         private static readonly Color TextLo     = new Color(0.78f, 0.78f, 0.78f);
         private static readonly Color TextFaint  = new Color(0.55f, 0.55f, 0.55f);
@@ -51,6 +52,10 @@ namespace DataKeeper.Editor.GameTagSystem
         private Label _moveLabel;
         private VisualElement _addRow;
         private TextField _newTagField;
+        private VisualElement _missingRow;
+        private Label _missingLabel;
+        private TextField _missingField;
+        private int _missingId; // the dead reference id the banner offers to re-add (independent of tree selection)
         private VisualElement _treeContainer;
         private VisualElement _emptyState;
         private Label _emptyLabel;
@@ -175,6 +180,10 @@ namespace DataKeeper.Editor.GameTagSystem
             _addRow.SetDisplay(DisplayStyle.None);
             root.Add(_addRow);
 
+            _missingRow = BuildMissingRow();
+            _missingRow.SetDisplay(DisplayStyle.None);
+            root.Add(_missingRow);
+
             _scroll = new ScrollView(ScrollViewMode.Vertical).SetFlexGrow(1);
             _scroll.contentContainer.SetPadding(left: 4, top: 4, right: 4, bottom: 4);
 
@@ -190,6 +199,10 @@ namespace DataKeeper.Editor.GameTagSystem
             // expand to reveal the initial selection
             for (int p = _registry.GetParentId(_selectedId); p != GameTagRegistry.NONE; p = _registry.GetParentId(p))
                 _expanded.Add(p);
+
+            // Opened on a reference whose id no longer exists — offer to re-add it.
+            if (_selectedId != GameTagRegistry.NONE && _registry.GetNode(_selectedId) == null)
+                ShowMissingBanner(_selectedId);
 
             RebuildTree();
         }
@@ -581,6 +594,86 @@ namespace DataKeeper.Editor.GameTagSystem
         {
             _addRow.SetDisplay(DisplayStyle.None);
             _newTagField.value = string.Empty;
+        }
+
+        // ─── Missing-reference recovery ───────────────────────────────────────────
+        // Built once; populated/toggled by ShowMissingBanner when the picker opens on a dead id.
+        private VisualElement BuildMissingRow()
+        {
+            var row = new VisualElement()
+                .SetPadding(left: 8, top: 6, right: 8, bottom: 6)
+                .SetBackgroundColor(MissingBar)
+                .SetBorderWidth(bottom: 1).SetBorderColor(bottom: Border);
+
+            _missingLabel = new Label().SetFontSize(11).SetColor(Color.white);
+            _missingLabel.style.whiteSpace = WhiteSpace.Normal;
+            _missingLabel.style.marginBottom = 5;
+            row.Add(_missingLabel);
+
+            var line = new VisualElement().SetFlexRow().SetAlignItems(Align.Center);
+
+            _missingField = new TextField { value = string.Empty };
+            _missingField.SetFlexGrow(1);
+            _missingField.textEdition.placeholder = "New name (or Sub/Path)";
+            RestrictToIdentifier(_missingField, allowSeparator: true);
+            _missingField.RegisterCallback<KeyDownEvent>(evt =>
+            {
+                if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter) { CommitReAdd(); evt.StopPropagation(); }
+                else if (evt.keyCode == KeyCode.Escape) { HideMissingBanner(); evt.StopPropagation(); }
+            });
+            line.Add(_missingField);
+
+            var reAdd = MakeToolButton("Re-add", "Re-add this id to the registry under the typed name", CommitReAdd, accent: true);
+            reAdd.style.marginLeft = 4;
+            line.Add(reAdd);
+
+            var dismiss = MakeToolButton("✕", "Dismiss (pick a replacement instead)", HideMissingBanner);
+            dismiss.style.marginLeft = 2;
+            line.Add(dismiss);
+
+            row.Add(line);
+            return row;
+        }
+
+        private void ShowMissingBanner(int missingId)
+        {
+            _missingId = missingId;
+            _missingLabel.text = $"Referenced tag #{missingId} is missing. Re-add it under a name/path, or pick a replacement below.";
+            _missingField.value = string.Empty;
+            _missingRow.SetDisplay(DisplayStyle.Flex);
+            _missingField.schedule.Execute(() => _missingField.Focus());
+        }
+
+        private void HideMissingBanner()
+        {
+            _missingId = GameTagRegistry.NONE;
+            _missingRow.SetDisplay(DisplayStyle.None);
+            _missingField.value = string.Empty;
+        }
+
+        // Re-add the dead reference id (tracked in _missingId, independent of the current tree
+        // selection) at the typed name/path so the existing reference resolves again.
+        private void CommitReAdd()
+        {
+            if (_missingId == GameTagRegistry.NONE || _registry.GetNode(_missingId) != null) { HideMissingBanner(); return; }
+
+            var path = (_missingField.value ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(path)) return;
+
+            int reAddedId = _missingId;
+            RecordUndo("Re-add Game Tag");
+            bool added = _registry.ReAddId(reAddedId, path);
+            Persist();
+
+            HideMissingBanner();
+            if (added)
+            {
+                _generatedIds = GameTagsCodeGen.LoadGeneratedIds(_registry);
+                for (int p = _registry.GetParentId(reAddedId); p != GameTagRegistry.NONE; p = _registry.GetParentId(p))
+                    _expanded.Add(p);
+                _selectedId = reAddedId;
+            }
+            RebuildTree();
         }
 
         // ─── Rename ───────────────────────────────────────────────────────────────

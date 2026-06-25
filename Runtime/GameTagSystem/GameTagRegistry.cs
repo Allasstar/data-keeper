@@ -159,7 +159,7 @@ namespace DataKeeper.GameTagSystem
         // registers this on load), so the runtime assembly needn't reference editor code.
         public static System.Action<GameTagRegistry> RegenerateCodeHook;
         
-        [Button("Regenerate GameTags Class")]
+        [Button("Regenerate GameTags C# Class")]
         private void RegenerateGameTags()
         {
             if (RegenerateCodeHook != null) RegenerateCodeHook(this);
@@ -269,6 +269,36 @@ namespace DataKeeper.GameTagSystem
             _entries.Add(new GameTagEntry { Id = id, Name = name, ParentId = parentId });
             MarkDirtyAndBake();
             return id;
+        }
+
+        // Re-add a previously-retired id at the given path, so existing references to that id resolve
+        // again. Any missing parent segments are created (with fresh ids); the LAST segment takes the
+        // supplied id. No-op if the id is already live. Drops any redirect that pointed the id elsewhere.
+        // Returns true if the entry was added.
+        public bool ReAddId(int id, string path)
+        {
+            if (id == NONE || string.IsNullOrEmpty(path)) return false;
+            EnsureBaked();
+            if (_byId.ContainsKey(id)) return false; // already present
+
+            var clean = new List<string>();
+            foreach (var raw in path.Split(SEPARATOR[0]))
+            {
+                var seg = SanitizeSegment(raw);
+                if (!string.IsNullOrEmpty(seg)) clean.Add(seg);
+            }
+            if (clean.Count == 0) return false;
+
+            // Create/resolve every segment except the last as the parent chain (AddChild re-bakes).
+            int parentId = NONE;
+            for (int i = 0; i < clean.Count - 1; i++)
+                parentId = AddChild(parentId, clean[i]);
+
+            if (_byId.ContainsKey(id)) return false; // re-check after the AddChild bakes
+            _redirects.RemoveAll(r => r.FromId == id);
+            _entries.Add(new GameTagEntry { Id = id, Name = clean[clean.Count - 1], ParentId = parentId });
+            MarkDirtyAndBake();
+            return true;
         }
 
         public void Rename(int id, string newName)
