@@ -37,7 +37,6 @@ namespace DataKeeper.Editor.GameTagSystem
         private int _selectedId;
         private int _renamingId;
         private int _moveSourceId;
-        private int _addParentId;
         private readonly HashSet<int> _expanded = new();
         private readonly List<TagNode> _roots = new();
         private readonly List<RowWidget> _rows = new();
@@ -48,7 +47,6 @@ namespace DataKeeper.Editor.GameTagSystem
         private Label _moveLabel;
         private VisualElement _addRow;
         private TextField _newTagField;
-        private Label _addContext;
         private VisualElement _treeContainer;
         private VisualElement _emptyState;
         private Label _emptyLabel;
@@ -73,6 +71,20 @@ namespace DataKeeper.Editor.GameTagSystem
             win._onApply = onApply;
             win._selectedId = currentId;
             win.ShowAuxWindow();
+        }
+
+        private void OnEnable()  => Undo.undoRedoPerformed += OnUndoRedo;
+        private void OnDisable() => Undo.undoRedoPerformed -= OnUndoRedo;
+
+        // Re-derive caches and the tree after a serialized-state revert (the baked caches aren't serialized).
+        private void OnUndoRedo()
+        {
+            if (_registry == null) return;
+            _registry.Bake();
+            _renamingId = GameTagRegistry.NONE;
+            if (_selectedId != GameTagRegistry.NONE && _registry.GetNode(_selectedId) == null)
+                _selectedId = GameTagRegistry.NONE;
+            RebuildTree();
         }
 
         // ─── Build UI ─────────────────────────────────────────────────────────
@@ -127,9 +139,10 @@ namespace DataKeeper.Editor.GameTagSystem
 
             hdr.Add(MakeToolButton("＋ New Tag", "Add a tag under the selection (or at root)", OpenAddRow, accent: true));
 
-            var editBtn = MakeToolButton("Edit", "Select the GameTagRegistry asset", PingRegistry);
-            editBtn.style.marginLeft = 4;
-            hdr.Add(editBtn);
+            var menuBtn = MakeToolButton("⋮", "More actions", OpenContextMenu);
+            menuBtn.style.marginLeft = 4;
+            menuBtn.style.width = 24;
+            hdr.Add(menuBtn);
             return hdr;
         }
 
@@ -172,18 +185,22 @@ namespace DataKeeper.Editor.GameTagSystem
         private VisualElement BuildMoveRow()
         {
             var row = new VisualElement()
-                .SetFlexRow().SetAlignItems(Align.Center)
-                .SetPadding(left: 8, top: 5, right: 6, bottom: 5)
+                .SetAlignItems(Align.Center)
+                .SetPadding(left: 8, top: 5, right: 8, bottom: 5)
                 .SetBackgroundColor(MoveBar);
 
-            _moveLabel = new Label().SetFontSize(11).SetColor(Color.white).SetFlexGrow(1);
-            _moveLabel.SetTextOverflowEllipsis().SetTextNoWrap();
+            _moveLabel = new Label().SetFontSize(11).SetColor(Color.white);
+            _moveLabel.style.whiteSpace = WhiteSpace.Normal;
+            _moveLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _moveLabel.style.marginBottom = 5;
             row.Add(_moveLabel);
 
-            row.Add(MakeToolButton("To Root", "Move to the top level", () => CommitMove(GameTagRegistry.NONE)));
+            var buttons = new VisualElement().SetFlexRow().SetJustifyContent(Justify.Center);
+            buttons.Add(MakeToolButton("To Root", "Move to the top level", () => CommitMove(GameTagRegistry.NONE)));
             var cancel = MakeToolButton("Cancel", "Cancel move", CancelMove);
             cancel.style.marginLeft = 4;
-            row.Add(cancel);
+            buttons.Add(cancel);
+            row.Add(buttons);
             return row;
         }
 
@@ -193,10 +210,6 @@ namespace DataKeeper.Editor.GameTagSystem
                 .SetPadding(left: 6, top: 4, right: 6, bottom: 4)
                 .SetBackgroundColor(BgField)
                 .SetBorderWidth(bottom: 1).SetBorderColor(bottom: Border);
-
-            _addContext = new Label().SetFontSize(10).SetColor(TextFaint);
-            _addContext.style.marginBottom = 2;
-            row.Add(_addContext);
 
             var line = new VisualElement().SetFlexRow().SetAlignItems(Align.Center);
 
@@ -380,14 +393,12 @@ namespace DataKeeper.Editor.GameTagSystem
                 label.SetTextOverflowEllipsis().SetTextNoWrap();
                 rowEl.Add(label);
 
-                if (hasChildren)
-                {
-                    var count = new Label(node.Children.Count.ToString()).SetFontSize(9).SetColor(TextFaint);
-                    count.style.marginRight = 6;
-                    count.style.minWidth = 14;
-                    count.style.unityTextAlign = TextAnchor.MiddleRight;
-                    rowEl.Add(count);
-                }
+                var idLabel = new Label($"#{node.Id}").SetFontSize(9).SetColor(TextFaint);
+                idLabel.style.marginRight = 6;
+                idLabel.style.minWidth = 14;
+                idLabel.style.unityTextAlign = TextAnchor.MiddleRight;
+                idLabel.pickingMode = PickingMode.Ignore;
+                rowEl.Add(idLabel);
             }
 
             rowEl.RegisterCallback<ClickEvent>(evt =>
@@ -395,7 +406,7 @@ namespace DataKeeper.Editor.GameTagSystem
                 if (_moveSourceId != GameTagRegistry.NONE) { CommitMove(node.Id); return; }
                 if (evt.clickCount >= 2 && !hasChildren) { _selectedId = node.Id; Apply(); return; }
                 if (evt.clickCount >= 2) { BeginRename(node.Id); return; }
-                SelectNode(node);
+                if (hasChildren) ToggleExpand(node);
             });
 
             rowEl.RegisterCallback<MouseEnterEvent>(_ => { row.Hover = true; ApplyRowBg(row); });
@@ -454,23 +465,24 @@ namespace DataKeeper.Editor.GameTagSystem
         // ─── Add ────────────────────────────────────────────────────────────────
         private void OpenAddRow()
         {
-            _addParentId = _selectedId;
-            _addContext.text = _addParentId == GameTagRegistry.NONE
-                ? "New root tag"
-                : $"Under  {_registry.GetPath(_addParentId)}";
+            string basePath = _selectedId == GameTagRegistry.NONE ? null : _registry.GetPath(_selectedId);
+            string prefill = string.IsNullOrEmpty(basePath) ? string.Empty : basePath + GameTagRegistry.SEPARATOR;
+
             _addRow.SetDisplay(DisplayStyle.Flex);
-            _newTagField.value = string.Empty;
-            _newTagField.schedule.Execute(() => _newTagField.Focus());
+            _newTagField.value = prefill;
+            _newTagField.schedule.Execute(() =>
+            {
+                _newTagField.Focus();
+                _newTagField.cursorIndex = _newTagField.selectIndex = prefill.Length;
+            });
         }
 
         private void CommitNewTag()
         {
-            var value = (_newTagField.value ?? string.Empty).Trim();
-            if (string.IsNullOrEmpty(value)) { CloseAddRow(); return; }
+            var full = (_newTagField.value ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(full)) { CloseAddRow(); return; }
 
-            string basePath = _addParentId == GameTagRegistry.NONE ? null : _registry.GetPath(_addParentId);
-            string full = string.IsNullOrEmpty(basePath) ? value : basePath + GameTagRegistry.SEPARATOR + value;
-
+            RecordUndo("Add Game Tag");
             int id = _registry.GetOrCreate(full);
             Persist();
 
@@ -506,6 +518,7 @@ namespace DataKeeper.Editor.GameTagSystem
             newName = (newName ?? string.Empty).Trim();
             if (!string.IsNullOrEmpty(newName) && newName != _registry.GetName(id))
             {
+                RecordUndo("Rename Game Tag");
                 _registry.Rename(id, newName);
                 Persist();
             }
@@ -533,6 +546,7 @@ namespace DataKeeper.Editor.GameTagSystem
                 return;
             }
 
+            RecordUndo("Move Game Tag");
             _registry.Reparent(src, newParentId);
             Persist();
             if (newParentId != GameTagRegistry.NONE) _expanded.Add(newParentId);
@@ -560,6 +574,7 @@ namespace DataKeeper.Editor.GameTagSystem
 
             if (!EditorUtility.DisplayDialog("Delete Tag", msg, "Delete", "Cancel")) return;
 
+            RecordUndo("Delete Game Tag");
             _registry.Delete(_selectedId);
             Persist();
             _selectedId = GameTagRegistry.NONE;
@@ -582,10 +597,21 @@ namespace DataKeeper.Editor.GameTagSystem
             Close();
         }
 
+        // Snapshot the registry's serialized state so the next mutation is undoable.
+        private void RecordUndo(string action) => Undo.RegisterCompleteObjectUndo(_registry, action);
+
         private void Persist()
         {
             EditorUtility.SetDirty(_registry);
             AssetDatabase.SaveAssets();
+        }
+
+        private void OpenContextMenu()
+        {
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent("Select GameTagRegistry"), false, PingRegistry);
+            menu.AddItem(new GUIContent("Generate C# Tags Class"), false, GenerateCode);
+            menu.ShowAsContext();
         }
 
         private void PingRegistry()
@@ -593,6 +619,11 @@ namespace DataKeeper.Editor.GameTagSystem
             Selection.activeObject = _registry;
             EditorGUIUtility.PingObject(_registry);
             Close();
+        }
+
+        private void GenerateCode()
+        {
+            GameTagsCodeGen.Regenerate(_registry);
         }
 
         // ─── Reusable button ─────────────────────────────────────────────────────
