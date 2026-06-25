@@ -623,6 +623,7 @@ namespace DataKeeper.Editor.GameTagSystem
 
         private void GenerateCode()
         {
+            Close();
             GameTagsCodeGen.Regenerate(_registry);
         }
 
