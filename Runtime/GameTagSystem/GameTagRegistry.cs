@@ -68,7 +68,6 @@ namespace DataKeeper.GameTagSystem
         private readonly List<int> _roots = new();
         private bool _baked;
 
-        public IReadOnlyList<GameTagEntry> Entries => _entries;
         public IReadOnlyList<int> RootIds { get { EnsureBaked(); return _roots; } }
 
         // ── Default instance ───────────────────────────────────────────────────
@@ -195,7 +194,6 @@ namespace DataKeeper.GameTagSystem
         public string GetName(int id)   { EnsureBaked(); return _byId.TryGetValue(id, out var n) ? n.Name : null; }
         public string GetPath(int id)   { EnsureBaked(); return _byId.TryGetValue(id, out var n) ? n.Path : null; }
         public int GetParentId(int id)  { EnsureBaked(); return _byId.TryGetValue(id, out var n) ? n.ParentId : NONE; }
-        public int GetDepth(int id)     { EnsureBaked(); return _byId.TryGetValue(id, out var n) ? n.Depth : -1; }
         public Node GetNode(int id)     { EnsureBaked(); return _byId.TryGetValue(id, out var n) ? n : null; }
 
         public int FindByPath(string path)
@@ -249,7 +247,7 @@ namespace DataKeeper.GameTagSystem
             return parentId;
         }
 
-        public int AddChild(int parentId, string name)
+        private int AddChild(int parentId, string name)
         {
             name = SanitizeSegment(name);
             if (string.IsNullOrEmpty(name)) return NONE;
