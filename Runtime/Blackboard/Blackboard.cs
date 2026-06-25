@@ -10,7 +10,7 @@ using Object = UnityEngine.Object;
 namespace DataKeeper.BlackboardSystem
 {
     [Serializable]
-    public class Blackboard
+    public partial class Blackboard
     {
         [SerializeReference, SerializeReferenceSelector]
         public List<IBlackboardEntry> Entries = new();
@@ -126,6 +126,10 @@ namespace DataKeeper.BlackboardSystem
             _rects.Clear();
             _bounds.Clear();
             _objects.Clear();
+            ClearExtra();
         }
+
+        // Implement in a project-side partial file to clear custom stores.
+        partial void ClearExtra();
     }
 }
