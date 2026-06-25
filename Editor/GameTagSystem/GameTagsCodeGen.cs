@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using DataKeeper.GameTagSystem;
 using UnityEditor;
 using UnityEngine;
@@ -11,16 +12,18 @@ namespace DataKeeper.Editor.GameTagSystem
     /// <summary>
     /// Generates a typed <c>GameTags</c> tree from the registry so code can reference tags with
     /// compile-time safety, IntelliSense and find-usages:
-    ///   leaf   ->  GameTags.Enemy.Boss.Elite      (a GameTag field)
-    ///   branch ->  GameTags.Enemy.Boss.Self       (the branch's own tag; children nest under it)
-    /// A branch is a class (so children can nest), so its own tag lives on the reserved <c>Self</c>.
+    ///   leaf   ->  GameTags.Enemy.Boss.Elite.GetTag()
+    ///   branch ->  GameTags.Enemy.Boss.GetTag()       (the branch's own tag; children nest under it)
+    /// Every tag is a class exposing <c>GetTag()</c> (backed by a private static GameTag); child tags
+    /// nest as inner classes.
     /// References are by stable id, so renaming a node only changes the generated identifier — every
     /// affected code site is flagged by the compiler, while data references keep working untouched.
     /// </summary>
     public static class GameTagsCodeGen
     {
         private const string OutputFileName = "GameTags.g.cs";
-        private const string SelfMember = "Self";
+        private const string TagField = "_tag";
+        private const string TagAccessor = "GetTag";
 
         private static readonly HashSet<string> Keywords = new()
         {
@@ -67,6 +70,21 @@ namespace DataKeeper.Editor.GameTagSystem
             WriteIfChanged(ResolveOutputPath(registry), sb.ToString());
         }
 
+        // Ids that currently have a generated GameTag constant (parsed from the emitted file).
+        // Empty if the file doesn't exist yet. Cheap: a single read of one small file.
+        public static HashSet<int> LoadGeneratedIds(GameTagRegistry registry)
+        {
+            var ids = new HashSet<int>();
+            if (registry == null) return ids;
+
+            string path = ResolveOutputPath(registry);
+            if (!File.Exists(path)) return ids;
+
+            foreach (Match m in Regex.Matches(File.ReadAllText(path), @"FromId\((-?\d+)\)"))
+                if (int.TryParse(m.Groups[1].Value, out var id)) ids.Add(id);
+            return ids;
+        }
+
         // Writes the generated class next to the registry asset, wherever that lives.
         private static string ResolveOutputPath(GameTagRegistry registry)
         {
@@ -83,21 +101,21 @@ namespace DataKeeper.Editor.GameTagSystem
             string pad = new string(' ', indent * 4);
             string ident = UniqueIdentifier(node.Name, scope);
 
-            if (node.Children.Count == 0)
-            {
-                sb.AppendLine($"{pad}public static readonly GameTag {ident} = GameTag.FromId({id}); // {node.Path}");
-                return;
-            }
-
             sb.AppendLine($"{pad}public static class {ident}");
             sb.AppendLine($"{pad}{{");
-            sb.AppendLine($"{pad}    public static readonly GameTag {SelfMember} = GameTag.FromId({id}); // {node.Path}");
+            sb.AppendLine($"{pad}    private static readonly GameTag {TagField} = GameTag.FromId({id}); // {node.Path}");
+            sb.AppendLine($"{pad}    public static GameTag {TagAccessor}() => {TagField};");
 
-            var childScope = new HashSet<string> { SelfMember }; // reserve so a child named "Self" is renamed
+            // Reserve this class's own members and its name (a member can't match its enclosing type — CS0542)
+            // so a nested tag named "GetTag"/"_tag"/same-as-parent is the one that gets the "_2", never collides.
+            var childScope = new HashSet<string> { ident, TagField, TagAccessor };
             var children = new List<int>(node.Children);
             children.Sort((a, b) => string.CompareOrdinal(registry.GetName(a), registry.GetName(b)));
             foreach (var childId in children)
+            {
+                sb.AppendLine();
                 EmitNode(registry, childId, indent + 1, childScope, sb);
+            }
 
             sb.AppendLine($"{pad}}}");
         }

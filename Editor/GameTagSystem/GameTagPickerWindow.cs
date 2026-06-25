@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Text;
 using DataKeeper.GameTagSystem;
 using DataKeeper.UIToolkit;
 using UnityEditor;
@@ -27,6 +28,7 @@ namespace DataKeeper.Editor.GameTagSystem
         private static readonly Color TextHi     = new Color(0.92f, 0.92f, 0.92f);
         private static readonly Color TextLo     = new Color(0.78f, 0.78f, 0.78f);
         private static readonly Color TextFaint  = new Color(0.55f, 0.55f, 0.55f);
+        private static readonly Color CsGreen    = new Color(0.45f, 0.74f, 0.48f);
 
         private const float IndentWidth = 14f;
 
@@ -38,6 +40,7 @@ namespace DataKeeper.Editor.GameTagSystem
         private int _renamingId;
         private int _moveSourceId;
         private readonly HashSet<int> _expanded = new();
+        private HashSet<int> _generatedIds = new();
         private readonly List<TagNode> _roots = new();
         private readonly List<RowWidget> _rows = new();
         private string _search = string.Empty;
@@ -91,6 +94,7 @@ namespace DataKeeper.Editor.GameTagSystem
         public void CreateGUI()
         {
             _registry.Bake(); // always reflect the current registry state on open
+            _generatedIds = GameTagsCodeGen.LoadGeneratedIds(_registry);
 
             var root = rootVisualElement;
             root.style.backgroundColor = BgDeep;
@@ -216,6 +220,7 @@ namespace DataKeeper.Editor.GameTagSystem
             _newTagField = new TextField { value = string.Empty };
             _newTagField.SetFlexGrow(1);
             _newTagField.textEdition.placeholder = "Name (or Sub/Path)";
+            RestrictToIdentifier(_newTagField, allowSeparator: true);
             _newTagField.RegisterCallback<KeyDownEvent>(evt =>
             {
                 if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter) { CommitNewTag(); evt.StopPropagation(); }
@@ -375,6 +380,7 @@ namespace DataKeeper.Editor.GameTagSystem
             {
                 var field = new TextField { value = node.Label };
                 field.SetFlexGrow(1);
+                RestrictToIdentifier(field, allowSeparator: false);
                 field.schedule.Execute(() => { field.Focus(); field.SelectAll(); });
                 field.RegisterCallback<KeyDownEvent>(evt =>
                 {
@@ -392,6 +398,15 @@ namespace DataKeeper.Editor.GameTagSystem
                 label.style.overflow = Overflow.Hidden;
                 label.SetTextOverflowEllipsis().SetTextNoWrap();
                 rowEl.Add(label);
+
+                if (_generatedIds.Contains(node.Id))
+                {
+                    var cs = new Label("C#").SetFontSize(8).SetColor(CsGreen).SetFontStyle(FontStyle.Bold);
+                    cs.tooltip = "Has a generated GameTags constant";
+                    cs.style.marginRight = 4;
+                    cs.pickingMode = PickingMode.Ignore;
+                    rowEl.Add(cs);
+                }
 
                 var idLabel = new Label($"#{node.Id}").SetFontSize(9).SetColor(TextFaint);
                 idLabel.style.marginRight = 6;
@@ -623,8 +638,49 @@ namespace DataKeeper.Editor.GameTagSystem
 
         private void GenerateCode()
         {
-            Close();
             GameTagsCodeGen.Regenerate(_registry);
+            Close();
+        }
+
+        // ─── Input filtering ─────────────────────────────────────────────────────
+        // Strip anything that isn't a valid C# identifier char as the user types, so the generated
+        // GameTags class never has to mangle names. The add field keeps '/' for path entry.
+        private static void RestrictToIdentifier(TextField field, bool allowSeparator)
+        {
+            field.RegisterValueChangedCallback(evt =>
+            {
+                var filtered = FilterIdentifier(evt.newValue, allowSeparator);
+                if (filtered != evt.newValue) field.SetValueWithoutNotify(filtered);
+            });
+        }
+
+        // Allowed: letters, digits, '_' and (for the add field) the '/' separator. Each segment must
+        // START with a letter or '_' — no leading digit and no leading/empty separator — so every
+        // segment maps straight onto a valid C# identifier.
+        private static string FilterIdentifier(string s, bool allowSeparator)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            char sep = GameTagRegistry.SEPARATOR[0];
+            var sb = new StringBuilder(s.Length);
+            bool atSegmentStart = true;
+
+            foreach (var c in s)
+            {
+                if (allowSeparator && c == sep)
+                {
+                    if (sb.Length == 0 || sb[sb.Length - 1] == sep) continue; // no leading/empty segment
+                    sb.Append(sep);
+                    atSegmentStart = true;
+                    continue;
+                }
+
+                bool ok = atSegmentStart ? char.IsLetter(c) || c == '_'
+                                         : char.IsLetterOrDigit(c) || c == '_';
+                if (!ok) continue;
+                sb.Append(c);
+                atSegmentStart = false;
+            }
+            return sb.ToString();
         }
 
         // ─── Reusable button ─────────────────────────────────────────────────────
