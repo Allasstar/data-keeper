@@ -35,6 +35,7 @@ namespace DataKeeper.Editor.GameTagSystem
         // ─── State ────────────────────────────────────────────────────────────
         private GameTagRegistry _registry;
         private Action<int> _onApply;
+        private bool _editorOnly; // standalone "edit tags" mode: no picking/apply, just the registry editor
 
         private int _selectedId;
         private int _renamingId;
@@ -76,8 +77,66 @@ namespace DataKeeper.Editor.GameTagSystem
             win.ShowAuxWindow();
         }
 
+        // Standalone editor: open the registry editor without a GameTag field in the inspector.
+        [MenuItem("Tools/Windows/Game Tags Editor", priority = 77)]
+        public static void ShowEditor()
+        {
+            var registry = GameTagRegistry.Default;
+            if (registry == null)
+            {
+                EditorUtility.DisplayDialog("Error",
+                    "No GameTagRegistry found.\nCreate a GameTagRegistry asset in a Resources folder.", "OK");
+                return;
+            }
+
+            var win = GetWindow<GameTagPickerWindow>();
+            win.titleContent = new GUIContent("Game Tags", EditorGUIUtility.FindTexture("d_FilterByLabel"));
+            win.minSize = new Vector2(360, 480);
+            win._registry = registry;
+            win._editorOnly = true;
+            win._selectedId = GameTagRegistry.NONE;
+
+            // GetWindow already ran CreateGUI (with the picker defaults) before the fields above were
+            // set; rebuild now that we're in editor-only mode.
+            win.rootVisualElement.Clear();
+            win.CreateGUI();
+
+            if (TryLoadEditorPosition(out var saved)) win.position = saved;
+            win.Show();
+        }
+
+        // ─── Standalone window position persistence ─────────────────────────────
+        private const string PosPrefKey = "DataKeeper.GameTagsEditor.Position";
+
+        private static bool TryLoadEditorPosition(out Rect rect)
+        {
+            rect = default;
+            var s = EditorPrefs.GetString(PosPrefKey, string.Empty);
+            var p = s.Split('|');
+            if (p.Length != 4) return false;
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            if (!float.TryParse(p[0], System.Globalization.NumberStyles.Float, ci, out var x) ||
+                !float.TryParse(p[1], System.Globalization.NumberStyles.Float, ci, out var y) ||
+                !float.TryParse(p[2], System.Globalization.NumberStyles.Float, ci, out var w) ||
+                !float.TryParse(p[3], System.Globalization.NumberStyles.Float, ci, out var h)) return false;
+            rect = new Rect(x, y, w, h);
+            return true;
+        }
+
+        private void SaveEditorPosition()
+        {
+            var r = position;
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            EditorPrefs.SetString(PosPrefKey,
+                $"{r.x.ToString(ci)}|{r.y.ToString(ci)}|{r.width.ToString(ci)}|{r.height.ToString(ci)}");
+        }
+
         private void OnEnable()  => Undo.undoRedoPerformed += OnUndoRedo;
-        private void OnDisable() => Undo.undoRedoPerformed -= OnUndoRedo;
+        private void OnDisable()
+        {
+            Undo.undoRedoPerformed -= OnUndoRedo;
+            if (_editorOnly) SaveEditorPosition();
+        }
 
         // Re-derive caches and the tree after a serialized-state revert (the baked caches aren't serialized).
         private void OnUndoRedo()
@@ -93,6 +152,11 @@ namespace DataKeeper.Editor.GameTagSystem
         // ─── Build UI ─────────────────────────────────────────────────────────
         public void CreateGUI()
         {
+            // GetWindow() (standalone editor) runs CreateGUI before ShowEditor assigns _registry,
+            // so fall back to the default registry here.
+            if (_registry == null) _registry = GameTagRegistry.Default;
+            if (_registry == null) return;
+
             _registry.Bake(); // always reflect the current registry state on open
             _generatedIds = GameTagsCodeGen.LoadGeneratedIds(_registry);
 
@@ -272,10 +336,14 @@ namespace DataKeeper.Editor.GameTagSystem
 
             bar.Add(MakeToolButton("Clear", "Deselect", () => { _selectedId = GameTagRegistry.NONE; RefreshSelectionVisuals(); }));
 
-            var apply = MakeToolButton("Apply", "Confirm selection", Apply, accent: true);
-            apply.style.marginLeft = 4;
-            apply.style.width = 64;
-            bar.Add(apply);
+            // In standalone editor mode there's no field to write back to — edits persist live, so no Apply.
+            if (!_editorOnly)
+            {
+                var apply = MakeToolButton("Apply", "Confirm selection", Apply, accent: true);
+                apply.style.marginLeft = 4;
+                apply.style.width = 64;
+                bar.Add(apply);
+            }
             return bar;
         }
 
@@ -419,7 +487,7 @@ namespace DataKeeper.Editor.GameTagSystem
             rowEl.RegisterCallback<ClickEvent>(evt =>
             {
                 if (_moveSourceId != GameTagRegistry.NONE) { CommitMove(node.Id); return; }
-                if (evt.clickCount >= 2 && !hasChildren) { _selectedId = node.Id; Apply(); return; }
+                if (evt.clickCount >= 2 && !hasChildren && !_editorOnly) { _selectedId = node.Id; Apply(); return; }
                 if (evt.clickCount >= 2) { BeginRename(node.Id); return; }
                 if (hasChildren) ToggleExpand(node);
             });
