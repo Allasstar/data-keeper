@@ -71,9 +71,8 @@ namespace DataKeeper.Editor.GameTagSystem
         {
             if (registry == null)
             {
-                EditorUtility.DisplayDialog("Error",
-                    "No GameTagRegistry found.\nCreate a GameTagRegistry asset in a Resources folder.", "OK");
-                return;
+                registry = PromptCreateRegistry();
+                if (registry == null) return;
             }
 
             var win = CreateInstance<GameTagPickerWindow>();
@@ -92,9 +91,8 @@ namespace DataKeeper.Editor.GameTagSystem
             var registry = GameTagRegistry.Default;
             if (registry == null)
             {
-                EditorUtility.DisplayDialog("Error",
-                    "No GameTagRegistry found.\nCreate a GameTagRegistry asset in a Resources folder.", "OK");
-                return;
+                registry = PromptCreateRegistry();
+                if (registry == null) return;
             }
 
             var win = GetWindow<GameTagPickerWindow>();
@@ -111,6 +109,28 @@ namespace DataKeeper.Editor.GameTagSystem
 
             if (TryLoadEditorPosition(out var saved)) win.position = saved;
             win.Show();
+        }
+
+        // No registry exists yet — offer to create the default one at Assets/Resources/GameTagRegistry.asset
+        // (the path GameTagRegistry.Default loads from). Returns the created, baked registry or null if declined.
+        private static GameTagRegistry PromptCreateRegistry()
+        {
+            if (!EditorUtility.DisplayDialog("No GameTagRegistry",
+                    "No GameTagRegistry found.\n\nCreate one at Assets/Resources/GameTagRegistry.asset?",
+                    "Create", "Cancel"))
+                return null;
+
+            const string dir = "Assets/Resources";
+            if (!AssetDatabase.IsValidFolder(dir))
+                AssetDatabase.CreateFolder("Assets", "Resources");
+
+            var registry = CreateInstance<GameTagRegistry>();
+            AssetDatabase.CreateAsset(registry, dir + "/GameTagRegistry.asset");
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            GameTagRegistry.SetDefault(registry);
+            return registry;
         }
 
         // ─── Standalone window position persistence ─────────────────────────────
