@@ -81,6 +81,7 @@ namespace DataKeeper.Editor.GameTagSystem
             win._registry = registry;
             win._onApply = onApply;
             win._selectedId = currentId;
+            if (TryLoadPosition(editorOnly: false, out var saved)) win.position = saved;
             win.ShowAuxWindow();
         }
 
@@ -107,7 +108,7 @@ namespace DataKeeper.Editor.GameTagSystem
             win.rootVisualElement.Clear();
             win.CreateGUI();
 
-            if (TryLoadEditorPosition(out var saved)) win.position = saved;
+            if (TryLoadPosition(editorOnly: true, out var saved)) win.position = saved;
             win.Show();
         }
 
@@ -133,13 +134,14 @@ namespace DataKeeper.Editor.GameTagSystem
             return registry;
         }
 
-        // ─── Standalone window position persistence ─────────────────────────────
-        private const string PosPrefKey = "DataKeeper.GameTagsEditor.Position";
+        // ─── Window position persistence (separate keys for picker vs. editor) ───
+        private static string PosPrefKey(bool editorOnly)
+            => editorOnly ? "DataKeeper.GameTagsEditor.Position" : "DataKeeper.GameTagsPicker.Position";
 
-        private static bool TryLoadEditorPosition(out Rect rect)
+        private static bool TryLoadPosition(bool editorOnly, out Rect rect)
         {
             rect = default;
-            var s = EditorPrefs.GetString(PosPrefKey, string.Empty);
+            var s = EditorPrefs.GetString(PosPrefKey(editorOnly), string.Empty);
             var p = s.Split('|');
             if (p.Length != 4) return false;
             var ci = System.Globalization.CultureInfo.InvariantCulture;
@@ -151,11 +153,11 @@ namespace DataKeeper.Editor.GameTagSystem
             return true;
         }
 
-        private void SaveEditorPosition()
+        private void SavePosition()
         {
             var r = position;
             var ci = System.Globalization.CultureInfo.InvariantCulture;
-            EditorPrefs.SetString(PosPrefKey,
+            EditorPrefs.SetString(PosPrefKey(_editorOnly),
                 $"{r.x.ToString(ci)}|{r.y.ToString(ci)}|{r.width.ToString(ci)}|{r.height.ToString(ci)}");
         }
 
@@ -163,7 +165,7 @@ namespace DataKeeper.Editor.GameTagSystem
         private void OnDisable()
         {
             Undo.undoRedoPerformed -= OnUndoRedo;
-            if (_editorOnly) SaveEditorPosition();
+            SavePosition();
         }
 
         // Re-derive caches and the tree after a serialized-state revert (the baked caches aren't serialized).
@@ -247,6 +249,10 @@ namespace DataKeeper.Editor.GameTagSystem
             hdr.Add(new VisualElement().SetFlexGrow(1));
 
             hdr.Add(MakeToolButton("＋ New Tag", "Add a tag under the selection (or at root)", OpenAddRow, accent: true));
+
+            var refreshBtn = MakeToolButton("Refresh", "Refresh from the registry (pick up edits made elsewhere)", RefreshFromRegistry);
+            refreshBtn.style.marginLeft = 4;
+            hdr.Add(refreshBtn);
 
             var menuBtn = MakeToolButton("⋮", "More actions", OpenContextMenu);
             menuBtn.style.marginLeft = 4;
@@ -386,6 +392,19 @@ namespace DataKeeper.Editor.GameTagSystem
                 bar.Add(apply);
             }
             return bar;
+        }
+
+        // Re-read the registry from disk state — another open window (picker/editor) may have
+        // mutated it. Re-bake, refresh the C# badges, drop a stale selection, and rebuild the tree.
+        private void RefreshFromRegistry()
+        {
+            if (_registry == null) return;
+            _registry.Bake();
+            _generatedIds = GameTagsCodeGen.LoadGeneratedIds(_registry);
+            _renamingId = GameTagRegistry.NONE;
+            if (_selectedId != GameTagRegistry.NONE && _registry.GetNode(_selectedId) == null)
+                _selectedId = GameTagRegistry.NONE;
+            RebuildTree();
         }
 
         // ─── Tree data ──────────────────────────────────────────────────────────
