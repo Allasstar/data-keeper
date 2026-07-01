@@ -29,6 +29,12 @@ namespace DataKeeper.GameTagSystem
     /// Use <see cref="Equals(GameTag)"/> / <c>==</c> for collection keys (raw-id structural identity);
     /// use <see cref="MatchesTagExact"/> for the redirect-aware "is this the same tag" question.
     /// </para>
+    /// <para>
+    /// Lookup goes through <see cref="Find"/> (or <see cref="TryFind"/> when a missing path is a caller error worth
+    /// catching); <see cref="None"/> is the canonical invalid handle. The struct is ordered
+    /// (<see cref="IComparable{T}"/> by raw id) for sorted collections, and <see cref="GetGameTagParents"/> /
+    /// <see cref="GetSingleTagContainer"/> project a tag into a <see cref="GameTagContainer"/>.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>

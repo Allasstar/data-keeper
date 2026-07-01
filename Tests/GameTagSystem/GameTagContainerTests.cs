@@ -226,5 +226,213 @@ namespace DataKeeper.Tests.GameTagSystem
         }
 
         [Test] public void Filter_Null_Empty() => Assert.IsTrue(_container.Filter(null).IsEmpty());
+
+        // --- Observation: any-change listener ---
+        [Test]
+        public void AddListener_FiresOnAdd_WithTagAndKind()
+        {
+            GameTag got = default; GameTagChangeType kind = GameTagChangeType.Removed; int calls = 0;
+            _container.AddListener((t, c) => { got = t; kind = c; calls++; });
+            _container.AddTag(Tag("Enemy/Boss"));
+            Assert.AreEqual(1, calls);
+            Assert.IsTrue(got.MatchesTagExact(Tag("Enemy/Boss")));
+            Assert.AreEqual(GameTagChangeType.Added, kind);
+        }
+
+        [Test]
+        public void AddListener_FiresOnRemove()
+        {
+            _container.AddTag(Tag("Enemy/Boss"));
+            GameTagChangeType kind = GameTagChangeType.Added; int calls = 0;
+            _container.AddListener((t, c) => { kind = c; calls++; });
+            _container.RemoveTag(Tag("Enemy/Boss"));
+            Assert.AreEqual(1, calls);
+            Assert.AreEqual(GameTagChangeType.Removed, kind);
+        }
+
+        [Test]
+        public void AddListener_DuplicateAdd_DoesNotFire()
+        {
+            _container.AddTag(Tag("Enemy"));
+            int calls = 0;
+            _container.AddListener((t, c) => calls++);
+            _container.AddTag(Tag("Enemy"));       // already present -> no-op
+            _container.AddTag(Tag("Nope"));        // invalid -> no-op
+            Assert.AreEqual(0, calls);
+        }
+
+        [Test]
+        public void RemoveTag_NotPresent_DoesNotFire()
+        {
+            int calls = 0;
+            _container.AddListener((t, c) => calls++);
+            _container.RemoveTag(Tag("Enemy"));
+            Assert.AreEqual(0, calls);
+        }
+
+        [Test]
+        public void RemoveListener_StopsNotifications()
+        {
+            int calls = 0;
+            System.Action<GameTag, GameTagChangeType> l = (t, c) => calls++;
+            _container.AddListener(l);
+            _container.RemoveListener(l);
+            _container.AddTag(Tag("Enemy"));
+            Assert.AreEqual(0, calls);
+        }
+
+        // --- Observation: exact-tag listener ---
+        [Test]
+        public void AddTagListener_FiresOnlyForExactTag()
+        {
+            int calls = 0;
+            _container.AddTagListener(Tag("Enemy"), c => calls++);
+            _container.AddTag(Tag("Enemy/Boss")); // descendant -> must NOT fire an exact listener
+            Assert.AreEqual(0, calls);
+            _container.AddTag(Tag("Enemy"));       // exact -> fires
+            Assert.AreEqual(1, calls);
+        }
+
+        // --- Observation: branch listener (hierarchical) ---
+        [Test]
+        public void AddBranchListener_FiresForDescendant_WithConcreteTag()
+        {
+            GameTag got = default; GameTagChangeType kind = GameTagChangeType.Removed; int calls = 0;
+            _container.AddBranchListener(Tag("Enemy"), (t, c) => { got = t; kind = c; calls++; });
+            _container.AddTag(Tag("Enemy/Boss/Elite"));
+            Assert.AreEqual(1, calls);
+            Assert.IsTrue(got.MatchesTagExact(Tag("Enemy/Boss/Elite")), "callback receives the concrete descendant");
+            Assert.AreEqual(GameTagChangeType.Added, kind);
+        }
+
+        [Test]
+        public void AddBranchListener_DoesNotFireForUnrelatedOrSibling()
+        {
+            int calls = 0;
+            _container.AddBranchListener(Tag("Enemy/Boss"), (t, c) => calls++);
+            _container.AddTag(Tag("Enemy/Minion")); // sibling branch
+            _container.AddTag(Tag("Player"));       // unrelated root
+            Assert.AreEqual(0, calls);
+        }
+
+        [Test]
+        public void AddBranchListener_RawSemantics_FiresPerDescendant()
+        {
+            int calls = 0;
+            _container.AddBranchListener(Tag("Enemy"), (t, c) => calls++);
+            _container.AddTag(Tag("Enemy/Boss/Elite"));
+            _container.AddTag(Tag("Enemy/Minion"));
+            _container.RemoveTag(Tag("Enemy/Boss/Elite")); // branch still present via Minion, but still fires
+            Assert.AreEqual(3, calls);
+        }
+
+        // --- Observation: compound mutators ---
+        [Test]
+        public void AddLeafTag_Emits_RemovedParent_Then_AddedLeaf()
+        {
+            _container.AddTag(Tag("Enemy"));
+            var log = new System.Collections.Generic.List<(string path, GameTagChangeType kind)>();
+            _container.AddListener((t, c) => log.Add((t.Path, c)));
+            _container.AddLeafTag(Tag("Enemy/Boss"));
+            Assert.AreEqual(2, log.Count);
+            Assert.AreEqual(("Enemy", GameTagChangeType.Removed), log[0]);
+            Assert.AreEqual(("Enemy/Boss", GameTagChangeType.Added), log[1]);
+        }
+
+        [Test]
+        public void Reset_EmitsRemovedPerTag()
+        {
+            _container.AddTag(Tag("Enemy"));
+            _container.AddTag(Tag("Player"));
+            int removed = 0;
+            _container.AddListener((t, c) => { if (c == GameTagChangeType.Removed) removed++; });
+            _container.Reset();
+            Assert.AreEqual(2, removed);
+            Assert.IsTrue(_container.IsEmpty());
+        }
+
+        // --- Observation: branch presence (deduped transitions) ---
+        [Test]
+        public void BranchPresence_FiresTrueOnce_OnFirstCoveredAdd()
+        {
+            var log = new System.Collections.Generic.List<bool>();
+            _container.AddBranchPresenceListener(Tag("Enemy"), log.Add);
+            _container.AddTag(Tag("Enemy/Boss/Elite"));
+            _container.AddTag(Tag("Enemy/Minion")); // branch already present -> no second fire
+            Assert.AreEqual(1, log.Count);
+            Assert.IsTrue(log[0]);
+        }
+
+        [Test]
+        public void BranchPresence_FiresFalseOnce_WhenLastCoveredRemoved()
+        {
+            var log = new System.Collections.Generic.List<bool>();
+            _container.AddBranchPresenceListener(Tag("Enemy"), log.Add);
+            _container.AddTag(Tag("Enemy/Boss/Elite"));
+            _container.AddTag(Tag("Enemy/Minion"));
+            log.Clear();
+            _container.RemoveTag(Tag("Enemy/Boss/Elite")); // still present via Minion -> no fire
+            Assert.AreEqual(0, log.Count);
+            _container.RemoveTag(Tag("Enemy/Minion"));      // now absent -> fire false
+            Assert.AreEqual(1, log.Count);
+            Assert.IsFalse(log[0]);
+        }
+
+        [Test]
+        public void BranchPresence_SubscribeWhenAlreadyPresent_NoFire_ThenFalseOnRemoval()
+        {
+            _container.AddTag(Tag("Enemy/Boss")); // present before subscribing
+            var log = new System.Collections.Generic.List<bool>();
+            _container.AddBranchPresenceListener(Tag("Enemy"), log.Add);
+            Assert.AreEqual(0, log.Count, "does not fire on subscribe");
+            _container.RemoveTag(Tag("Enemy/Boss"));
+            Assert.AreEqual(1, log.Count);
+            Assert.IsFalse(log[0], "seeded count made the present->absent transition correct");
+        }
+
+        [Test]
+        public void BranchPresence_HandlesAddTagFastDuplicates()
+        {
+            var log = new System.Collections.Generic.List<bool>();
+            _container.AddBranchPresenceListener(Tag("Enemy"), log.Add);
+            _container.AddTagFast(Tag("Enemy/Boss")); // true
+            _container.AddTagFast(Tag("Enemy/Boss")); // duplicate occurrence -> no fire
+            _container.RemoveTag(Tag("Enemy/Boss"));  // one occurrence left -> no fire
+            _container.RemoveTag(Tag("Enemy/Boss"));  // last one gone -> false
+            Assert.AreEqual(2, log.Count);
+            Assert.IsTrue(log[0]);
+            Assert.IsFalse(log[1]);
+        }
+
+        [Test]
+        public void BranchPresence_Reset_FiresFalse()
+        {
+            var log = new System.Collections.Generic.List<bool>();
+            _container.AddTag(Tag("Enemy/Boss"));
+            _container.AddBranchPresenceListener(Tag("Enemy"), log.Add);
+            _container.Reset();
+            Assert.AreEqual(1, log.Count);
+            Assert.IsFalse(log[0]);
+        }
+
+        [Test]
+        public void BranchPresence_UnrelatedChange_DoesNotFire()
+        {
+            var log = new System.Collections.Generic.List<bool>();
+            _container.AddBranchPresenceListener(Tag("Enemy"), log.Add);
+            _container.AddTag(Tag("Player"));
+            Assert.AreEqual(0, log.Count);
+        }
+
+        [Test]
+        public void RemoveBranchPresenceListener_StopsNotifications()
+        {
+            var log = new System.Collections.Generic.List<bool>();
+            System.Action<bool> l = log.Add;
+            _container.AddBranchPresenceListener(Tag("Enemy"), l);
+            _container.RemoveBranchPresenceListener(Tag("Enemy"), l);
+            _container.AddTag(Tag("Enemy/Boss"));
+            Assert.AreEqual(0, log.Count);
+        }
     }
 }

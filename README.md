@@ -127,9 +127,14 @@ fire.MatchesTagDepth(GameTag.Find("Damage/Elemental/Ice")); // 2 (share Damage/E
 | `MatchesAny(container)` / `MatchesAnyExact(container)` | matches any tag in a set | `MatchesAny` / `MatchesAnyExact` |
 | `MatchesTagDepth(other)` | shared ancestor count (`int`) | `MatchesTagDepth` |
 | `IsChildOf(other)` | strict descendant (extension) | — |
+| `Find(path)` / `TryFind(path, out tag)` | resolve an existing tag by path (`TryFind` reports a miss) | `RequestGameplayTag` |
+| `GetGameTagParents()` / `GetSingleTagContainer()` | project into a container (self + ancestors / just this) | `GetGameplayTagParents` / `GetSingleTagContainer` |
+| `CompareTo(other)` / `GameTag.None` | ordering by raw id (`IComparable`); canonical invalid handle | — |
 | `==` / `Equals` / `GetHashCode` | structural identity by raw id (collection key) | `operator==` |
 
 > `==`/`Equals` compare the raw id (a stable, zero-GC dictionary key) and are **not** redirect-aware; use `MatchesTagExact` for "is this the same tag" after a rename/merge.
+>
+> `Find` returns an invalid tag on an unknown path; prefer `TryFind` when a typo should be caught rather than silently propagated. `Name`/`Path` return an empty string (never `null`) for an unknown/invalid tag.
 
 ### Containers (`GameTagContainer`)
 
@@ -144,6 +149,48 @@ tags.HasTagExact(GameTag.Find("Damage")); // false — "Damage" was never added 
 ```
 
 Key methods (Unreal parity): `HasTag`/`HasTagExact`, `HasAny`/`HasAnyExact`, `HasAll`/`HasAllExact`, `AddTag`/`AddTagFast`/`AddLeafTag`, `RemoveTag`/`RemoveTags`, `Reset`, `AppendTags`, `Num`/`IsEmpty`/`IsValid`, `GetByIndex`/`First`/`Last`, `Filter`, `GetGameTagParents`.
+
+### Observing a container
+
+A `GameTagContainer` is **observable**: every mutation raises change events, built on the package's zero-GC `Signal`. All event infrastructure is created lazily on the first subscription, so a container that is never observed keeps its plain-data allocation profile and pays only a null-check per mutation. Firing is allocation-free. Changes are reported as `GameTagChangeType` (`Added` / `Removed`).
+
+There are four subscription granularities:
+
+```csharp
+var tags = new GameTagContainer();
+
+// 1. Any change — receives the changed tag and the kind.
+tags.AddListener((tag, change) => Debug.Log($"{tag.Path} {change}"));
+
+// 2. A specific tag, exact — descendants are ignored.
+tags.AddTagListener(GameTag.Find("Stunned"),
+    change => animator.SetBool("stunned", change == GameTagChangeType.Added));
+
+// 3. A branch — fires for the tag OR any descendant (raw, one event per matching change).
+tags.AddBranchListener(GameTag.Find("Damage"),
+    (tag, change) => Debug.Log($"{change}: {tag.Path}")); // e.g. Damage/Elemental/Fire
+
+// 4. A branch's presence — deduped present/absent transitions only.
+tags.AddBranchPresenceListener(GameTag.Find("Buff/Shield"), shield.SetActive);
+
+tags.AddTag(GameTag.Find("Damage/Elemental/Fire"));
+// → any-listener fires (Fire, Added)
+// → branch-listener on "Damage" fires (Fire, Added)   [ancestor walk]
+// → exact-listener on "Damage" would NOT fire
+```
+
+| Subscribe with | Fires when | Callback |
+| --- | --- | --- |
+| `AddListener` | any tag added/removed | `Action<GameTag, GameTagChangeType>` |
+| `AddTagListener(tag, …)` | *that* tag added/removed (exact) | `Action<GameTagChangeType>` |
+| `AddBranchListener(parent, …)` | the tag **or any descendant** changes (raw) | `Action<GameTag, GameTagChangeType>` |
+| `AddBranchPresenceListener(parent, …)` | branch goes present ↔ absent (deduped) | `Action<bool>` |
+
+Each has a matching `Remove…` method, plus `RemoveAllListeners()`.
+
+- **How the hierarchy works** — every mutator routes through one internal notify that fires the global signal, the exact-keyed signal, then walks the changed tag's `self → parent → …root` chain firing any branch/presence listener registered at each level. The walk only runs when a branch or presence listener exists.
+- **Raw vs presence** — with both `Damage/Fire` and `Damage/Ice` present, a `Branch` listener on `Damage` fires `Removed(Fire)` even though the branch is still present via `Ice`; a `BranchPresence` listener fires only on the flip to empty. Presence is backed by a per-branch ref-count, so it stays correct even with duplicate entries from `AddTagFast`.
+- **Notes** — `AddBranchPresenceListener` does not fire on subscribe, but seeds its count from the current state so the next transition is correct (read `HasTag(parent)` for the initial value). `Reset`/`Clear` emit a `Removed` per tag (and drive present branches to `absent`).
 
 ### Authoring
 
@@ -204,15 +251,17 @@ The `DataKeeper` namespace provides a suite of tools and utilities designed to e
 
 ### `DataKeeper.GameTagSystem`
 
--   **`GameTag`**: A zero-GC struct handle to a node in the tag tree; resolves name/path/hierarchy through the registry.
+-   **`GameTag`**: A zero-GC, ordered (`IComparable`) struct handle to a node in the tag tree; resolves name/path/hierarchy through the registry.
     -   `MatchesTag(other)` / `MatchesTagExact(other)`: Hierarchical / exact (redirect-aware) match.
     -   `MatchesAny(container)` / `MatchesAnyExact(container)`: Match against any tag in a set.
     -   `MatchesTagDepth(other)`: Shared-ancestor count (match closeness).
     -   `IsChildOf(other)`: Strict descendant test.
-    -   `Find(path)` / `FromId(id)`: Look up an existing tag by path or raw id.
--   **`GameTagContainer`**: A set of `GameTag`s with hierarchical queries (port of `FGameplayTagContainer`).
+    -   `Find(path)` / `TryFind(path, out tag)` / `FromId(id)`: Look up an existing tag by path or raw id; `GameTag.None` is the invalid handle.
+    -   `GetGameTagParents()` / `GetSingleTagContainer()`: Project the tag into a container.
+-   **`GameTagContainer`**: An observable set of `GameTag`s with hierarchical queries (port of `FGameplayTagContainer`).
     -   `HasTag` / `HasTagExact`, `HasAny` / `HasAll` (+ `*Exact`): Membership queries.
     -   `AddTag` / `AddLeafTag` / `RemoveTag` / `Filter` / `GetGameTagParents`: Mutation and derivation.
+    -   `AddListener` / `AddTagListener` / `AddBranchListener` / `AddBranchPresenceListener`: Subscribe to changes at global, exact-tag, branch (raw), or branch-presence (deduped) granularity.
 -   **`GameTagRegistry`**: The `ScriptableObject` source of truth that bakes the authored tag tree (paths, hierarchy, redirects) into runtime caches.
 
 ### `DataKeeper.Generic`
