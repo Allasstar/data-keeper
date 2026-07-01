@@ -133,6 +133,9 @@ public Signal<T> OnValueChanged
 - **Methods**:
     - `Invoke()`: Triggers the associated events manually.
 
+### `IReactive<T>`
+The full read/write + observe surface (`Value`, `UniqueValue`, `SilentValue`, `AddListener`, `RemoveListener`, `RemoveAllListeners`), shared with `ReactivePref<T>`. Code that accepts `IReactive<T>` — like the [UI bindings](UI.md#reactive-ui-bindings) — works with either source.
+
 ## Example Usage
 ### Basic Example
 ``` c#
@@ -160,3 +163,14 @@ reactiveFloat.SilentValue = 6.28f;
 // No listener will be triggered, even after silent change
 reactiveFloat.SilentChange(9.42f);
 ```
+### UI Binding Example
+``` c#
+using DataKeeper.UI;
+
+Reactive<float> health = new Reactive<float>(1f);
+
+health.BindToFill(healthBarImage);                    // Image.fillAmount follows value
+health.BindTo(healthLabel, v => $"HP {v:P0}");        // TMP_Text with custom format
+musicVolumePref.BindTo(volumeSlider);                 // two-way ReactivePref <-> Slider
+```
+Bindings push the current value immediately and unbind automatically when the UI object is destroyed — see [UI Components](UI.md#reactive-ui-bindings).

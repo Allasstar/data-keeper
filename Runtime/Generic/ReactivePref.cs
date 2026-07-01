@@ -10,7 +10,7 @@ using UnityEngine;
 namespace DataKeeper.Generic
 {
     [Serializable]
-    public class ReactivePref<T> : IReactivePref
+    public class ReactivePref<T> : IReactivePref, IReactive<T>
     {
         [SerializeField, DontCreateProperty]
         private T value;

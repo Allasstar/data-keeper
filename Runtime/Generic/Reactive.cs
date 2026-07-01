@@ -8,7 +8,7 @@ using UnityEngine;
 namespace DataKeeper.Generic
 {
     [Serializable]
-    public class Reactive<T> : IReactive
+    public class Reactive<T> : IReactive<T>
     {
         [SerializeField, DontCreateProperty]
         private T value;
@@ -105,5 +105,19 @@ namespace DataKeeper.Generic
     public interface IReactive
     {
         public void Invoke();
+    }
+
+    /// <summary>
+    /// Common read/write + observe surface of <see cref="Reactive{T}"/> and <c>ReactivePref&lt;T&gt;</c>.
+    /// Lets code (e.g. UI bindings) work with either source interchangeably.
+    /// </summary>
+    public interface IReactive<T> : IReactive
+    {
+        public T Value { get; set; }
+        public T UniqueValue { get; set; }
+        public T SilentValue { get; set; }
+        public void AddListener(Action<T> call, bool callOnAddListener = false);
+        public void RemoveListener(Action<T> call);
+        public void RemoveAllListeners();
     }
 }

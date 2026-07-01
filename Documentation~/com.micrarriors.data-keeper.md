@@ -43,7 +43,7 @@ Via OpenUPM scoped registry or git URL — see the [README](https://github.com/A
 - [DynamicScene](DynamicScene.md) — distance-based Addressables streaming *(requires `com.unity.addressables`)*
 
 ### UI
-- [UI Components](UI.md) — uGUI extensions: `ButtonUI`, `ToggleUI`, `TabsUI`, `SafeAreaUI`, layout groups, drag/resize handles
+- [UI Components](UI.md) — uGUI extensions: `ButtonUI`, `ToggleUI`, `TabsUI`, `SafeAreaUI`, layout groups, drag/resize handles, reactive UI bindings (`BindTo`)
 - [UIToolkit](UIToolkit.md) — fluent extensions for UI Toolkit
 
 ### Debugging & editor

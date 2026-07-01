@@ -3,6 +3,8 @@
     "rootNamespace": "DataKeeper.Tests",
     "references": [
         "DataKeeper",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
