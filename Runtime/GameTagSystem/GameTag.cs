@@ -51,10 +51,13 @@ namespace DataKeeper.GameTagSystem
     /// </code>
     /// </example>
     [Serializable]
-    public struct GameTag : IEquatable<GameTag>
+    public struct GameTag : IEquatable<GameTag>, IComparable<GameTag>
     {
         /// <summary>Path separator between segments, e.g. the <c>/</c> in <c>"Damage/Elemental/Fire"</c>.</summary>
         public const string SEPARATOR = GameTagRegistry.SEPARATOR;
+
+        /// <summary>The canonical invalid tag (wraps <see cref="GameTagRegistry.NONE"/>); equal to <c>default</c> but self-documenting.</summary>
+        public static readonly GameTag None = new GameTag(GameTagRegistry.NONE);
 
         [SerializeField] private int _id;
 
@@ -71,13 +74,21 @@ namespace DataKeeper.GameTagSystem
         public int Hash => _id;
 
         /// <summary><c>true</c> when this handle points at a live node in the active registry.</summary>
-        public bool IsValid => _id != GameTagRegistry.NONE && Registry != null && Registry.IsValid(_id);
+        public bool IsValid
+        {
+            get
+            {
+                if (_id == GameTagRegistry.NONE) return false;
+                var registry = Registry;
+                return registry != null && registry.IsValid(_id);
+            }
+        }
 
-        /// <summary>The leaf segment only, e.g. <c>"Fire"</c> for <c>"Damage/Elemental/Fire"</c>. <c>null</c> if unknown.</summary>
-        public string Name => Registry != null ? Registry.GetName(_id) : null;
+        /// <summary>The leaf segment only, e.g. <c>"Fire"</c> for <c>"Damage/Elemental/Fire"</c>. Empty string if unknown.</summary>
+        public string Name => Registry != null ? Registry.GetName(_id) ?? string.Empty : string.Empty;
 
-        /// <summary>The full separated path, e.g. <c>"Damage/Elemental/Fire"</c>. <c>null</c> if unknown.</summary>
-        public string Path => Registry != null ? Registry.GetPath(_id) : null;
+        /// <summary>The full separated path, e.g. <c>"Damage/Elemental/Fire"</c>. Empty string if unknown.</summary>
+        public string Path => Registry != null ? Registry.GetPath(_id) ?? string.Empty : string.Empty;
 
         /// <summary>
         /// The immediate parent node — the first parent branch up. For <c>"Damage/Elemental/Fire"</c>
@@ -97,6 +108,20 @@ namespace DataKeeper.GameTagSystem
         /// </summary>
         /// <param name="path">Full separated path, e.g. <c>"Damage/Elemental/Fire"</c>.</param>
         public static GameTag Find(string path) => new GameTag(Registry != null ? Registry.FindByPath(path) : GameTagRegistry.NONE);
+
+        /// <summary>
+        /// Tries to resolve an existing path to its tag. Returns <c>true</c> and sets <paramref name="tag"/> to the
+        /// resolved tag when the path is known; otherwise returns <c>false</c> and sets it to <see cref="None"/>.
+        /// Prefer this over <see cref="Find"/> when a missing path is a caller error you want to catch rather than
+        /// silently propagate as an invalid tag.
+        /// </summary>
+        /// <param name="path">Full separated path, e.g. <c>"Damage/Elemental/Fire"</c>.</param>
+        /// <param name="tag">The resolved tag, or <see cref="None"/> when the path is unknown.</param>
+        public static bool TryFind(string path, out GameTag tag)
+        {
+            tag = Find(path);
+            return tag.IsValid;
+        }
 
         // ── Matching (Unreal GameplayTag semantics) ─────────────────────────────
         // All matching is redirect-aware and delegates to the registry, so the rules live in
@@ -246,6 +271,49 @@ namespace DataKeeper.GameTagSystem
         /// </example>
         public int MatchesTagDepth(GameTag other) => Registry != null ? Registry.MatchDepth(_id, other._id) : 0;
 
+        // ── Tag → container (Unreal GameplayTag semantics) ──────────────────────
+
+        /// <summary>
+        /// A new container holding this tag plus all of its parent branches (self, then each ancestor up to the
+        /// root). Mirrors Unreal <c>FGameplayTag::GetGameplayTagParents</c>. An invalid tag yields an empty container.
+        /// </summary>
+        /// <remarks>
+        /// The tag-level counterpart of <see cref="GameTagContainer.GetGameTagParents"/>: it flattens the implicit
+        /// ancestors that <see cref="MatchesTag"/> matches on into explicit members, so a later
+        /// <see cref="GameTagContainer.HasTagExact"/> answers <c>true</c> for any ancestor.
+        /// </remarks>
+        /// <example>
+        /// <code>
+        /// GameTag.Find("Damage/Elemental/Fire").GetGameTagParents();
+        /// //   { Damage/Elemental/Fire, Damage/Elemental, Damage }  (Count 3)
+        /// GameTag.None.GetGameTagParents().IsEmpty();   // true
+        /// </code>
+        /// </example>
+        public GameTagContainer GetGameTagParents()
+        {
+            var result = new GameTagContainer();
+            for (var t = this; t.IsValid; t = t.Parent)
+                result.AddTag(t);
+            return result;
+        }
+
+        /// <summary>
+        /// A new container holding only this tag. Mirrors Unreal <c>FGameplayTag::GetSingleTagContainer</c>.
+        /// An invalid tag yields an empty container.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// GameTag.Find("Damage").GetSingleTagContainer().Count; // 1
+        /// GameTag.None.GetSingleTagContainer().IsEmpty();        // true
+        /// </code>
+        /// </example>
+        public GameTagContainer GetSingleTagContainer()
+        {
+            var result = new GameTagContainer();
+            result.AddTag(this);
+            return result;
+        }
+
         // ── Extension beyond Unreal's API ───────────────────────────────────────
 
         /// <summary>
@@ -305,7 +373,15 @@ namespace DataKeeper.GameTagSystem
         /// <summary>Structural inequality by raw id — see <see cref="Equals(GameTag)"/>.</summary>
         public static bool operator !=(GameTag a, GameTag b) => a._id != b._id;
 
+        /// <summary>
+        /// Orders by raw id (structural, NOT redirect-aware — consistent with <see cref="Equals(GameTag)"/>).
+        /// Gives a deterministic, allocation-free ordering for sorting and <see cref="System.Collections.Generic.SortedSet{T}"/> /
+        /// <see cref="System.Collections.Generic.SortedDictionary{TKey,TValue}"/> keys. Note this is id order, not
+        /// alphabetical <see cref="Path"/> order.
+        /// </summary>
+        public int CompareTo(GameTag other) => _id.CompareTo(other._id);
+
         /// <summary>The full <see cref="Path"/>, or an empty string when the tag is unknown/invalid.</summary>
-        public override string ToString() => Path ?? string.Empty;
+        public override string ToString() => Path;
     }
 }

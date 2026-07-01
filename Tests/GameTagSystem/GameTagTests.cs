@@ -80,11 +80,42 @@ namespace DataKeeper.Tests.GameTagSystem
         [Test] public void FromId_UnknownId_Invalid() => Assert.IsFalse(GameTag.FromId(987654321).IsValid);
 
         // --- Invalid / default tag surface ---
-        [Test] public void Default_Name_Null()      => Assert.IsNull(default(GameTag).Name);
-        [Test] public void Default_Path_Null()      => Assert.IsNull(default(GameTag).Path);
+        [Test] public void Default_Name_Empty()     => Assert.AreEqual(string.Empty, default(GameTag).Name);
+        [Test] public void Default_Path_Empty()     => Assert.AreEqual(string.Empty, default(GameTag).Path);
         [Test] public void Default_ToString_Empty() => Assert.AreEqual(string.Empty, default(GameTag).ToString());
         [Test] public void Default_Hash_None()      => Assert.AreEqual(GameTagRegistry.NONE, default(GameTag).Hash);
         [Test] public void Root_Parent_Invalid()    => Assert.IsFalse(Tag("Enemy").Parent.IsValid);
+
+        // --- None constant ---
+        [Test] public void None_IsInvalid()          => Assert.IsFalse(GameTag.None.IsValid);
+        [Test] public void None_EqualsDefault()      => Assert.IsTrue(GameTag.None == default(GameTag));
+        [Test] public void None_Hash_None()          => Assert.AreEqual(GameTagRegistry.NONE, GameTag.None.Hash);
+
+        // --- TryFind ---
+        [Test] public void TryFind_ExistingPath_TrueAndValid() { Assert.IsTrue(GameTag.TryFind("Enemy/Boss", out var t)); Assert.IsTrue(t.MatchesTagExact(Tag("Enemy/Boss"))); }
+        [Test] public void TryFind_UnknownPath_FalseAndNone()  { Assert.IsFalse(GameTag.TryFind("Nope/Nope", out var t)); Assert.IsTrue(t == GameTag.None); }
+        [Test] public void TryFind_Null_FalseAndNone()         { Assert.IsFalse(GameTag.TryFind(null, out var t)); Assert.IsTrue(t == GameTag.None); }
+
+        // --- CompareTo (ordering by raw id) ---
+        [Test] public void CompareTo_Self_Zero()         => Assert.AreEqual(0, Tag("Enemy").CompareTo(Tag("Enemy")));
+        [Test] public void CompareTo_MatchesIdOrder()    => Assert.AreEqual(_enemy.CompareTo(_player), Tag("Enemy").CompareTo(Tag("Player")));
+        [Test] public void CompareTo_Antisymmetric()     => Assert.AreEqual(-Tag("Player").CompareTo(Tag("Enemy")), Tag("Enemy").CompareTo(Tag("Player")));
+
+        // --- GetGameTagParents / GetSingleTagContainer (tag -> container) ---
+        [Test]
+        public void GetGameTagParents_SelfAndAncestors()
+        {
+            var parents = Tag("Enemy/Boss/Elite").GetGameTagParents();
+            Assert.AreEqual(3, parents.Count);
+            Assert.IsTrue(parents.HasTagExact(Tag("Enemy/Boss/Elite")));
+            Assert.IsTrue(parents.HasTagExact(Tag("Enemy/Boss")));
+            Assert.IsTrue(parents.HasTagExact(Tag("Enemy")));
+        }
+
+        [Test] public void GetGameTagParents_Root_SelfOnly()   { var p = Tag("Player").GetGameTagParents(); Assert.AreEqual(1, p.Count); Assert.IsTrue(p.HasTagExact(Tag("Player"))); }
+        [Test] public void GetGameTagParents_Invalid_Empty()   => Assert.IsTrue(GameTag.None.GetGameTagParents().IsEmpty());
+        [Test] public void GetSingleTagContainer_HoldsOnlyTag() { var c = Tag("Enemy/Boss").GetSingleTagContainer(); Assert.AreEqual(1, c.Count); Assert.IsTrue(c.HasTagExact(Tag("Enemy/Boss"))); }
+        [Test] public void GetSingleTagContainer_Invalid_Empty() => Assert.IsTrue(GameTag.None.GetSingleTagContainer().IsEmpty());
 
         // --- Matching with invalid / default operands ---
         [Test] public void MatchesTag_DefaultQuery_False()       => Assert.IsFalse(Tag("Enemy").MatchesTag(default));
