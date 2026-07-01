@@ -94,7 +94,7 @@ A `GameTag` is a **lightweight, zero-GC struct** that stores only a stable `int`
 ### Concepts
 
 - **Tree** — tags form a path-separated hierarchy. A leaf carries its whole ancestry, so `Damage/Elemental/Fire` belongs to both the `Damage/Elemental` and `Damage` branches.
-- **Registry** — `GameTagRegistry` (a `ScriptableObject`) bakes the authored tag list into runtime caches (paths, depth, parent/child links, redirects). The active one is `GameTagRegistry.Default`, loaded from `Resources`.
+- **Registry** — `GameTagRegistry` (a `ScriptableObject`) bakes the authored tag list into runtime caches (paths, depth, parent/child links, per-node ancestor chains for O(1) matching, redirects). The active one is `GameTagRegistry.Default`, loaded from `Resources`.
 - **Redirects** — when a tag is deleted/merged, its old id can resolve to a replacement, so stored references keep working.
 
 ### Matching (`GameTag`)
@@ -150,9 +150,12 @@ tags.HasTagExact(GameTag.Find("Damage")); // false — "Damage" was never added 
 
 Key methods (Unreal parity): `HasTag`/`HasTagExact`, `HasAny`/`HasAnyExact`, `HasAll`/`HasAllExact`, `AddTag`/`AddTagFast`/`AddLeafTag`, `RemoveTag`/`RemoveTags`, `Reset`, `AppendTags`, `Num`/`IsEmpty`/`IsValid`, `GetByIndex`/`First`/`Last`, `Filter`, `GetGameTagParents`.
 
+- **Canonical ids** — mutations resolve rename/merge redirects on entry, so the container stores only canonical ids: a retired handle and its replacement behave as the same tag for add, remove, and listener registration.
+- **Performance** — hierarchical matching is O(1) (the registry bakes each node's root-to-self ancestor chain). Queries are zero-GC in steady state; a container holding 8+ tags lazily builds a cached expanded-ancestor set on its first hierarchical query, after which `HasTag` (and `HasAny`/`HasAll` on top of it) is a single hash probe per tag. The set is maintained incrementally and rebuilt automatically if the registry re-bakes.
+
 ### Observing a container
 
-A `GameTagContainer` is **observable**: every mutation raises change events, built on the package's zero-GC `Signal`. All event infrastructure is created lazily on the first subscription, so a container that is never observed keeps its plain-data allocation profile and pays only a null-check per mutation. Firing is allocation-free. Changes are reported as `GameTagChangeType` (`Added` / `Removed`).
+A `GameTagContainer` is **observable**: every mutation raises change events, built on the package's zero-GC `Signal`. All event infrastructure is created lazily on the first subscription and released again when the last listener is removed, so an unobserved container keeps its plain-data allocation profile and pays only constant work per mutation. Firing is allocation-free. Changes are reported as `GameTagChangeType` (`Added` / `Removed`).
 
 There are four subscription granularities:
 
@@ -186,11 +189,11 @@ tags.AddTag(GameTag.Find("Damage/Elemental/Fire"));
 | `AddBranchListener(parent, …)` | the tag **or any descendant** changes (raw) | `Action<GameTag, GameTagChangeType>` |
 | `AddBranchPresenceListener(parent, …)` | branch goes present ↔ absent (deduped) | `Action<bool>` |
 
-Each has a matching `Remove…` method, plus `RemoveAllListeners()`.
+Each has a matching `Remove…` method, plus `RemoveAllListeners()`. Listener keys are redirect-resolved (subscribing with a retired handle observes its replacement), and removing the last listener releases the observation infrastructure.
 
 - **How the hierarchy works** — every mutator routes through one internal notify that fires the global signal, the exact-keyed signal, then walks the changed tag's `self → parent → …root` chain firing any branch/presence listener registered at each level. The walk only runs when a branch or presence listener exists.
 - **Raw vs presence** — with both `Damage/Fire` and `Damage/Ice` present, a `Branch` listener on `Damage` fires `Removed(Fire)` even though the branch is still present via `Ice`; a `BranchPresence` listener fires only on the flip to empty. Presence is backed by a per-branch ref-count, so it stays correct even with duplicate entries from `AddTagFast`.
-- **Notes** — `AddBranchPresenceListener` does not fire on subscribe, but seeds its count from the current state so the next transition is correct (read `HasTag(parent)` for the initial value). `Reset`/`Clear` emit a `Removed` per tag (and drive present branches to `absent`).
+- **Notes** — `AddBranchPresenceListener` does not fire on subscribe, but seeds its count from the current state so the next transition is correct (read `HasTag(parent)` for the initial value). `Reset`/`Clear` emit a `Removed` per tag (and drive present branches to `absent`). Mutators are safe against listeners that mutate the container from the callback.
 
 ### Authoring
 
@@ -262,7 +265,7 @@ The `DataKeeper` namespace provides a suite of tools and utilities designed to e
     -   `HasTag` / `HasTagExact`, `HasAny` / `HasAll` (+ `*Exact`): Membership queries.
     -   `AddTag` / `AddLeafTag` / `RemoveTag` / `Filter` / `GetGameTagParents`: Mutation and derivation.
     -   `AddListener` / `AddTagListener` / `AddBranchListener` / `AddBranchPresenceListener`: Subscribe to changes at global, exact-tag, branch (raw), or branch-presence (deduped) granularity.
--   **`GameTagRegistry`**: The `ScriptableObject` source of truth that bakes the authored tag tree (paths, hierarchy, redirects) into runtime caches.
+-   **`GameTagRegistry`**: The `ScriptableObject` source of truth that bakes the authored tag tree (paths, hierarchy, ancestor chains, redirects) into runtime caches for O(1) hierarchical matching.
 
 ### `DataKeeper.Generic`
 

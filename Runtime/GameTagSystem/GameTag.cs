@@ -131,8 +131,8 @@ namespace DataKeeper.GameTagSystem
 
         // ── Matching (Unreal GameplayTag semantics) ─────────────────────────────
         // All matching is redirect-aware and delegates to the registry, so the rules live in
-        // exactly one place. The registry walks the full parent chain, so a hierarchical match
-        // succeeds against this tag itself OR any of its ancestors.
+        // exactly one place. The registry probes the node's baked root-to-self ancestor chain
+        // (O(1)), so a hierarchical match succeeds against this tag itself OR any of its ancestors.
 
         /// <summary>
         /// Hierarchical match: <c>true</c> when <paramref name="other"/> is this tag itself or any of

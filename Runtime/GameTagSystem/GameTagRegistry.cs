@@ -59,6 +59,7 @@ namespace DataKeeper.GameTagSystem
             public int ParentId;
             public int Depth;      // root == 0
             public string Path;     // cached full path "A/B/C"
+            public int[] AncestorPath; // ids root -> self; AncestorPath[d] is this node's ancestor at depth d (self at Depth)
             public readonly List<int> Children = new();
         }
 
@@ -67,6 +68,9 @@ namespace DataKeeper.GameTagSystem
         private readonly Dictionary<int, int> _redirectMap = new();
         private readonly List<int> _roots = new();
         private bool _baked;
+
+        /// <summary>Incremented on every <see cref="Bake"/>. Lets callers detect that cached per-node data is stale.</summary>
+        public int BakeVersion { get; private set; }
 
         public IReadOnlyList<int> RootIds { get { EnsureBaked(); return _roots; } }
 
@@ -129,9 +133,25 @@ namespace DataKeeper.GameTagSystem
             foreach (var node in _byId.Values)
                 _byPath[node.Path] = node.Id;
 
+            // Bake each node's root-to-self id chain so hierarchical queries are O(1) array probes
+            // instead of parent-chain walks. Depth is already resolved, so the walk is exact; on a
+            // broken chain the unreachable slots stay NONE, which no live id ever equals.
+            foreach (var node in _byId.Values)
+            {
+                var chain = new int[node.Depth + 1];
+                var cur = node;
+                for (int d = node.Depth; d >= 0; d--)
+                {
+                    chain[d] = cur.Id;
+                    if (d > 0 && !_byId.TryGetValue(cur.ParentId, out cur)) break;
+                }
+                node.AncestorPath = chain;
+            }
+
             foreach (var r in _redirects)
                 if (r.FromId != NONE) _redirectMap[r.FromId] = r.ToId;
 
+            BakeVersion++;
             _baked = true;
         }
         
@@ -204,6 +224,7 @@ namespace DataKeeper.GameTagSystem
         }
 
         // True when childId == ancestorId, or ancestorId is a strict ancestor of childId (Unreal MatchesTag).
+        // O(1): a true ancestor sits at exactly its own depth in the child's baked root-to-self chain.
         public bool Matches(int childId, int ancestorId)
         {
             EnsureBaked();
@@ -214,16 +235,7 @@ namespace DataKeeper.GameTagSystem
 
             if (!_byId.TryGetValue(childId, out var child)) return false;
             if (!_byId.TryGetValue(ancestorId, out var anc)) return false;
-            if (anc.Depth >= child.Depth) return false; // can't be an ancestor
-
-            int cur = child.ParentId;
-            int guard = 0;
-            while (cur != NONE && guard++ < MAX_DEPTH)
-            {
-                if (cur == ancestorId) return true;
-                cur = _byId.TryGetValue(cur, out var n) ? n.ParentId : NONE;
-            }
-            return false;
+            return anc.Depth < child.Depth && child.AncestorPath[anc.Depth] == ancestorId;
         }
 
         // Exact identity, redirect-aware: true only when both ids resolve to the SAME live node
@@ -253,20 +265,14 @@ namespace DataKeeper.GameTagSystem
             if (aId == NONE || bId == NONE) return 0;
             if (!_byId.TryGetValue(aId, out var an) || !_byId.TryGetValue(bId, out var bn)) return 0;
 
-            int guard = 0;
-            // Raise the deeper node up until both sit at the same depth.
-            while (an.Depth > bn.Depth && guard++ < MAX_DEPTH)
-                if (!_byId.TryGetValue(an.ParentId, out an)) return 0;
-            while (bn.Depth > an.Depth && guard++ < MAX_DEPTH)
-                if (!_byId.TryGetValue(bn.ParentId, out bn)) return 0;
-
-            // Walk both up in lockstep until they meet (the deepest common ancestor) or run out.
-            while (an.Id != bn.Id && guard++ < MAX_DEPTH)
-            {
-                if (an.ParentId == NONE || bn.ParentId == NONE) return 0;
-                if (!_byId.TryGetValue(an.ParentId, out an) || !_byId.TryGetValue(bn.ParentId, out bn)) return 0;
-            }
-            return an.Id == bn.Id ? an.Depth + 1 : 0;
+            // Common-prefix length of the two baked root-to-self chains. NONE slots (broken chains)
+            // never count as shared.
+            var a = an.AncestorPath;
+            var b = bn.AncestorPath;
+            int max = a.Length < b.Length ? a.Length : b.Length;
+            int n = 0;
+            while (n < max && a[n] != NONE && a[n] == b[n]) n++;
+            return n;
         }
 
         // ── Authoring (editor) ───────────────────────────────────────────────────

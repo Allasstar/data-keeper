@@ -21,10 +21,14 @@ namespace DataKeeper.GameTagSystem
     /// branches of those tags.
     /// </summary>
     /// <remarks>
-    /// All query methods are zero-GC (index loops, no LINQ / no enumerator allocation). Empty-input
-    /// semantics follow Unreal: <see cref="HasAny"/>/<see cref="HasAnyExact"/> on an empty or null
-    /// argument return <c>false</c>, while <see cref="HasAll"/>/<see cref="HasAllExact"/> return
-    /// <c>true</c> (no required tag is missing).
+    /// Query methods are zero-GC in steady state (index loops, no LINQ / no enumerator allocation); a
+    /// container holding 8+ tags additionally builds a cached expanded-ancestor set on its first
+    /// hierarchical query (one-time allocation, maintained incrementally), after which
+    /// <see cref="HasTag"/> is a single hash probe. Mutations resolve rename/merge redirects, so the
+    /// container stores only canonical ids — a retired handle and its replacement behave as the same
+    /// tag for add/remove and for listener registration. Empty-input semantics follow Unreal:
+    /// <see cref="HasAny"/>/<see cref="HasAnyExact"/> on an empty or null argument return <c>false</c>,
+    /// while <see cref="HasAll"/>/<see cref="HasAllExact"/> return <c>true</c> (no required tag is missing).
     /// <code>
     /// var c = new GameTagContainer();
     /// c.AddTag(GameTag.Find("Damage/Elemental/Fire"));
@@ -33,8 +37,9 @@ namespace DataKeeper.GameTagSystem
     /// </code>
     /// <para>
     /// <b>Observable.</b> Every mutation raises change events at four granularities, all built on the package's
-    /// zero-GC <c>Signal</c>. The event infrastructure is lazily created on first subscription, so a container that
-    /// is never observed keeps its plain-data allocation profile and pays only a null-check per mutation.
+    /// zero-GC <c>Signal</c>. The event infrastructure is lazily created on first subscription and released again
+    /// when the last listener is removed, so a container that is not observed keeps its plain-data allocation
+    /// profile and pays only constant per-mutation work (a redirect resolve and null checks).
     /// <list type="bullet">
     /// <item><see cref="AddListener(Action{GameTag,GameTagChangeType})"/> — any add/remove, receives the changed tag.</item>
     /// <item><see cref="AddTagListener"/> — a specific tag, exact (descendants ignored).</item>
@@ -63,6 +68,64 @@ namespace DataKeeper.GameTagSystem
 
         private bool HasObservers =>
             _onAnyChanged != null || _exactObservers != null || _branchObservers != null || _presenceObservers != null;
+
+        // Resolves rename/merge redirects so the container stores, removes, and keys observers by
+        // canonical ids only: a retired handle and its replacement behave as the same tag everywhere.
+        private static GameTag Canonical(GameTag tag)
+        {
+            var registry = GameTagRegistry.Default;
+            return registry != null ? new GameTag(registry.Resolve(tag.Id)) : tag;
+        }
+
+        // ── Expanded ancestor set (O(1) HasTag once the container is large) ──────
+        // Ref-count of every contained tag's resolved id plus all its ancestor ids. Built lazily the
+        // first time a hierarchical query runs on a container big enough that a hash probe beats the
+        // linear scan; maintained incrementally by mutations, invalidated (and rebuilt on demand)
+        // when the registry re-bakes or is swapped. Small containers never allocate it.
+        private const int ExpandedQueryThreshold = 8;
+        [NonSerialized] private Dictionary<int, int> _expanded;
+        [NonSerialized] private GameTagRegistry _expandedRegistry;
+        [NonSerialized] private int _expandedVersion;
+
+        private void EnsureExpanded(GameTagRegistry registry)
+        {
+            if (_expanded != null && _expandedRegistry == registry && _expandedVersion == registry.BakeVersion)
+                return;
+            _expanded ??= new Dictionary<int, int>();
+            _expanded.Clear();
+            _expandedRegistry = registry;
+            _expandedVersion = registry.BakeVersion;
+            for (int i = 0; i < _tags.Count; i++) ApplyExpanded(_tags[i], +1, registry);
+        }
+
+        // Called after every _tags mutation (delta +1 add, -1 remove). No-op until the set exists.
+        private void TrackChange(GameTag tag, int delta)
+        {
+            if (_expanded == null) return;
+            var registry = GameTagRegistry.Default;
+            if (registry == null || registry != _expandedRegistry || registry.BakeVersion != _expandedVersion)
+            {
+                _expandedRegistry = null; // stale; EnsureExpanded rebuilds on the next large query
+                return;
+            }
+            ApplyExpanded(tag, delta, registry);
+        }
+
+        private void ApplyExpanded(GameTag tag, int delta, GameTagRegistry registry)
+        {
+            var node = registry.GetNode(registry.Resolve(tag.Id));
+            if (node == null) return; // invalid/stale entries match nothing, so they contribute nothing
+            var chain = node.AncestorPath;
+            for (int i = 0; i < chain.Length; i++)
+            {
+                int id = chain[i];
+                if (id == GameTagRegistry.NONE) continue;
+                _expanded.TryGetValue(id, out int count);
+                count += delta;
+                if (count > 0) _expanded[id] = count;
+                else _expanded.Remove(id);
+            }
+        }
 
         // Tracks how many contained tags currently fall under a subscribed branch, so a raw per-tag change can be
         // collapsed into a single present/absent transition: the branch is present exactly when Count > 0.
@@ -116,16 +179,22 @@ namespace DataKeeper.GameTagSystem
 
         /// <summary>Unsubscribes a listener added with <see cref="AddListener(Action{GameTag,GameTagChangeType})"/>.</summary>
         public void RemoveListener(Action<GameTag, GameTagChangeType> onChanged)
-            => _onAnyChanged?.RemoveListener(onChanged);
+        {
+            if (_onAnyChanged == null) return;
+            _onAnyChanged.RemoveListener(onChanged);
+            if (_onAnyChanged.ListenerCount == 0) _onAnyChanged = null;
+        }
 
         // ── Subscription: a specific tag (exact) ─────────────────────────────────
 
         /// <summary>
         /// Subscribes to add/remove of <paramref name="tag"/> exactly (hierarchy ignored). The callback fires only
-        /// when that literal tag is added or removed — not when a descendant changes.
+        /// when that literal tag is added or removed — not when a descendant changes. The key is redirect-resolved:
+        /// subscribing with a retired handle observes its replacement.
         /// </summary>
         public void AddTagListener(GameTag tag, Action<GameTagChangeType> onChanged)
         {
+            tag = Canonical(tag);
             _exactObservers ??= new Dictionary<GameTag, Signal<GameTagChangeType>>();
             if (!_exactObservers.TryGetValue(tag, out var s))
                 _exactObservers[tag] = s = new Signal<GameTagChangeType>();
@@ -135,8 +204,11 @@ namespace DataKeeper.GameTagSystem
         /// <summary>Unsubscribes a listener added with <see cref="AddTagListener"/>.</summary>
         public void RemoveTagListener(GameTag tag, Action<GameTagChangeType> onChanged)
         {
-            if (_exactObservers != null && _exactObservers.TryGetValue(tag, out var s))
-                s.RemoveListener(onChanged);
+            tag = Canonical(tag);
+            if (_exactObservers == null || !_exactObservers.TryGetValue(tag, out var s)) return;
+            s.RemoveListener(onChanged);
+            if (s.ListenerCount == 0) _exactObservers.Remove(tag);
+            if (_exactObservers.Count == 0) _exactObservers = null;
         }
 
         // ── Subscription: a branch (a tag or any of its descendants) ─────────────
@@ -144,7 +216,8 @@ namespace DataKeeper.GameTagSystem
         /// <summary>
         /// Subscribes to add/remove of <paramref name="parent"/> <b>or any of its descendants</b>. Adding
         /// <c>"Enemy/Boss/Elite"</c> notifies a listener registered on <c>"Enemy"</c>. The callback receives the
-        /// concrete tag that changed (e.g. <c>"Enemy/Boss/Elite"</c>), not the subscribed branch.
+        /// concrete tag that changed (e.g. <c>"Enemy/Boss/Elite"</c>), not the subscribed branch. The key is
+        /// redirect-resolved, like <see cref="AddTagListener"/>.
         /// </summary>
         /// <remarks>
         /// Raw per-descendant semantics: with both <c>Enemy/Boss</c> and <c>Enemy/Minion</c> present, a listener on
@@ -153,6 +226,7 @@ namespace DataKeeper.GameTagSystem
         /// </remarks>
         public void AddBranchListener(GameTag parent, Action<GameTag, GameTagChangeType> onChanged)
         {
+            parent = Canonical(parent);
             _branchObservers ??= new Dictionary<GameTag, Signal<GameTag, GameTagChangeType>>();
             if (!_branchObservers.TryGetValue(parent, out var s))
                 _branchObservers[parent] = s = new Signal<GameTag, GameTagChangeType>();
@@ -162,8 +236,11 @@ namespace DataKeeper.GameTagSystem
         /// <summary>Unsubscribes a listener added with <see cref="AddBranchListener"/>.</summary>
         public void RemoveBranchListener(GameTag parent, Action<GameTag, GameTagChangeType> onChanged)
         {
-            if (_branchObservers != null && _branchObservers.TryGetValue(parent, out var s))
-                s.RemoveListener(onChanged);
+            parent = Canonical(parent);
+            if (_branchObservers == null || !_branchObservers.TryGetValue(parent, out var s)) return;
+            s.RemoveListener(onChanged);
+            if (s.ListenerCount == 0) _branchObservers.Remove(parent);
+            if (_branchObservers.Count == 0) _branchObservers = null;
         }
 
         // ── Subscription: branch presence (deduped present/absent transitions) ───
@@ -179,10 +256,12 @@ namespace DataKeeper.GameTagSystem
         /// Maps directly onto toggle-style code, e.g. <c>c.AddBranchPresenceListener(stunned, shield.SetActive)</c>.
         /// Does not fire on subscribe; the current presence is captured so the next transition is correct. If you
         /// need the initial state, read <c>HasTag(parent)</c> once yourself. Backed by a per-branch ref-count, so
-        /// it stays correct even with duplicate entries from <see cref="AddTagFast"/>.
+        /// it stays correct even with duplicate entries from <see cref="AddTagFast"/>. The key is redirect-resolved,
+        /// like <see cref="AddTagListener"/>.
         /// </remarks>
         public void AddBranchPresenceListener(GameTag parent, Action<bool> onPresenceChanged)
         {
+            parent = Canonical(parent);
             _presenceObservers ??= new Dictionary<GameTag, PresenceObserver>();
             if (!_presenceObservers.TryGetValue(parent, out var po))
                 _presenceObservers[parent] = po = new PresenceObserver { Count = CountCovered(parent) };
@@ -192,8 +271,11 @@ namespace DataKeeper.GameTagSystem
         /// <summary>Unsubscribes a listener added with <see cref="AddBranchPresenceListener"/>.</summary>
         public void RemoveBranchPresenceListener(GameTag parent, Action<bool> onPresenceChanged)
         {
-            if (_presenceObservers != null && _presenceObservers.TryGetValue(parent, out var po))
-                po.Signal.RemoveListener(onPresenceChanged);
+            parent = Canonical(parent);
+            if (_presenceObservers == null || !_presenceObservers.TryGetValue(parent, out var po)) return;
+            po.Signal.RemoveListener(onPresenceChanged);
+            if (po.Signal.ListenerCount == 0) _presenceObservers.Remove(parent); // Count is re-seeded on resubscribe
+            if (_presenceObservers.Count == 0) _presenceObservers = null;
         }
 
         // Number of contained tags currently covered by (equal to, or a descendant of) branch. Seeds the ref-count
@@ -206,16 +288,16 @@ namespace DataKeeper.GameTagSystem
             return n;
         }
 
-        /// <summary>Removes every listener (global, exact, branch, and branch-presence) from this container.</summary>
+        /// <summary>
+        /// Removes every listener (global, exact, branch, and branch-presence) from this container and
+        /// releases the observation infrastructure, restoring the never-observed allocation profile.
+        /// </summary>
         public void RemoveAllListeners()
         {
-            _onAnyChanged?.RemoveAllListeners();
-            if (_exactObservers != null)
-                foreach (var s in _exactObservers.Values) s.RemoveAllListeners();
-            if (_branchObservers != null)
-                foreach (var s in _branchObservers.Values) s.RemoveAllListeners();
-            if (_presenceObservers != null)
-                foreach (var po in _presenceObservers.Values) po.Signal.RemoveAllListeners();
+            _onAnyChanged = null;
+            _exactObservers = null;
+            _branchObservers = null;
+            _presenceObservers = null;
         }
 
         // ── Count / state (Unreal: Num / IsEmpty / IsValid) ──────────────────────
@@ -259,13 +341,16 @@ namespace DataKeeper.GameTagSystem
         /// <remarks>
         /// Uniqueness is by exact identity, not hierarchy: adding <c>"Enemy"</c> while <c>"Enemy/Boss"</c> is
         /// already present still adds it — they are different nodes and both are kept. Use <see cref="AddLeafTag"/>
-        /// instead when you want only the most-specific tag of a branch.
+        /// instead when you want only the most-specific tag of a branch. Redirects are resolved on entry, so the
+        /// container stores canonical ids: adding a retired handle stores (and notifies with) its replacement.
         /// </remarks>
         public void AddTag(GameTag tag)
         {
+            tag = Canonical(tag);
             if (tag.IsValid && !HasTagExact(tag))
             {
                 _tags.Add(tag);
+                TrackChange(tag, +1);
                 Notify(tag, GameTagChangeType.Added);
             }
         }
@@ -274,10 +359,13 @@ namespace DataKeeper.GameTagSystem
         /// <remarks>
         /// For hot paths where the tag is already known valid and unique: skips the O(n) <see cref="HasTagExact"/>
         /// scan that <see cref="AddTag"/> performs. Can introduce duplicates or invalid entries if misused.
+        /// Redirects are still resolved (a single dictionary probe) so the container stays canonical.
         /// </remarks>
         public void AddTagFast(GameTag tag)
         {
+            tag = Canonical(tag);
             _tags.Add(tag);
+            TrackChange(tag, +1);
             Notify(tag, GameTagChangeType.Added);
         }
 
@@ -298,22 +386,27 @@ namespace DataKeeper.GameTagSystem
         /// </example>
         public bool AddLeafTag(GameTag tag)
         {
+            tag = Canonical(tag);
             if (!tag.IsValid) return false;
 
             // Already covered by an equal or more-specific tag -> nothing to do.
             for (int i = 0; i < _tags.Count; i++)
                 if (_tags[i].MatchesTag(tag)) return false;
 
-            // Drop ancestors of the new leaf; they are now redundant.
+            // Drop ancestors of the new leaf; they are now redundant. A listener may mutate the
+            // container from Notify, so the index is re-clamped before each access.
             for (int i = _tags.Count - 1; i >= 0; i--)
-                if (tag.MatchesTag(_tags[i]))
-                {
-                    var dropped = _tags[i];
-                    _tags.RemoveAt(i);
-                    Notify(dropped, GameTagChangeType.Removed);
-                }
+            {
+                if (i >= _tags.Count) { i = _tags.Count; continue; }
+                if (!tag.MatchesTag(_tags[i])) continue;
+                var dropped = _tags[i];
+                _tags.RemoveAt(i);
+                TrackChange(dropped, -1);
+                Notify(dropped, GameTagChangeType.Removed);
+            }
 
             _tags.Add(tag);
+            TrackChange(tag, +1);
             Notify(tag, GameTagChangeType.Added);
             return true;
         }
@@ -322,10 +415,14 @@ namespace DataKeeper.GameTagSystem
         /// <remarks>
         /// Removal is by exact identity: it deletes only the literal member, never an ancestor or descendant.
         /// Removing <c>"Enemy"</c> from a container holding <c>"Enemy/Boss"</c> removes nothing and returns <c>false</c>.
+        /// Redirects are resolved on entry (mirroring <see cref="AddTag"/>): a retired handle removes the
+        /// canonical member it was stored as.
         /// </remarks>
         public bool RemoveTag(GameTag tag)
         {
+            tag = Canonical(tag);
             if (!_tags.Remove(tag)) return false;
+            TrackChange(tag, -1);
             Notify(tag, GameTagChangeType.Removed);
             return true;
         }
@@ -335,29 +432,38 @@ namespace DataKeeper.GameTagSystem
         public void RemoveTags(GameTagContainer other)
         {
             if (other == null) return;
+            if (other == this) { Reset(); return; } // iterating other's list while removing from it would skip entries
             for (int i = 0; i < other._tags.Count; i++)
             {
-                var tag = other._tags[i];
-                if (_tags.Remove(tag)) Notify(tag, GameTagChangeType.Removed);
+                var tag = Canonical(other._tags[i]);
+                if (!_tags.Remove(tag)) continue;
+                TrackChange(tag, -1);
+                Notify(tag, GameTagChangeType.Removed);
             }
         }
 
         /// <summary>Removes all tags, emitting a <see cref="GameTagChangeType.Removed"/> per tag to observers (Unreal <c>Reset</c>).</summary>
+        /// <remarks>Safe against listeners that mutate the container from the callback; tags a listener re-adds during the sweep survive it.</remarks>
         public void Reset()
         {
             if (HasObservers)
             {
                 // Notify from the end so a listener that inspects the container sees each tag already gone.
+                // A listener may mutate the container from the callback: the index is re-clamped before each
+                // access, and tags a listener re-adds during the sweep survive it (they land past the cursor).
                 for (int i = _tags.Count - 1; i >= 0; i--)
                 {
+                    if (i >= _tags.Count) { i = _tags.Count; continue; }
                     var tag = _tags[i];
                     _tags.RemoveAt(i);
+                    TrackChange(tag, -1);
                     Notify(tag, GameTagChangeType.Removed);
                 }
             }
             else
             {
                 _tags.Clear();
+                _expanded?.Clear();
             }
         }
 
@@ -380,7 +486,8 @@ namespace DataKeeper.GameTagSystem
         /// <remarks>
         /// Answers "is <paramref name="tag"/> <i>covered</i> by what I hold, following the hierarchy?" The query
         /// tag need not be an explicit member — being an ancestor of a contained tag is enough. For literal
-        /// membership use <see cref="HasTagExact"/>.
+        /// membership use <see cref="HasTagExact"/>. Small containers scan linearly; containers holding 8+ tags
+        /// answer from a cached expanded-ancestor set (a single hash probe, built lazily on the first such query).
         /// </remarks>
         /// <example>
         /// <code>
@@ -395,6 +502,18 @@ namespace DataKeeper.GameTagSystem
         /// </example>
         public bool HasTag(GameTag tag)
         {
+            // Large containers answer from the expanded ancestor set: one hash probe instead of a scan.
+            if (_tags.Count >= ExpandedQueryThreshold)
+            {
+                var registry = GameTagRegistry.Default;
+                if (registry != null)
+                {
+                    EnsureExpanded(registry);
+                    int id = registry.Resolve(tag.Id);
+                    return id != GameTagRegistry.NONE && _expanded.ContainsKey(id);
+                }
+            }
+
             for (int i = 0; i < _tags.Count; i++)
                 if (_tags[i].MatchesTag(tag)) return true;
             return false;

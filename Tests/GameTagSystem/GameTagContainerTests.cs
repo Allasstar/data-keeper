@@ -434,5 +434,138 @@ namespace DataKeeper.Tests.GameTagSystem
             _container.AddTag(Tag("Enemy/Boss"));
             Assert.AreEqual(0, log.Count);
         }
+
+        [Test]
+        public void RemoveAllListeners_StopsAllNotifications()
+        {
+            int calls = 0;
+            _container.AddListener((t, c) => calls++);
+            _container.AddTagListener(Tag("Enemy"), c => calls++);
+            _container.AddBranchListener(Tag("Enemy"), (t, c) => calls++);
+            _container.AddBranchPresenceListener(Tag("Enemy"), b => calls++);
+            _container.RemoveAllListeners();
+            _container.AddTag(Tag("Enemy"));
+            Assert.AreEqual(0, calls);
+        }
+
+        [Test]
+        public void BranchPresence_ResubscribeAfterLastListenerRemoved_ReseedsFromCurrentState()
+        {
+            System.Action<bool> l = _ => { };
+            _container.AddBranchPresenceListener(Tag("Enemy"), l);
+            _container.RemoveBranchPresenceListener(Tag("Enemy"), l); // observer evicted with its count
+            _container.AddTag(Tag("Enemy/Boss"));                      // unobserved change
+            var log = new System.Collections.Generic.List<bool>();
+            _container.AddBranchPresenceListener(Tag("Enemy"), log.Add);
+            _container.RemoveTag(Tag("Enemy/Boss"));
+            Assert.AreEqual(1, log.Count);
+            Assert.IsFalse(log[0], "count was re-seeded on resubscribe, so present->absent fires");
+        }
+
+        // --- Reentrancy: listeners mutating the container from the callback ---
+        [Test]
+        public void Reset_ListenerRemovingAnotherTag_DoesNotThrow()
+        {
+            _container.AddTag(Tag("Enemy"));
+            _container.AddTag(Tag("Player"));
+            _container.AddTag(Tag("Enemy/Minion"));
+            _container.AddListener((t, c) => { if (c == GameTagChangeType.Removed) _container.RemoveTag(Tag("Enemy")); });
+            Assert.DoesNotThrow(() => _container.Reset());
+            Assert.IsTrue(_container.IsEmpty());
+        }
+
+        [Test]
+        public void AddLeafTag_ListenerRemovingTags_DoesNotThrow()
+        {
+            _container.AddTag(Tag("Player"));
+            _container.AddTag(Tag("Enemy"));
+            _container.AddListener((t, c) => { if (c == GameTagChangeType.Removed) _container.RemoveTag(Tag("Player")); });
+            Assert.DoesNotThrow(() => _container.AddLeafTag(Tag("Enemy/Boss")));
+            Assert.IsTrue(_container.HasTagExact(Tag("Enemy/Boss")));
+            Assert.IsFalse(_container.HasTagExact(Tag("Player")));
+        }
+
+        // --- RemoveTags with itself ---
+        [Test]
+        public void RemoveTags_Self_EmptiesContainer()
+        {
+            _container.AddTag(Tag("Enemy"));
+            _container.AddTag(Tag("Player"));
+            _container.AddTag(Tag("Enemy/Minion"));
+            _container.RemoveTags(_container);
+            Assert.IsTrue(_container.IsEmpty());
+        }
+
+        // --- Redirect canonicalization on add/remove and listener keys ---
+        [Test]
+        public void AddTag_RetiredHandle_StoresCanonicalReplacement()
+        {
+            int minion = _registry.FindByPath("Enemy/Minion");
+            int player = _registry.FindByPath("Player");
+            _registry.Delete(minion, redirectToId: player);
+
+            _container.AddTag(GameTag.FromId(minion));
+            Assert.AreEqual(1, _container.Count);
+            Assert.AreEqual(player, _container.First().Id, "the canonical id was stored");
+            Assert.IsTrue(_container.RemoveTag(GameTag.FromId(player)), "canonical handle removes it");
+            Assert.IsTrue(_container.IsEmpty());
+        }
+
+        [Test]
+        public void RemoveTag_RetiredHandle_RemovesCanonicalMember()
+        {
+            int minion = _registry.FindByPath("Enemy/Minion");
+            int player = _registry.FindByPath("Player");
+            _registry.Delete(minion, redirectToId: player);
+
+            _container.AddTag(GameTag.FromId(player));
+            Assert.IsTrue(_container.RemoveTag(GameTag.FromId(minion)), "retired handle resolves to the member");
+            Assert.IsTrue(_container.IsEmpty());
+        }
+
+        [Test]
+        public void AddTagListener_RetiredHandle_FiresWhenReplacementAdded()
+        {
+            int minion = _registry.FindByPath("Enemy/Minion");
+            int player = _registry.FindByPath("Player");
+            _registry.Delete(minion, redirectToId: player);
+
+            int calls = 0;
+            _container.AddTagListener(GameTag.FromId(minion), c => calls++);
+            _container.AddTag(GameTag.FromId(player));
+            Assert.AreEqual(1, calls, "listener key was canonicalized at subscribe");
+        }
+
+        // --- Expanded ancestor set (large-container HasTag fast path) ---
+        [Test]
+        public void HasTag_LargeContainer_MatchesLinearSemantics()
+        {
+            for (int i = 0; i < 10; i++) _registry.GetOrCreate("Bulk/Item" + i);
+            for (int i = 0; i < 10; i++) _container.AddTag(Tag("Bulk/Item" + i));
+
+            Assert.IsTrue(_container.HasTag(Tag("Bulk")), "ancestor query covered");
+            Assert.IsTrue(_container.HasTag(Tag("Bulk/Item3")));
+            Assert.IsFalse(_container.HasTag(Tag("Player")));
+
+            _container.RemoveTag(Tag("Bulk/Item3"));
+            Assert.IsFalse(_container.HasTag(Tag("Bulk/Item3")), "set tracked the removal");
+            Assert.IsTrue(_container.HasTag(Tag("Bulk")), "branch still covered by remaining items");
+
+            for (int i = 0; i < 10; i++) _container.RemoveTag(Tag("Bulk/Item" + i));
+            Assert.IsFalse(_container.HasTag(Tag("Bulk")), "consistent after draining below the threshold");
+        }
+
+        [Test]
+        public void HasTag_LargeContainer_SurvivesRegistryRebake()
+        {
+            for (int i = 0; i < 10; i++) _registry.GetOrCreate("Bulk/Item" + i);
+            for (int i = 0; i < 10; i++) _container.AddTag(Tag("Bulk/Item" + i));
+            Assert.IsTrue(_container.HasTag(Tag("Bulk"))); // builds the expanded set
+
+            _registry.GetOrCreate("Fresh/Thing"); // re-bakes the registry -> set is stale
+            _container.AddTag(Tag("Fresh/Thing"));
+            Assert.IsTrue(_container.HasTag(Tag("Fresh")), "rebuilt set includes the new tag");
+            Assert.IsTrue(_container.HasTag(Tag("Bulk")));
+        }
     }
 }
