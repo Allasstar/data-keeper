@@ -126,6 +126,26 @@ namespace DataKeeper.UI
             }));
         }
 
+        /// <summary>Bool value ↔ <see cref="ToggleUI"/>. Two-way by default.</summary>
+        public static UIBinding BindTo(this IReactive<bool> source, ToggleUI toggle, bool twoWay = true)
+        {
+            Action<bool> apply = v => { if (toggle) toggle.SetIsOnWithoutNotify(v); };
+            source.AddListener(apply, callOnAddListener: true);
+
+            UnityAction<bool> onUI = null;
+            if (twoWay)
+            {
+                onUI = v => source.UniqueValue = v;
+                toggle.onValueChanged.AddListener(onUI);
+            }
+
+            return Attach(toggle, new UIBinding(() =>
+            {
+                source.RemoveListener(apply);
+                if (onUI != null && toggle) toggle.onValueChanged.RemoveListener(onUI);
+            }));
+        }
+
         // --- Input field ---
 
         /// <summary>String value ↔ input field. Two-way by default (writes back on every edit).</summary>

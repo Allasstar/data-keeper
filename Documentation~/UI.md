@@ -41,7 +41,7 @@ using DataKeeper.UI;
 health.BindTo(healthLabel, v => $"HP {v}");   // TMP_Text, custom format
 health.BindToFill(healthBarImage);            // Image.fillAmount
 musicVolume.BindTo(volumeSlider);             // two-way Slider
-muted.BindTo(muteToggle);                     // two-way Toggle
+muted.BindTo(muteToggle);                     // two-way Toggle or ToggleUI
 playerName.BindTo(nameInput);                 // two-way TMP_InputField
 isDead.BindToActive(gameOverPanel);           // GameObject.SetActive
 canBuy.BindToInteractable(buyButton);         // Selectable.interactable
