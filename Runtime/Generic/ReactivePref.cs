@@ -66,9 +66,9 @@ namespace DataKeeper.Generic
                     value = (T)(object)rect.FromString(PlayerPrefs.GetString(Key, "(x:0.0, y:0.0, width:0.0, height:0.00)"));
                     break;
                 default:
-                    var defaultJson = JsonConvert.SerializeObject(DefaultValue);
+                    var defaultJson = JsonConvert.SerializeObject(DefaultValue, DataKeeperJson.Settings);
                     var json = PlayerPrefs.GetString(Key, defaultJson);
-                    value = JsonConvert.DeserializeObject<T>(json);
+                    value = JsonConvert.DeserializeObject<T>(json, DataKeeperJson.Settings);
                     break;
             }
         }
@@ -192,7 +192,7 @@ namespace DataKeeper.Generic
                     PlayerPrefs.SetString(Key, rec.ToString("R", CultureInfo.InvariantCulture));
                     break;
                 default:
-                    PlayerPrefs.SetString(Key, JsonConvert.SerializeObject(value));
+                    PlayerPrefs.SetString(Key, JsonConvert.SerializeObject(value, DataKeeperJson.Settings));
                     break;
             }
        

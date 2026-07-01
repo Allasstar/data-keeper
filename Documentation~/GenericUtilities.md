@@ -60,6 +60,18 @@ A `ConcurrentQueue<T>` with a maximum size; enqueueing past capacity silently dr
 
 A value wrapper with Json.NET helpers (`ToJSON(formatting)` / `FromJSON(json)`), for embedding arbitrary serializable payloads in strings/prefs.
 
+## `DataKeeperJson`
+
+The shared Json.NET settings behind [DataFile](DataFile.md), `JsonData<T>` and `ReactivePref<T>`'s JSON fallback. Its contract resolver serializes UnityEngine structs by fields only, so `Vector3`, `Quaternion`, `Color` etc. produce clean JSON instead of bloated output with read-only properties (or self-reference errors).
+
+```csharp
+DataKeeperJson.Serialize(new Vector3(1, 2, 3));   // {"x":1.0,"y":2.0,"z":3.0}
+DataKeeperJson.Deserialize<Vector3>(json);
+
+// Customize before the first save/load:
+DataKeeperJson.Settings.Converters.Add(new MyConverter());
+```
+
 ## `Option<TValue, TProvider>`
 
 Inspector-selectable choice between a direct value and a [ValueProvider](ValueProviders.md) ScriptableObject asset (`OptionMode` picks which source is used).

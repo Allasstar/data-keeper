@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DataKeeper.Extensions;
+using DataKeeper.Generic;
 using DataKeeper.Signals;
 using Newtonsoft.Json;
 using UnityEditor;
@@ -63,9 +64,9 @@ namespace DataKeeper.Editor.Generic
                     value = (T)(object)rect.FromString(EditorPrefs.GetString(Key, "(x:0.0, y:0.0, width:0.0, height:0.00)"));
                     break;
                 default:
-                    var defaultJson = JsonConvert.SerializeObject(DefaultValue);
+                    var defaultJson = JsonConvert.SerializeObject(DefaultValue, DataKeeperJson.Settings);
                     var json = EditorPrefs.GetString(Key, defaultJson);
-                    value = JsonConvert.DeserializeObject<T>(json);
+                    value = JsonConvert.DeserializeObject<T>(json, DataKeeperJson.Settings);
                     break;
             }
         }
@@ -188,7 +189,7 @@ namespace DataKeeper.Editor.Generic
                     EditorPrefs.SetString(Key, rec.ToString());
                     break;
                 default:
-                    EditorPrefs.SetString(Key, JsonConvert.SerializeObject(value));
+                    EditorPrefs.SetString(Key, JsonConvert.SerializeObject(value, DataKeeperJson.Settings));
                     break;
             }
         }

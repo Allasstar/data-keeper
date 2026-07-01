@@ -10,7 +10,7 @@ namespace DataKeeper.Generic
         {
             try
             {
-                return JsonConvert.SerializeObject(this, formatting);
+                return JsonConvert.SerializeObject(this, formatting, DataKeeperJson.Settings);
             }
             catch (Exception e)
             {
@@ -24,7 +24,7 @@ namespace DataKeeper.Generic
         {
             try
             {
-                return JsonConvert.DeserializeObject<T>(json);
+                return JsonConvert.DeserializeObject<T>(json, DataKeeperJson.Settings);
             }
             catch (Exception e)
             {

@@ -44,6 +44,22 @@ await save.LoadDataAsync();
 | `Xml` | `XmlSerializer` | Requires public parameterless constructor and public members |
 | `Binary` | `BinaryFormatter` | Compact but type-brittle; avoid for untrusted data — `BinaryFormatter` is deprecated by .NET for security reasons |
 
+## Unity types in JSON
+
+JSON serialization goes through `DataKeeperJson.Settings` — shared Json.NET settings that serialize UnityEngine structs (`Vector2/3/4`, `Quaternion`, `Color`, `Rect`, `Bounds`, `Vector2Int/3Int`, `Matrix4x4`, …) **by fields only**. Without this, Json.NET would write read-only properties too (`Vector3.normalized`, `Quaternion.eulerAngles`, …), bloating files and risking self-reference loops. So Unity types inside your save data just work:
+
+```csharp
+[Serializable]
+public class SaveGame
+{
+    public Vector3 position;      // {"x":…,"y":…,"z":…}
+    public Quaternion rotation;
+    public Color tint;
+}
+```
+
+To customize (e.g. add your own `JsonConverter`s), mutate or replace `DataKeeperJson.Settings` before the first save/load. The same settings are used by [`JsonData<T>`](GenericUtilities.md) and `ReactivePref<T>`'s JSON fallback.
+
 ## Notes
 
 - File paths are relative to `Application.persistentDataPath`; intermediate folders are created automatically (subfolders in the file name are fine, e.g. `"saves/slot1.json"`).

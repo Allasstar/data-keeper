@@ -206,7 +206,7 @@ namespace DataKeeper.Generic
         {
             try
             {
-                string jsonData = JsonConvert.SerializeObject(Data);
+                string jsonData = JsonConvert.SerializeObject(Data, DataKeeperJson.Settings);
                 using (StreamWriter writer = new StreamWriter(_filePath))
                 {
                     writer.Write(jsonData);
@@ -226,7 +226,7 @@ namespace DataKeeper.Generic
                 using (StreamReader reader = new StreamReader(_filePath))
                 {
                     string jsonData = reader.ReadToEnd();
-                    Data = JsonConvert.DeserializeObject<T>(jsonData);
+                    Data = JsonConvert.DeserializeObject<T>(jsonData, DataKeeperJson.Settings);
                 }
                 Debug.Log("JSON data loaded successfully.");
             }
@@ -308,7 +308,7 @@ namespace DataKeeper.Generic
         {
             try
             {
-                string jsonData = JsonConvert.SerializeObject(Data);
+                string jsonData = JsonConvert.SerializeObject(Data, DataKeeperJson.Settings);
                 using (StreamWriter writer = new StreamWriter(_filePath))
                 {
                     await writer.WriteAsync(jsonData);
@@ -328,7 +328,7 @@ namespace DataKeeper.Generic
                 using (StreamReader reader = new StreamReader(_filePath))
                 {
                     string jsonData = await reader.ReadToEndAsync();
-                    Data = JsonConvert.DeserializeObject<T>(jsonData);
+                    Data = JsonConvert.DeserializeObject<T>(jsonData, DataKeeperJson.Settings);
                 }
                 Debug.Log("JSON data loaded successfully.");
             }
