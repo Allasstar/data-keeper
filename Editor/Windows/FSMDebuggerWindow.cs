@@ -21,12 +21,10 @@ namespace DataKeeper.Editor.FSM
             EditorGUILayout.Space(5);
 
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            
-            EditorGUI.BeginChangeCheck();
+
             isLocked = EditorGUILayout.Toggle(isLocked, GUILayout.Width(20));
             EditorGUILayout.LabelField("Lock Selection", GUILayout.Width(100));
-            EditorGUI.EndChangeCheck();
-            
+
             EditorGUILayout.Space();
             EditorGUILayout.EndHorizontal();
             
@@ -60,15 +58,17 @@ namespace DataKeeper.Editor.FSM
             {
                 EditorGUILayout.HelpBox("Works only in play mode", MessageType.Info);
             }
-            
-            if (!foundAnyStateMachine)
+            else if (!foundAnyStateMachine)
             {
                 EditorGUILayout.HelpBox("No StateMachine components found on this object", MessageType.Info);
             }
-            
+
             EditorGUILayout.EndScrollView();
-            
-            Repaint();
+
+            if (Application.isPlaying)
+            {
+                Repaint();
+            }
         }
 
         private void OnSelectionChange()

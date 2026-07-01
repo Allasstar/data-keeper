@@ -28,7 +28,7 @@ namespace DataKeeper.Editor.FSM
                         var stateMachine = field.GetValue(target);
                         if (stateMachine != null)
                         {
-                            DrawStateMachineDebug(stateMachine, target);
+                            DrawStateMachineDebug(stateMachine, target, field.Name);
                             foundStateMachine = true;
                         }
                     }
@@ -43,23 +43,20 @@ namespace DataKeeper.Editor.FSM
             }
         }
 
-        private static void DrawStateMachineDebug(object stateMachine, Object component)
+        private static void DrawStateMachineDebug(object stateMachine, Object component, string fieldName)
         {
             if (stateMachine == null) return;
 
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             try
             {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 EditorGUILayout.Space();
-                
-                EditorGUILayout.LabelField($"Component: {component.GetType().Name} > {nameof(stateMachine)}", EditorStyles.boldLabel);
-                
+
+                EditorGUILayout.LabelField($"Component: {component.GetType().Name} > {fieldName}", EditorStyles.boldLabel);
+
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("State Machine Debug", EditorStyles.boldLabel);
 
-                var type = stateMachine.GetType();
-                if (type == null) return;
-                
                 // Current State
                 DrawStateProperty(stateMachine, "CurrentStateType", "Current State \u25b6");
 
@@ -67,13 +64,16 @@ namespace DataKeeper.Editor.FSM
                 DrawStateProperty(stateMachine, "PreviousStateType", "Previous State \u25c1");
 
                 // History
-                DrawHistory(stateMachine);
+                DrawHistory(stateMachine, component, fieldName);
                 EditorGUILayout.Space();
-                EditorGUILayout.EndVertical();
             }
             catch (Exception e)
             {
                 Debug.LogError($"Error drawing FSM debug: {e.Message}");
+            }
+            finally
+            {
+                EditorGUILayout.EndVertical();
             }
         }
 
@@ -97,18 +97,38 @@ namespace DataKeeper.Editor.FSM
             }
         }
 
-        private static bool showAllStates = false;
-        private static bool showHistory = false;
-        private static void DrawHistory(object stateMachine)
+        private class FoldoutState
         {
-            showAllStates = EditorGUILayout.Foldout(showAllStates, "States", true);
-            if (showAllStates)
+            public bool ShowAllStates;
+            public bool ShowHistory;
+        }
+
+        private static readonly System.Collections.Generic.Dictionary<long, FoldoutState> foldouts =
+            new System.Collections.Generic.Dictionary<long, FoldoutState>();
+
+        private static FoldoutState GetFoldoutState(Object component, string fieldName)
+        {
+            long key = ((long)component.GetInstanceID() << 32) ^ (uint)fieldName.GetHashCode();
+            if (!foldouts.TryGetValue(key, out var state))
+            {
+                state = new FoldoutState();
+                foldouts[key] = state;
+            }
+            return state;
+        }
+
+        private static void DrawHistory(object stateMachine, Object component, string fieldName)
+        {
+            var foldout = GetFoldoutState(component, fieldName);
+
+            foldout.ShowAllStates = EditorGUILayout.Foldout(foldout.ShowAllStates, "States", true);
+            if (foldout.ShowAllStates)
             {
                 States(stateMachine);
             }
-            
-            showHistory = EditorGUILayout.Foldout(showHistory, "State History", true);
-            if (showHistory)
+
+            foldout.ShowHistory = EditorGUILayout.Foldout(foldout.ShowHistory, "State History", true);
+            if (foldout.ShowHistory)
             {
                 History(stateMachine);
             }
@@ -192,7 +212,7 @@ namespace DataKeeper.Editor.FSM
                     EditorGUI.DrawRect(EditorGUILayout.GetControlRect(false, 1), new Color(0.3f, 0.3f, 0.3f));
 
                     EditorGUILayout.BeginHorizontal();
-                    EditorGUILayout.LabelField($"{record.TimeStamp:F}s", GUILayout.Width(100));
+                    EditorGUILayout.LabelField($"{record.TimeStamp:F2}s", GUILayout.Width(100));
                     EditorGUILayout.LabelField(record.FromState, GUILayout.Width(100));
                     EditorGUILayout.LabelField(record.ToState, GUILayout.Width(100));
                     EditorGUILayout.EndHorizontal();

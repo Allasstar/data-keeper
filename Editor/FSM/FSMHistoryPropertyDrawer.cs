@@ -79,6 +79,7 @@ namespace DataKeeper.Editor.FSM
                         if (history != null && history.Length > 0)
                         {
                             // Display entries from newest to oldest
+                            _isEvenRow = true;
                             int visibleRows = Mathf.Min(history.Length, MAX_VISIBLE_ROWS);
                             for (int i = 0; i < visibleRows; i++)
                             {

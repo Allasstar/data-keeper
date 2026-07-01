@@ -131,11 +131,11 @@ namespace DataKeeper.FSM
         private string[] allStates;
         public string[] GetAllStates()
         {
-            if (allStates == null || allStates.Length == 0 || allStates.Length != states.Keys.Count)
+            if (allStates == null || allStates.Length == 0)
             {
                 allStates = Enum.GetNames(typeof(TState));
             }
-            
+
             return allStates;
         }
 #endif
