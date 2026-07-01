@@ -35,6 +35,21 @@ await save.LoadDataAsync();
 | `SaveData()` / `LoadData()` | Synchronous save/load |
 | `SaveDataAsync()` / `LoadDataAsync()` | `Task`-based variants |
 | `IsFileExist()` | Whether the backing file exists on disk |
+| `Scope` | `SaveScope.Global` (default) or `SaveScope.Slot` — set via constructor |
+
+## Save scope & slots
+
+Pass a `SaveScope` to the constructor to make the file participate in [SaveManager](SaveManager.md) save slots:
+
+```csharp
+// Lives in persistentDataPath/slots/{slot}/ when a slot is active
+var progress = new DataFile<Progress>("progress.json", SerializationType.Json, new Progress(), SaveScope.Slot);
+
+// Always at persistentDataPath root, regardless of slot
+var settings = new DataFile<Settings>("settings.json", SerializationType.Json, new Settings());
+```
+
+With no active slot (`SaveManager.CurrentSlot` empty), slot-scoped files fall back to the root folder. Register files with `SaveManager.Register(...)` to save/load them as a batch with versioning and migrations.
 
 ## Serialization types
 

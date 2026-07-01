@@ -20,6 +20,7 @@ Via OpenUPM scoped registry or git URL — see the [README](https://github.com/A
 - [ReactiveList](ReactiveList.md) — observable list
 - [ReactiveDictionary](ReactiveDictionary.md) — observable dictionary
 - [DataFile](DataFile.md) — save/load `DataFile<T>` to disk (JSON / XML / Binary)
+- [SaveManager](SaveManager.md) — unified save pipeline: slots, versioning/migrations, save/load-all
 - [Generic Utilities](GenericUtilities.md) — `Optional<T>`, `UnityLazy<T>`, `Register<T>`, `DirtyTracker<T>`, `DeferredList<T>`, `QueueFixedSized<T>`, `JsonData<T>`
 
 ### Events & flow

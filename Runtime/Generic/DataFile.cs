@@ -15,9 +15,12 @@ namespace DataKeeper.Generic
         private T data;
         
         public T Data { get => data; set => data = value; }
-        
+
+        public SaveScope Scope { get; } = SaveScope.Global;
+
         private readonly string _fileName;
         private string _filePath = null;
+        private string _builtForSlot = null;
         private readonly SerializationType _serializationType;
 
         public DataFile(string fileName, SerializationType serializationType)
@@ -31,12 +34,28 @@ namespace DataKeeper.Generic
         {
             Data = defaultValue;
         }
-        
+
+        public DataFile(string fileName, SerializationType serializationType, SaveScope scope) : this(fileName, serializationType)
+        {
+            Scope = scope;
+        }
+
+        public DataFile(string fileName, SerializationType serializationType, T defaultValue, SaveScope scope) : this(fileName, serializationType, defaultValue)
+        {
+            Scope = scope;
+        }
+
         private void BuildFilePath()
         {
-            if (string.IsNullOrEmpty(_filePath))
+            string slot = Scope == SaveScope.Slot ? SaveManager.CurrentSlot : string.Empty;
+
+            if (string.IsNullOrEmpty(_filePath) || _builtForSlot != slot)
             {
-                _filePath = $"{Application.persistentDataPath}/{_fileName}";
+                _builtForSlot = slot;
+                _filePath = string.IsNullOrEmpty(slot)
+                    ? $"{Application.persistentDataPath}/{_fileName}"
+                    : $"{Application.persistentDataPath}/{SaveManager.SlotsFolderName}/{slot}/{_fileName}";
+
                 if (!FolderHelper.AllFoldersExist(_filePath))
                 {
                     FolderHelper.CreateFolders(_filePath);
@@ -345,10 +364,22 @@ namespace DataKeeper.Generic
         Xml = 1,
         Json = 2
     }
-    
+
+    public enum SaveScope
+    {
+        /// <summary>One shared file, unaffected by the active save slot (settings, unlocks).</summary>
+        Global = 0,
+        /// <summary>Stored per save slot under <c>slots/{slot}/</c> when <see cref="SaveManager.CurrentSlot"/> is set.</summary>
+        Slot = 1
+    }
+
     public interface IDataFile
     {
+        public SaveScope Scope { get; }
+        public bool IsFileExist();
         public void SaveData();
         public void LoadData();
+        public Task SaveDataAsync();
+        public Task LoadDataAsync();
     }
 }
