@@ -1,10 +1,13 @@
+#if DATAKEEPER_ADDRESSABLES
 using System.Collections.Generic;
 using System.Linq;
 using DataKeeper.Attributes;
 using DataKeeper.Extra;
 using DataKeeper.Helpers;
-using UnityEditor;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace DataKeeper.DynamicScene
 {
@@ -302,3 +305,4 @@ namespace DataKeeper.DynamicScene
 #endif
     }
 }
+#endif

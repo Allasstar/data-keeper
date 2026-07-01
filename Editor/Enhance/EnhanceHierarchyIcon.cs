@@ -92,8 +92,10 @@ namespace DataKeeper.Editor.Enhance
             typeof(DataKeeper.BlackboardSystem.BlackboardBehaviour),
             typeof(DataKeeper.ServiceLocatorPattern.ServiceLocatorRegister),
             typeof(DataKeeper.UI.SafeAreaUI),
+#if DATAKEEPER_ADDRESSABLES
             typeof(DataKeeper.DynamicScene.AddressableLoader),
             typeof(DataKeeper.DynamicScene.SubScene),
+#endif
             typeof(TMP_Dropdown),
             typeof(TMP_InputField),
             typeof(TMP_Text),

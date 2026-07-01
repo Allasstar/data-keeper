@@ -1,3 +1,4 @@
+#if DATAKEEPER_ADDRESSABLES
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -280,3 +281,4 @@ namespace DataKeeper.DynamicScene
         }
     }
 }
+#endif
