@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
-using DataKeeper.Helpers;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -19,59 +18,66 @@ namespace DataKeeper.Generic
         public SaveScope Scope { get; } = SaveScope.Global;
 
         private readonly string _fileName;
-        private string _filePath = null;
+        private string _key = null;
         private string _builtForSlot = null;
         private readonly SerializationType _serializationType;
+        private IStorageProvider _storage;
 
-        public DataFile(string fileName, SerializationType serializationType)
+        /// <summary>
+        /// Storage backend of this file. Defaults to the global <see cref="DataKeeperStorage.Files"/>;
+        /// assign (or pass to the constructor) a provider to override it per file.
+        /// </summary>
+        public IStorageProvider Storage
+        {
+            get => _storage ?? DataKeeperStorage.Files;
+            set => _storage = value;
+        }
+
+        public DataFile(string fileName, SerializationType serializationType, IStorageProvider storage = null)
         {
             _fileName = fileName;
             _serializationType = serializationType;
+            _storage = storage;
             data = default(T);
         }
 
-        public DataFile(string fileName, SerializationType serializationType, T defaultValue) : this(fileName, serializationType)
+        public DataFile(string fileName, SerializationType serializationType, T defaultValue, IStorageProvider storage = null) : this(fileName, serializationType, storage)
         {
             Data = defaultValue;
         }
 
-        public DataFile(string fileName, SerializationType serializationType, SaveScope scope) : this(fileName, serializationType)
+        public DataFile(string fileName, SerializationType serializationType, SaveScope scope, IStorageProvider storage = null) : this(fileName, serializationType, storage)
         {
             Scope = scope;
         }
 
-        public DataFile(string fileName, SerializationType serializationType, T defaultValue, SaveScope scope) : this(fileName, serializationType, defaultValue)
+        public DataFile(string fileName, SerializationType serializationType, T defaultValue, SaveScope scope, IStorageProvider storage = null) : this(fileName, serializationType, defaultValue, storage)
         {
             Scope = scope;
         }
 
-        private void BuildFilePath()
+        private void BuildKey()
         {
-            string slot = Scope == SaveScope.Slot ? SaveManager.CurrentSlot : string.Empty;
+            string slot = Scope == SaveScope.Slot ? DataKeeperStorage.CurrentSlot : string.Empty;
 
-            if (string.IsNullOrEmpty(_filePath) || _builtForSlot != slot)
+            if (string.IsNullOrEmpty(_key) || _builtForSlot != slot)
             {
                 _builtForSlot = slot;
-                _filePath = string.IsNullOrEmpty(slot)
-                    ? $"{Application.persistentDataPath}/{_fileName}"
-                    : $"{Application.persistentDataPath}/{SaveManager.SlotsFolderName}/{slot}/{_fileName}";
-
-                if (!FolderHelper.AllFoldersExist(_filePath))
-                {
-                    FolderHelper.CreateFolders(_filePath);
-                }
+                _key = string.IsNullOrEmpty(slot)
+                    ? _fileName
+                    : $"{DataKeeperStorage.SlotsFolderName}/{slot}/{_fileName}";
             }
         }
 
         public bool IsFileExist()
         {
-            BuildFilePath();
-            return File.Exists(_filePath);
+            BuildKey();
+            return Storage.Exists(_key);
         }
 
         public void SaveData()
         {
-            BuildFilePath();
+            BuildKey();
 
             switch (_serializationType)
             {
@@ -92,7 +98,7 @@ namespace DataKeeper.Generic
 
         public void LoadData()
         {
-            BuildFilePath();
+            BuildKey();
 
             switch (_serializationType)
             {
@@ -113,7 +119,7 @@ namespace DataKeeper.Generic
 
         public async Task SaveDataAsync()
         {
-            BuildFilePath();
+            BuildKey();
 
             switch (_serializationType)
             {
@@ -134,7 +140,7 @@ namespace DataKeeper.Generic
 
         public async Task LoadDataAsync()
         {
-            BuildFilePath();
+            BuildKey();
 
             switch (_serializationType)
             {
@@ -153,15 +159,49 @@ namespace DataKeeper.Generic
             }
         }
 
+        private byte[] SerializeBinary()
+        {
+            using (MemoryStream stream = new MemoryStream())
+            {
+                var binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                binaryFormatter.Serialize(stream, Data);
+                return stream.ToArray();
+            }
+        }
+
+        private T DeserializeBinary(byte[] bytes)
+        {
+            using (MemoryStream stream = new MemoryStream(bytes))
+            {
+                var binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                return (T)binaryFormatter.Deserialize(stream);
+            }
+        }
+
+        private string SerializeXml()
+        {
+            XmlSerializer serializer = new XmlSerializer(typeof(T));
+            using (StringWriter writer = new StringWriter())
+            {
+                serializer.Serialize(writer, Data);
+                return writer.ToString();
+            }
+        }
+
+        private T DeserializeXml(string xml)
+        {
+            XmlSerializer serializer = new XmlSerializer(typeof(T));
+            using (StringReader reader = new StringReader(xml))
+            {
+                return (T)serializer.Deserialize(reader);
+            }
+        }
+
         private void SaveDataBinary()
         {
             try
             {
-                using (FileStream fileStream = new FileStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    var binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                    binaryFormatter.Serialize(fileStream, Data);
-                }
+                Storage.WriteBytes(_key, SerializeBinary());
                 Debug.Log("Binary data saved successfully.");
             }
             catch (Exception ex)
@@ -174,11 +214,10 @@ namespace DataKeeper.Generic
         {
             try
             {
-                using (FileStream fileStream = new FileStream(_filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    var binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                    Data = (T)binaryFormatter.Deserialize(fileStream);
-                }
+                byte[] bytes = Storage.ReadBytes(_key);
+                if (bytes == null) throw new FileNotFoundException("Key not found in storage.", _key);
+
+                Data = DeserializeBinary(bytes);
                 Debug.Log("Binary data loaded successfully.");
             }
             catch (Exception ex)
@@ -191,11 +230,7 @@ namespace DataKeeper.Generic
         {
             try
             {
-                XmlSerializer serializer = new XmlSerializer(typeof(T));
-                using (StreamWriter writer = new StreamWriter(_filePath))
-                {
-                    serializer.Serialize(writer, Data);
-                }
+                Storage.WriteText(_key, SerializeXml());
                 Debug.Log("XML data saved successfully.");
             }
             catch (Exception ex)
@@ -208,11 +243,10 @@ namespace DataKeeper.Generic
         {
             try
             {
-                XmlSerializer serializer = new XmlSerializer(typeof(T));
-                using (StreamReader reader = new StreamReader(_filePath))
-                {
-                    Data = (T)serializer.Deserialize(reader);
-                }
+                string xml = Storage.ReadText(_key);
+                if (xml == null) throw new FileNotFoundException("Key not found in storage.", _key);
+
+                Data = DeserializeXml(xml);
                 Debug.Log("XML data loaded successfully.");
             }
             catch (Exception ex)
@@ -225,11 +259,7 @@ namespace DataKeeper.Generic
         {
             try
             {
-                string jsonData = JsonConvert.SerializeObject(Data, DataKeeperJson.Settings);
-                using (StreamWriter writer = new StreamWriter(_filePath))
-                {
-                    writer.Write(jsonData);
-                }
+                Storage.WriteText(_key, JsonConvert.SerializeObject(Data, DataKeeperJson.Settings));
                 Debug.Log("JSON data saved successfully.");
             }
             catch (Exception ex)
@@ -242,11 +272,10 @@ namespace DataKeeper.Generic
         {
             try
             {
-                using (StreamReader reader = new StreamReader(_filePath))
-                {
-                    string jsonData = reader.ReadToEnd();
-                    Data = JsonConvert.DeserializeObject<T>(jsonData, DataKeeperJson.Settings);
-                }
+                string jsonData = Storage.ReadText(_key);
+                if (jsonData == null) throw new FileNotFoundException("Key not found in storage.", _key);
+
+                Data = JsonConvert.DeserializeObject<T>(jsonData, DataKeeperJson.Settings);
                 Debug.Log("JSON data loaded successfully.");
             }
             catch (Exception ex)
@@ -259,11 +288,8 @@ namespace DataKeeper.Generic
         {
             try
             {
-                using (FileStream fileStream = new FileStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    var binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                    await Task.Run(() => binaryFormatter.Serialize(fileStream, Data));
-                }
+                byte[] bytes = await Task.Run(SerializeBinary);
+                await Storage.WriteBytesAsync(_key, bytes);
                 Debug.Log("Binary data saved successfully.");
             }
             catch (Exception ex)
@@ -276,11 +302,10 @@ namespace DataKeeper.Generic
         {
             try
             {
-                using (FileStream fileStream = new FileStream(_filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    var binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                    Data = await Task.Run(() => (T)binaryFormatter.Deserialize(fileStream));
-                }
+                byte[] bytes = await Storage.ReadBytesAsync(_key);
+                if (bytes == null) throw new FileNotFoundException("Key not found in storage.", _key);
+
+                Data = await Task.Run(() => DeserializeBinary(bytes));
                 Debug.Log("Binary data loaded successfully.");
             }
             catch (Exception ex)
@@ -293,11 +318,8 @@ namespace DataKeeper.Generic
         {
             try
             {
-                XmlSerializer serializer = new XmlSerializer(typeof(T));
-                using (StreamWriter writer = new StreamWriter(_filePath))
-                {
-                    await Task.Run(() => serializer.Serialize(writer, Data));
-                }
+                string xml = await Task.Run(SerializeXml);
+                await Storage.WriteTextAsync(_key, xml);
                 Debug.Log("XML data saved successfully.");
             }
             catch (Exception ex)
@@ -310,11 +332,10 @@ namespace DataKeeper.Generic
         {
             try
             {
-                XmlSerializer serializer = new XmlSerializer(typeof(T));
-                using (StreamReader reader = new StreamReader(_filePath))
-                {
-                    Data = await Task.Run(() => (T)serializer.Deserialize(reader));
-                }
+                string xml = await Storage.ReadTextAsync(_key);
+                if (xml == null) throw new FileNotFoundException("Key not found in storage.", _key);
+
+                Data = await Task.Run(() => DeserializeXml(xml));
                 Debug.Log("XML data loaded successfully.");
             }
             catch (Exception ex)
@@ -328,10 +349,7 @@ namespace DataKeeper.Generic
             try
             {
                 string jsonData = JsonConvert.SerializeObject(Data, DataKeeperJson.Settings);
-                using (StreamWriter writer = new StreamWriter(_filePath))
-                {
-                    await writer.WriteAsync(jsonData);
-                }
+                await Storage.WriteTextAsync(_key, jsonData);
                 Debug.Log("JSON data saved successfully.");
             }
             catch (Exception ex)
@@ -344,11 +362,10 @@ namespace DataKeeper.Generic
         {
             try
             {
-                using (StreamReader reader = new StreamReader(_filePath))
-                {
-                    string jsonData = await reader.ReadToEndAsync();
-                    Data = JsonConvert.DeserializeObject<T>(jsonData, DataKeeperJson.Settings);
-                }
+                string jsonData = await Storage.ReadTextAsync(_key);
+                if (jsonData == null) throw new FileNotFoundException("Key not found in storage.", _key);
+
+                Data = JsonConvert.DeserializeObject<T>(jsonData, DataKeeperJson.Settings);
                 Debug.Log("JSON data loaded successfully.");
             }
             catch (Exception ex)

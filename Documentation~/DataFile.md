@@ -2,7 +2,7 @@
 
 Namespace: `DataKeeper.Generic`
 
-`DataFile<T>` persists a value of any serializable type to `Application.persistentDataPath`, with a choice of serializer and sync/async APIs.
+`DataFile<T>` persists a value of any serializable type through an `IStorageProvider` (by default the global `DataKeeperStorage.Files` — `LocalFileStorage`, i.e. files under `Application.persistentDataPath`), with a choice of serializer and sync/async APIs. Swap `DataKeeperStorage.Files` for a custom provider to redirect all files to a cloud backend, or pass a provider to the constructor to override it per file — see [SaveManager — Custom storage](SaveManager.md#custom-storage-cloud-saves).
 
 ## Quick start
 
@@ -77,6 +77,6 @@ To customize (e.g. add your own `JsonConverter`s), mutate or replace `DataKeeper
 
 ## Notes
 
-- File paths are relative to `Application.persistentDataPath`; intermediate folders are created automatically (subfolders in the file name are fine, e.g. `"saves/slot1.json"`).
+- File names are relative keys resolved by the file's storage provider (for `LocalFileStorage`: relative to `Application.persistentDataPath`); intermediate folders are created automatically (subfolders in the file name are fine, e.g. `"saves/slot1.json"`).
 - Errors are caught and logged via `Debug.LogError` rather than thrown.
 - The file name (including extension) is entirely up to you; the serializer does not infer anything from it.

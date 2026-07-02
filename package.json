@@ -1,6 +1,6 @@
 {
   "name": "com.micrarriors.data-keeper",
-  "version": "0.89.0",
+  "version": "0.90.0",
   "displayName": "DataKeeper",
   "description": "DataKeeper is a comprehensive package/Unity extension that enhances the functionality and convenience of Unity development.",
   "unity": "6000.0",
@@ -24,6 +24,11 @@
     "email": "micrarriors@gmail.com"
   },
   "samples": [
+    {
+      "displayName": "Save System Example",
+      "description": "Single-script walkthrough of SaveManager: data files, reactive prefs, save slots, versioning and swappable storage providers (local / in-memory / custom cloud)",
+      "path": "Samples~/Save System Example"
+    },
     {
       "displayName": "IconKeeper Font",
       "description": "Contains font with icons",

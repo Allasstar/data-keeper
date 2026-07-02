@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
-using DataKeeper.Helpers;
 using DataKeeper.Signals;
 using Newtonsoft.Json;
 using UnityEngine;
@@ -16,14 +14,18 @@ namespace DataKeeper.Generic
     /// </summary>
     public static class SaveManager
     {
-        public const string SlotsFolderName = "slots";
+        public const string SlotsFolderName = DataKeeperStorage.SlotsFolderName;
         private const string MetaFileName = "save_meta.json";
 
         /// <summary>Current version of the save format. Bump it together with <see cref="RegisterMigration"/>.</summary>
         public static int DataVersion { get; set; } = 1;
 
-        /// <summary>Active save slot. Empty = no slot (files live directly in persistentDataPath).</summary>
-        public static string CurrentSlot { get; private set; } = string.Empty;
+        /// <summary>Active save slot (stored in <see cref="DataKeeperStorage"/>). Empty = no slot (files live at the storage root).</summary>
+        public static string CurrentSlot
+        {
+            get => DataKeeperStorage.CurrentSlot;
+            private set => DataKeeperStorage.CurrentSlot = value;
+        }
 
         /// <summary>When enabled, <see cref="SaveAll"/> is called on <c>Application.quitting</c>.</summary>
         public static bool AutoSaveOnQuit { get; set; } = false;
@@ -49,7 +51,6 @@ namespace DataKeeper.Generic
         {
             _files.Clear();
             _prefs.Clear();
-            CurrentSlot = string.Empty;
 
             Application.quitting -= OnApplicationQuitting;
             Application.quitting += OnApplicationQuitting;
@@ -94,41 +95,34 @@ namespace DataKeeper.Generic
             OnSlotChanged.Invoke(slot);
         }
 
-        public static bool SlotExists(string slot) => Directory.Exists(SlotFolderPath(slot));
+        public static bool SlotExists(string slot) =>
+            !string.IsNullOrEmpty(slot) && Array.IndexOf(GetSlots(), slot) >= 0;
 
-        public static string[] GetSlots()
-        {
-            string root = $"{Application.persistentDataPath}/{SlotsFolderName}";
-            if (!Directory.Exists(root)) return Array.Empty<string>();
-
-            string[] dirs = Directory.GetDirectories(root);
-            for (int i = 0; i < dirs.Length; i++)
-            {
-                dirs[i] = Path.GetFileName(dirs[i]);
-            }
-            return dirs;
-        }
+        public static string[] GetSlots() => DataKeeperStorage.Files.ListDirectories(SlotsFolderName);
 
         public static void DeleteSlot(string slot)
         {
             if (string.IsNullOrEmpty(slot)) return;
 
-            string path = SlotFolderPath(slot);
-            if (Directory.Exists(path)) Directory.Delete(path, true);
+            DataKeeperStorage.Files.DeleteAll(SlotKeyPrefix(slot));
         }
 
-        private static string SlotFolderPath(string slot) => string.IsNullOrEmpty(slot)
-            ? Application.persistentDataPath
-            : $"{Application.persistentDataPath}/{SlotsFolderName}/{slot}";
+        /// <summary>Key prefix of a slot ("slots/{slot}"), empty when no slot.</summary>
+        private static string SlotKeyPrefix(string slot) => string.IsNullOrEmpty(slot)
+            ? string.Empty
+            : $"{SlotsFolderName}/{slot}";
 
-        private static string MetaPath(string slot) => $"{SlotFolderPath(slot)}/{MetaFileName}";
+        private static string MetaKey(string slot) => string.IsNullOrEmpty(slot)
+            ? MetaFileName
+            : $"{SlotKeyPrefix(slot)}/{MetaFileName}";
 
         // --- Versioning & migration ---
 
         /// <summary>
         /// Registers a migration that upgrades save data *to* <paramref name="toVersion"/>.
         /// On <see cref="LoadAll"/>, migrations with saved version &lt; toVersion &lt;= <see cref="DataVersion"/>
-        /// run in ascending order, receiving the active slot's folder path. Register before the first load.
+        /// run in ascending order, receiving the active slot's key prefix ("slots/{slot}", empty when no slot) —
+        /// read/write keys through <see cref="DataKeeperStorage.Files"/>. Register before the first load.
         /// </summary>
         public static void RegisterMigration(int toVersion, Action<string> migration)
         {
@@ -140,12 +134,12 @@ namespace DataKeeper.Generic
         /// <summary>Version stamped in the slot's meta file; 0 when no meta exists (pre-versioning or fresh).</summary>
         public static int GetSavedVersion(string slot = null)
         {
-            string path = MetaPath(slot ?? CurrentSlot);
-            if (!File.Exists(path)) return 0;
-
             try
             {
-                var meta = JsonConvert.DeserializeObject<SaveMeta>(File.ReadAllText(path), DataKeeperJson.Settings);
+                string json = DataKeeperStorage.Files.ReadText(MetaKey(slot ?? CurrentSlot));
+                if (json == null) return 0;
+
+                var meta = JsonConvert.DeserializeObject<SaveMeta>(json, DataKeeperJson.Settings);
                 return meta?.version ?? 0;
             }
             catch (Exception ex)
@@ -159,20 +153,20 @@ namespace DataKeeper.Generic
         {
             if (_migrations.Count == 0) return;
 
-            bool hasMeta = File.Exists(MetaPath(CurrentSlot));
+            bool hasMeta = DataKeeperStorage.Files.Exists(MetaKey(CurrentSlot));
             int saved = hasMeta ? GetSavedVersion(CurrentSlot) : 0;
             if (saved >= DataVersion) return;
 
-            // Fresh install (no meta, no data on disk) — nothing to migrate.
+            // Fresh install (no meta, no data in storage) — nothing to migrate.
             if (!hasMeta && !AnyRegisteredFileExists()) return;
 
-            string folder = SlotFolderPath(CurrentSlot);
+            string keyPrefix = SlotKeyPrefix(CurrentSlot);
             for (int i = 0; i < _migrations.Count; i++)
             {
                 int toVersion = _migrations.Keys[i];
                 if (toVersion > saved && toVersion <= DataVersion)
                 {
-                    _migrations.Values[i].Invoke(folder);
+                    _migrations.Values[i].Invoke(keyPrefix);
                 }
             }
 
@@ -192,12 +186,7 @@ namespace DataKeeper.Generic
         {
             try
             {
-                string path = MetaPath(CurrentSlot);
-                if (!FolderHelper.AllFoldersExist(path))
-                {
-                    FolderHelper.CreateFolders(path);
-                }
-                File.WriteAllText(path, JsonConvert.SerializeObject(new SaveMeta { version = DataVersion }, DataKeeperJson.Settings));
+                DataKeeperStorage.Files.WriteText(MetaKey(CurrentSlot), JsonConvert.SerializeObject(new SaveMeta { version = DataVersion }, DataKeeperJson.Settings));
             }
             catch (Exception ex)
             {

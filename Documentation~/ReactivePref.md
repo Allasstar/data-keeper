@@ -1,5 +1,5 @@
 # Documentation for `ReactivePref<T>` Class
-The `ReactivePref<T>` class, located in the `DataKeeper.Generic` namespace, offers a generic mechanism for storing and managing reactive preferences in Unity. Built with `PlayerPrefs` as the underlying storage, this class enables seamless handling of different data types in a reactive way. It includes features such as event-driven updates on changes, auto-saving, and serialization support for custom data types.
+The `ReactivePref<T>` class, located in the `DataKeeper.Generic` namespace, offers a generic mechanism for storing and managing reactive preferences in Unity. Storage goes through an `IPrefsStorage` (by default the global `DataKeeperStorage.Prefs` — `PlayerPrefsStorage` backed by Unity `PlayerPrefs`; swap the global default or pass a provider to the constructor to store prefs elsewhere, see [SaveManager — Custom storage](SaveManager.md#custom-storage-cloud-saves)). This class enables seamless handling of different data types in a reactive way. It includes features such as event-driven updates on changes, auto-saving, and serialization support for custom data types.
 ## Table of Contents
 - [Namespace]()
 - [Purpose]()

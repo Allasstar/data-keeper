@@ -274,6 +274,9 @@ The `DataKeeper` namespace provides a suite of tools and utilities designed to e
     -   `SaveData()`: Saves the data to a file.
     -   `LoadData()`: Loads the data from a file.
     -   `IsFileExist()`: Checks if the data file exists.
+-   **`DataKeeperStorage`**: Static holder of the global storage defaults (`Files`, `Prefs`) and the active save slot — swap the providers here to store everything in the cloud (Steam, Unity Cloud Save, ...).
+-   **`IStorageProvider`** / **`LocalFileStorage`**: Pluggable key-based storage backend used by `DataFile<T>` and `SaveManager` (default writes files under `persistentDataPath`). Swap globally via `DataKeeperStorage.Files` or per file via the `DataFile<T>` constructor.
+-   **`IPrefsStorage`** / **`PlayerPrefsStorage`**: Pluggable key-value backend used by `ReactivePref<T>` (default: Unity `PlayerPrefs`). Swap globally via `DataKeeperStorage.Prefs` or per pref via the constructor.
 -   **`QueueFixedSized<T>`**: A fixed-size queue based on `ConcurrentQueue`.
     -   `Size`: The maximum size of the queue.
     -   `Enqueue(T obj)`: Enqueues an object, removing the oldest object if the queue is full.

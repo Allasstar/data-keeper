@@ -127,13 +127,13 @@ namespace DataKeeper.Tests.Generic
 
             int firstRuns = 0, secondRuns = 0, order = 0;
             SaveManager.DataVersion = 2;
-            SaveManager.RegisterMigration(2, folder =>
+            SaveManager.RegisterMigration(2, keyPrefix =>
             {
                 secondRuns++;
                 Assert.AreEqual(2, ++order);
-                Assert.IsTrue(File.Exists($"{folder}/{SlotFileName}"));
+                Assert.IsTrue(DataKeeperStorage.Files.Exists($"{keyPrefix}/{SlotFileName}"));
             });
-            SaveManager.RegisterMigration(1, folder =>
+            SaveManager.RegisterMigration(1, keyPrefix =>
             {
                 firstRuns++;
                 Assert.AreEqual(1, ++order);
