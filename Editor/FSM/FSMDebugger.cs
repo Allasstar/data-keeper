@@ -108,7 +108,7 @@ namespace DataKeeper.Editor.FSM
 
         private static FoldoutState GetFoldoutState(Object component, string fieldName)
         {
-            long key = component.GetEntityId();
+            long key = component.GetEntityId().GetHashCode();
             if (!foldouts.TryGetValue(key, out var state))
             {
                 state = new FoldoutState();
