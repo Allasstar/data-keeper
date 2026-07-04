@@ -16,7 +16,7 @@ Editor windows and menu items shipped with the package. Most live under the **To
 | GUID Swapper | Swap asset GUID references (e.g. replace one sprite/material with another everywhere) |
 | Asset Transfer | Move assets between projects/folders with their dependencies |
 | Android Publisher Settings | Keystore/build settings helper for Android publishing |
-| Color Contrast Checker | WCAG-style contrast checking for UI color pairs |
+| Color Tools | WCAG contrast checker, color-theory palette generator, and luminance-preserving (OKLCH) hue shifter |
 | Image Manipulator | Batch image operations (resize, crop, format) on textures |
 | Material Shader Converter | Batch-convert materials between shaders (e.g. Built-in → URP) |
 | Prefab Image Baker (Beta) | Render prefab previews to image assets |
