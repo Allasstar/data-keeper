@@ -33,6 +33,9 @@ namespace DataKeeper.Extra
         [Tooltip("Whether to include a timestamp (yyyyMMdd_HHmmss) after the base name.")]
         public bool includeTimestamp = true;
 
+        [Tooltip("If enabled, an existing file with the same name is overwritten. If disabled, a numeric suffix is added to keep both files.")]
+        public bool replaceExistingFile = false;
+
         private Camera _cam;
         private readonly List<KeyValuePair<GameObject, int>> _savedLayers = new List<KeyValuePair<GameObject, int>>();
 
@@ -130,11 +133,14 @@ namespace DataKeeper.Extra
                 string timestamp = includeTimestamp ? "_" + System.DateTime.Now.ToString("yyyyMMdd_HHmmss") : "";
                 string fileName = SanitizeFileName(prefix + baseName + timestamp + suffix);
 
-                string filePath = GetUniqueFilePath(folderPath, fileName);
+                string filePath = replaceExistingFile
+                    ? Path.Combine(folderPath, fileName + ".png")
+                    : GetUniqueFilePath(folderPath, fileName);
                 File.WriteAllBytes(filePath, bytes);
 
 #if UNITY_EDITOR
                 UnityEditor.AssetDatabase.Refresh();
+                SetAlphaIsTransparency(filePath);
 #endif
                 Debug.Log("Transparent screenshot saved to: " + filePath, this);
             }
@@ -176,6 +182,24 @@ namespace DataKeeper.Extra
 
             return path;
         }
+
+#if UNITY_EDITOR
+        // Only works for files saved under Assets (Editor); persistentDataPath files aren't assets
+        private static void SetAlphaIsTransparency(string filePath)
+        {
+            string fullPath = Path.GetFullPath(filePath).Replace('\\', '/');
+            string dataPath = Path.GetFullPath(Application.dataPath).Replace('\\', '/');
+            if (!fullPath.StartsWith(dataPath)) return;
+
+            string assetPath = "Assets" + fullPath.Substring(dataPath.Length);
+            var importer = UnityEditor.AssetImporter.GetAtPath(assetPath) as UnityEditor.TextureImporter;
+            if (importer != null && !importer.alphaIsTransparency)
+            {
+                importer.alphaIsTransparency = true;
+                importer.SaveAndReimport();
+            }
+        }
+#endif
 
         private void StoreLayersRecursively(GameObject obj)
         {
