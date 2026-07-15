@@ -151,7 +151,7 @@ namespace DataKeeper.BlackboardSystem
         [SerializeField] public GameTag key;
         [SerializeField] public GameObject value;
 
-        public void Apply(Blackboard bb) => bb.SetObject(key, value);
+        public void Apply(Blackboard bb) => bb.SetGameObject(key, value);
     }
 
     [Serializable]
@@ -160,7 +160,7 @@ namespace DataKeeper.BlackboardSystem
         [SerializeField] public GameTag key;
         [SerializeField] public Transform value;
 
-        public void Apply(Blackboard bb) => bb.SetObject(key, value);
+        public void Apply(Blackboard bb) => bb.SetTransform(key, value);
     }
 
     [Serializable]
@@ -169,7 +169,7 @@ namespace DataKeeper.BlackboardSystem
         [SerializeField] public GameTag key;
         [SerializeField] public RectTransform value;
 
-        public void Apply(Blackboard bb) => bb.SetObject(key, value);
+        public void Apply(Blackboard bb) => bb.SetRectTransform(key, value);
     }
 
     [Serializable]
@@ -178,7 +178,7 @@ namespace DataKeeper.BlackboardSystem
         [SerializeField] public GameTag key;
         [SerializeField] public Image value;
 
-        public void Apply(Blackboard bb) => bb.SetObject(key, value);
+        public void Apply(Blackboard bb) => bb.SetImage(key, value);
     }
 
     [Serializable]
@@ -187,7 +187,7 @@ namespace DataKeeper.BlackboardSystem
         [SerializeField] public GameTag key;
         [SerializeField] public TMP_Text value;
 
-        public void Apply(Blackboard bb) => bb.SetObject(key, value);
+        public void Apply(Blackboard bb) => bb.SetTMPText(key, value);
     }
 
     [Serializable]
@@ -196,6 +196,15 @@ namespace DataKeeper.BlackboardSystem
         [SerializeField] public GameTag key;
         [SerializeField] public Sprite value;
 
-        public void Apply(Blackboard bb) => bb.SetObject(key, value);
+        public void Apply(Blackboard bb) => bb.SetSprite(key, value);
+    }
+    
+    [Serializable]
+    public class GameTagContainerEntry : IBlackboardEntry
+    {
+        [SerializeField] public GameTag key;
+        [SerializeField] public GameTagContainer value;
+
+        public void Apply(Blackboard bb) => bb.SetGameTagContainer(key, value);
     }
 }

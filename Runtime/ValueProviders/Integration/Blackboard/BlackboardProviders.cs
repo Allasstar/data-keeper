@@ -78,7 +78,7 @@ namespace DataKeeper.ValueProviders
 
         public Transform GetValue()
         {
-            return _blackboardSource.Cast<IBlackboardOwner>().Blackboard.GetObject<Transform>(_key);
+            return _blackboardSource.Cast<IBlackboardOwner>().Blackboard.GetTransform(_key);
         }
     }
 
@@ -93,7 +93,7 @@ namespace DataKeeper.ValueProviders
         public RectTransformBlackboardProvider() { }
         public RectTransformBlackboardProvider(GameTag key) => _key = key;
 
-        public RectTransform GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetObject<RectTransform>(_key);
+        public RectTransform GetValue() => _blackboardSource.Cast<IBlackboardOwner>()?.Blackboard.GetRectTransform(_key);
     }
 
     [Serializable]
@@ -109,7 +109,7 @@ namespace DataKeeper.ValueProviders
 
         public Image GetValue()
         {
-            return _blackboardSource.Cast<IBlackboardOwner>().Blackboard.GetObject<Image>(_key);
+            return _blackboardSource.Cast<IBlackboardOwner>().Blackboard.GetImage(_key);
         }
     }
 
