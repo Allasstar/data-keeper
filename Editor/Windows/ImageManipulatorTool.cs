@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ImageManipulatorTool  –  Tools/Image Manipulator
-//  Tabs: Single | Batch | Color Adjust | Channel Extract | Channel Import (ORM)
+//  Tabs: Single | Batch | Color Adjust | Recolor | Channel Extract | Channel Import (ORM)
 // ─────────────────────────────────────────────────────────────────────────────
 namespace DataKeeper.Editor.Windows
 {
@@ -17,6 +18,7 @@ namespace DataKeeper.Editor.Windows
             Single,
             Batch,
             ColorAdjust,
+            Recolor,
             ChannelExtract,
             ChannelImport
         }
@@ -24,7 +26,7 @@ namespace DataKeeper.Editor.Windows
         private Tab activeTab = Tab.Single;
 
         private readonly string[] tabLabels =
-            { "Single", "Batch", "Color Adjust", "Ch. Extract", "Ch. Import (ORM)" };
+            { "Single", "Batch", "Color Adjust", "Recolor", "Ch. Extract", "Ch. Import (ORM)" };
 
         // ── Single-image state ────────────────────────────────────────────────────
         private Texture2D sourceTexture;
@@ -42,10 +44,40 @@ namespace DataKeeper.Editor.Windows
         // ── Color-adjust state ────────────────────────────────────────────────────
         private float brightness = 0f; // -1 … +1
         private float contrast = 0f; // -1 … +1
-        private float saturation = 1f; //  0 … 2  (1 = neutral)
-        private bool grayscale = false;
+        private float saturation = 1f; //  0 … 2  (0 = greyscale, 1 = neutral)
         private bool tintEnabled = false;
         private Color tintColor = Color.white;
+
+        // ── Recolor state (OKLab palette-match) ───────────────────────────────────
+        private enum RecolorMode
+        {
+            Recolor, // map the whole image onto the picked colour (keeps texture, becomes "much this colour")
+            HueShift // rotate the source's dominant hue onto the picked colour (keeps colour variety)
+        }
+
+        private RecolorMode recolorMode = RecolorMode.Recolor;
+
+        // The palette the textures should be matched to. Editable swatch grid.
+        private readonly List<Color> palette = new List<Color>
+        {
+            new Color(0.86f, 0.22f, 0.27f), // red
+            new Color(0.95f, 0.61f, 0.19f), // orange
+            new Color(0.98f, 0.85f, 0.30f), // yellow
+            new Color(0.36f, 0.72f, 0.36f), // green
+            new Color(0.26f, 0.55f, 0.87f), // blue
+            new Color(0.55f, 0.35f, 0.78f), // violet
+        };
+
+        private int selectedSwatch = 0;
+        private float recolorStrength = 1f; //  0 … 1  (how far toward the target colour)
+        private float recolorChroma = 1f; //  0 … 2  (colour intensity multiplier)
+        private float recolorLightness = 0f; // -0.5 … +0.5 (perceptual value shift)
+        private bool recolorNaturalShading = true; // desaturate highlights→white, shadows→black
+        private Texture2D recolorPreview;
+
+        // Live = recompute preview on every change; off = only when "Apply" is pressed.
+        // Shared by the Recolor and Color Adjust tabs.
+        private bool livePreview = false;
 
         // ── Batch state ───────────────────────────────────────────────────────────
         private List<Texture2D> batchTextures = new List<Texture2D>();
@@ -83,21 +115,23 @@ namespace DataKeeper.Editor.Windows
         private Vector2 scrollPos;
         private const float PREVIEW_MAX = 280f;
         private const float SMALL_PREV = 110f;
-        private GUIStyle headerStyle;
         private GUIStyle sectionBox;
 
         // ─────────────────────────────────────────────────────────────────────────
         [MenuItem("Tools/Windows/Image Manipulator", priority = 14)]
         public static void Open()
         {
-            var w = GetWindow<ImageManipulatorTool>("Image Manipulator");
+            var w = GetWindow<ImageManipulatorTool>();
+            w.titleContent = new GUIContent("Image Manipulator",
+                EditorGUIUtility.IconContent("d_Texture Icon").image);
             w.minSize = new Vector2(580f, 680f);
         }
 
+        private void OnEnable() => LoadPalette();
+
         private void InitStyles()
         {
-            if (headerStyle != null) return;
-            headerStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 13, margin = new RectOffset(0, 0, 6, 6) };
+            if (sectionBox != null) return;
             sectionBox = new GUIStyle(GUI.skin.box)
                 { padding = new RectOffset(10, 10, 8, 8), margin = new RectOffset(0, 0, 4, 4) };
         }
@@ -105,9 +139,16 @@ namespace DataKeeper.Editor.Windows
         private void OnGUI()
         {
             InitStyles();
+
+            // Tabs as a fixed toolbar strip (outside the scroll view → always visible)
+            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+            {
+                activeTab = (Tab)GUILayout.Toolbar((int)activeTab, tabLabels,
+                    EditorStyles.toolbarButton, GUILayout.ExpandWidth(true));
+            }
+
             scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
-            EditorGUILayout.Space(6);
-            GUILayout.Label("🖼  Image Manipulator", headerStyle);
+            EditorGUILayout.Space(4);
 
             if (_originalReadability.Count > 0)
             {
@@ -127,14 +168,12 @@ namespace DataKeeper.Editor.Windows
                 EditorGUILayout.Space(4);
             }
 
-            activeTab = (Tab)GUILayout.Toolbar((int)activeTab, tabLabels);
-            EditorGUILayout.Space(4);
-
             switch (activeTab)
             {
                 case Tab.Single: DrawSingleTab(); break;
                 case Tab.Batch: DrawBatchTab(); break;
                 case Tab.ColorAdjust: DrawColorAdjustTab(); break;
+                case Tab.Recolor: DrawRecolorTab(); break;
                 case Tab.ChannelExtract: DrawChannelExtractTab(); break;
                 case Tab.ChannelImport: DrawChannelImportTab(); break;
             }
@@ -172,7 +211,7 @@ namespace DataKeeper.Editor.Windows
 
             EditorGUILayout.EndVertical();
 
-            DrawPreviewWidget(previewTexture, PREVIEW_MAX);
+            DrawBeforeAfterPreview(sourceTexture, previewTexture);
 
             if (sourceTexture == null) return;
 
@@ -299,10 +338,41 @@ namespace DataKeeper.Editor.Windows
                 batchSuffix = EditorGUILayout.TextField("Suffix", batchSuffix);
             EditorGUILayout.EndVertical();
 
+            // Summary of what "Process All" will do
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("Summary", EditorStyles.boldLabel);
+
+            int validCount = 0;
+            foreach (var t in batchTextures)
+                if (t != null) validCount++;
+
+            var ops = new List<string>();
+            if (batchFlipH) ops.Add("Flip H");
+            if (batchFlipV) ops.Add("Flip V");
+            if (batchRotation != 0f) ops.Add($"Rotate {batchRotation:0.#}°");
+            if (batchResize) ops.Add($"Resize → {batchResizeW}×{batchResizeH}");
+            if (batchApplyColor) ops.Add("Color Adjust");
+
+            string opText = ops.Count > 0 ? string.Join("  ·  ", ops) : "None";
+            string outText = batchOverwrite ? "overwrite originals" : $"new files (suffix \"{batchSuffix}\")";
+
+            if (validCount == 0)
+                EditorGUILayout.HelpBox("No textures assigned — add some above.", MessageType.Warning);
+            else if (ops.Count == 0)
+                EditorGUILayout.HelpBox(
+                    $"{validCount} texture(s) selected, but no operations enabled — nothing would change.",
+                    MessageType.Warning);
+            else
+                EditorGUILayout.HelpBox(
+                    $"{validCount} texture(s)   →   {opText}\nOutput: {outText}",
+                    MessageType.Info);
+            EditorGUILayout.EndVertical();
+
             EditorGUILayout.Space(4);
             Color prevBg = GUI.backgroundColor;
             GUI.backgroundColor = new Color(0.4f, 0.75f, 1f);
-            if (GUILayout.Button("▶  Process All", GUILayout.Height(32)))
+            EditorGUI.BeginDisabledGroup(validCount == 0 || ops.Count == 0);
+            if (GUILayout.Button($"▶  Process All  ({validCount})", GUILayout.Height(32)))
             {
                 if (batchTextures.Count == 0)
                 {
@@ -318,6 +388,7 @@ namespace DataKeeper.Editor.Windows
                 RunBatch();
             }
 
+            EditorGUI.EndDisabledGroup();
             GUI.backgroundColor = prevBg;
             EditorGUILayout.Space(6);
         }
@@ -420,7 +491,7 @@ namespace DataKeeper.Editor.Windows
             {
                 sourceTexture = newTex;
                 assetPath = sourceTexture ? AssetDatabase.GetAssetPath(sourceTexture) : "";
-                RefreshPreview();
+                previewTexture = null; // result cleared until "Apply" is pressed
             }
 
             EditorGUILayout.EndVertical();
@@ -432,40 +503,223 @@ namespace DataKeeper.Editor.Windows
             EditorGUI.BeginChangeCheck();
             brightness = EditorGUILayout.Slider("Brightness", brightness, -1f, 1f);
             contrast = EditorGUILayout.Slider("Contrast", contrast, -1f, 1f);
-            saturation = EditorGUILayout.Slider("Saturation", saturation, 0f, 2f);
-
-            EditorGUILayout.Space(4);
-            bool newGray = EditorGUILayout.Toggle("Grayscale", grayscale);
-            if (newGray != grayscale)
-            {
-                grayscale = newGray;
-                if (grayscale) saturation = 0f;
-            }
+            saturation = EditorGUILayout.Slider(
+                new GUIContent("Saturation", "0 = greyscale · 1 = original · 2 = double"),
+                saturation, 0f, 2f);
 
             EditorGUILayout.Space(4);
             tintEnabled = EditorGUILayout.Toggle("Tint", tintEnabled);
             if (tintEnabled)
                 tintColor = EditorGUILayout.ColorField("Tint Color", tintColor);
 
-            if (EditorGUI.EndChangeCheck()) RefreshPreview();
+            bool changed = EditorGUI.EndChangeCheck();
 
-            if (GUILayout.Button("Reset All"))
+            EditorGUILayout.Space(2);
+            EditorGUILayout.BeginHorizontal();
+
+            EditorGUI.BeginChangeCheck();
+            livePreview = EditorGUILayout.ToggleLeft(
+                new GUIContent("Live", "Recompute the preview on every change instead of on Apply."),
+                livePreview, GUILayout.Width(52));
+            if (EditorGUI.EndChangeCheck() && livePreview) changed = true;
+
+            if (GUILayout.Button("Reset All", GUILayout.Width(80)))
             {
                 brightness = 0f;
                 contrast = 0f;
                 saturation = 1f;
-                grayscale = false;
                 tintEnabled = false;
                 tintColor = Color.white;
-                RefreshPreview();
+                changed = true;
+            }
+
+            EditorGUI.BeginDisabledGroup(livePreview);
+            Color applyBg = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.4f, 0.75f, 1f);
+            if (GUILayout.Button("↻  Apply", GUILayout.Height(22))) RefreshPreview();
+            GUI.backgroundColor = applyBg;
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+
+            if (changed && livePreview) RefreshPreview();
+
+            EditorGUILayout.EndVertical();
+
+            DrawBeforeAfterPreview(sourceTexture, previewTexture);
+
+            if (sourceTexture != null) DrawSaveButtons();
+            EditorGUILayout.Space(6);
+        }
+
+        // ═════════════════════════════════════════════════════════════════════════
+        //  TAB: RECOLOR  (OKLab palette matching – keeps texture, changes colour)
+        // ═════════════════════════════════════════════════════════════════════════
+        private void DrawRecolorTab()
+        {
+            // Source (shared with Single / Color Adjust tabs)
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("Source Image", EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            var newTex = (Texture2D)EditorGUILayout.ObjectField("Texture", sourceTexture, typeof(Texture2D), false);
+            if (EditorGUI.EndChangeCheck() && newTex != sourceTexture)
+            {
+                sourceTexture = newTex;
+                assetPath = sourceTexture ? AssetDatabase.GetAssetPath(sourceTexture) : "";
+                recolorPreview = null; // result cleared until "Apply" is pressed
             }
 
             EditorGUILayout.EndVertical();
 
-            DrawPreviewWidget(previewTexture, PREVIEW_MAX);
+            DrawPalette();
 
-            if (sourceTexture != null) DrawSaveButtons();
+            // Adjustments
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("Recolor", EditorStyles.boldLabel);
+
+            EditorGUI.BeginChangeCheck();
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Mode", GUILayout.Width(48));
+            recolorMode = (RecolorMode)GUILayout.Toolbar((int)recolorMode,
+                new[] { "Recolor", "Hue Shift" });
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.HelpBox(
+                recolorMode == RecolorMode.Recolor
+                    ? "Recolor: every pixel is pushed onto the selected palette colour while its perceptual " +
+                      "lightness (the texture detail / shading) is preserved. Strength 1 = fully that colour."
+                    : "Hue Shift: the image's dominant hue is rotated onto the palette colour. Keeps the " +
+                      "original colour variety — good for textures that already contain several colours.",
+                MessageType.Info);
+
+            recolorStrength = EditorGUILayout.Slider("Strength", recolorStrength, 0f, 1f);
+            recolorChroma = EditorGUILayout.Slider("Chroma", recolorChroma, 0f, 2f);
+            recolorLightness = EditorGUILayout.Slider("Lightness", recolorLightness, -0.5f, 0.5f);
+            recolorNaturalShading = EditorGUILayout.Toggle(
+                new GUIContent("Natural Shading",
+                    "Colour theory: highlights fade toward white and deep shadows toward black, " +
+                    "instead of every tone carrying full chroma. Recommended for physically-plausible results."),
+                recolorNaturalShading);
+
+            bool changed = EditorGUI.EndChangeCheck();
+
+            EditorGUILayout.Space(2);
+            EditorGUILayout.BeginHorizontal();
+
+            EditorGUI.BeginChangeCheck();
+            livePreview = EditorGUILayout.ToggleLeft(
+                new GUIContent("Live", "Recompute the preview on every change instead of on Apply."),
+                livePreview, GUILayout.Width(52));
+            if (EditorGUI.EndChangeCheck() && livePreview) changed = true; // enabling Live updates now
+
+            if (GUILayout.Button("Reset", GUILayout.Width(70)))
+            {
+                recolorMode = RecolorMode.Recolor;
+                recolorStrength = 1f;
+                recolorChroma = 1f;
+                recolorLightness = 0f;
+                recolorNaturalShading = true;
+                changed = true;
+            }
+
+            EditorGUI.BeginDisabledGroup(livePreview);
+            Color applyBg = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.4f, 0.75f, 1f);
+            if (GUILayout.Button("↻  Apply", GUILayout.Height(22)))
+                RefreshRecolorPreview();
+            GUI.backgroundColor = applyBg;
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+
+            if (changed && livePreview) RefreshRecolorPreview();
+
+            EditorGUILayout.EndVertical();
+
+            DrawBeforeAfterPreview(sourceTexture, recolorPreview);
+
+            if (sourceTexture == null) return;
+
+            // Save buttons (own pipeline – no resize, keeps original dimensions)
+            EditorGUILayout.Space(4);
+            EditorGUILayout.BeginHorizontal();
+            Color prevBg = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.4f, 0.8f, 0.4f);
+            if (GUILayout.Button("💾  Save as New", GUILayout.Height(28))) SaveRecolor(overwrite: false);
+            GUI.backgroundColor = new Color(0.9f, 0.5f, 0.3f);
+            if (GUILayout.Button("⚠  Overwrite", GUILayout.Height(28)))
+                if (EditorUtility.DisplayDialog("Overwrite", "Replace the original file?", "Overwrite", "Cancel"))
+                    SaveRecolor(overwrite: true);
+            GUI.backgroundColor = prevBg;
+            EditorGUILayout.EndHorizontal();
             EditorGUILayout.Space(6);
+        }
+
+        private void DrawPalette()
+        {
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("Color Palette", EditorStyles.boldLabel);
+            GUILayout.Label("Click a swatch to pick the colour your texture is matched to.",
+                EditorStyles.miniLabel);
+
+            const int perRow = 8;
+            const float sw = 30f;
+            for (int i = 0; i < palette.Count; i++)
+            {
+                if (i % perRow == 0) EditorGUILayout.BeginHorizontal();
+
+                Rect r = GUILayoutUtility.GetRect(sw, sw, GUILayout.Width(sw), GUILayout.Height(sw));
+                bool sel = i == selectedSwatch;
+                EditorGUI.DrawRect(r, sel ? Color.white : new Color(0f, 0f, 0f, 0.5f));
+                EditorGUI.DrawRect(new Rect(r.x + 2, r.y + 2, r.width - 4, r.height - 4), palette[i]);
+
+                if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition))
+                {
+                    selectedSwatch = i;
+                    Event.current.Use();
+                    if (livePreview) RefreshRecolorPreview();
+                    else Repaint();
+                }
+
+                if ((i + 1) % perRow == 0 || i == palette.Count - 1) EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.Space(2);
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("+ Add", GUILayout.Width(60)))
+            {
+                palette.Add(palette.Count > 0 ? palette[selectedSwatch] : Color.white);
+                selectedSwatch = palette.Count - 1;
+                SavePalette();
+                if (livePreview) RefreshRecolorPreview();
+            }
+
+            EditorGUI.BeginDisabledGroup(palette.Count == 0);
+            if (GUILayout.Button("− Remove", GUILayout.Width(70)))
+            {
+                palette.RemoveAt(selectedSwatch);
+                selectedSwatch = Mathf.Clamp(selectedSwatch, 0, palette.Count - 1);
+                SavePalette();
+                if (livePreview) RefreshRecolorPreview();
+            }
+
+            EditorGUI.EndDisabledGroup();
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+
+            if (palette.Count > 0)
+            {
+                selectedSwatch = Mathf.Clamp(selectedSwatch, 0, palette.Count - 1);
+                EditorGUI.BeginChangeCheck();
+                palette[selectedSwatch] =
+                    EditorGUILayout.ColorField("Selected", palette[selectedSwatch]);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    SavePalette();
+                    if (livePreview) RefreshRecolorPreview();
+                }
+            }
+
+            EditorGUILayout.EndVertical();
         }
 
         // ═════════════════════════════════════════════════════════════════════════
@@ -504,6 +758,15 @@ namespace DataKeeper.Editor.Windows
             extractB = GUILayout.Toggle(extractB, "B  (Metallic)", "Button");
             extractA = GUILayout.Toggle(extractA, "A", "Button");
             EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("All", EditorStyles.miniButtonLeft, GUILayout.Width(60)))
+                extractR = extractG = extractB = extractA = true;
+            if (GUILayout.Button("None", EditorStyles.miniButtonRight, GUILayout.Width(60)))
+                extractR = extractG = extractB = extractA = false;
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+
             EditorGUILayout.HelpBox(
                 "Each selected channel is saved as a separate greyscale PNG (linear) next to the source.",
                 MessageType.Info);
@@ -606,13 +869,13 @@ namespace DataKeeper.Editor.Windows
         {
             Color32[] sp = src.GetPixels32();
             Color32[] dp = new Color32[sp.Length];
-            for (int i = 0; i < sp.Length; i++)
+            Parallel.For(0, sp.Length, i =>
             {
                 byte v = channel == 0 ? sp[i].r :
                     channel == 1 ? sp[i].g :
                     channel == 2 ? sp[i].b : sp[i].a;
                 dp[i] = new Color32(v, v, v, 255);
-            }
+            });
 
             var result = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false);
             result.SetPixels32(dp);
@@ -704,8 +967,8 @@ namespace DataKeeper.Editor.Windows
             byte[] bCh = SampleGray(ormB, w, h, ormInvertB);
 
             Color32[] dp = new Color32[w * h];
-            for (int i = 0; i < dp.Length; i++)
-                dp[i] = new Color32(rCh[i], gCh[i], bCh[i], 255);
+            Parallel.For(0, dp.Length, i =>
+                dp[i] = new Color32(rCh[i], gCh[i], bCh[i], 255));
 
             var result = new Texture2D(w, h, TextureFormat.RGBA32, false);
             result.SetPixels32(dp);
@@ -726,8 +989,8 @@ namespace DataKeeper.Editor.Windows
                 readable = ResizeTexture(readable, tw, th);
 
             Color32[] px = readable.GetPixels32();
-            for (int i = 0; i < px.Length; i++)
-                ch[i] = invert ? (byte)(255 - px[i].r) : px[i].r;
+            Parallel.For(0, px.Length, i =>
+                ch[i] = invert ? (byte)(255 - px[i].r) : px[i].r);
             return ch;
         }
 
@@ -785,6 +1048,41 @@ namespace DataKeeper.Editor.Windows
             EditorGUILayout.EndVertical();
         }
 
+        // Side-by-side "Original vs Result". `after` may be null until Apply is pressed.
+        private void DrawBeforeAfterPreview(Texture2D before, Texture2D after)
+        {
+            if (before == null) return;
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("Preview", EditorStyles.boldLabel);
+
+            float box = Mathf.Clamp((EditorGUIUtility.currentViewWidth - 60f) * 0.5f, 80f, PREVIEW_MAX);
+            EditorGUILayout.BeginHorizontal();
+            DrawLabeledThumb("Original", before, box);
+            GUILayout.Space(8);
+            DrawLabeledThumb(after != null ? "Result" : "Result  (press Apply)", after, box);
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawLabeledThumb(string label, Texture2D tex, float box)
+        {
+            EditorGUILayout.BeginVertical(GUILayout.Width(box));
+            GUILayout.Label(label, EditorStyles.centeredGreyMiniLabel, GUILayout.Width(box));
+            if (tex != null)
+            {
+                float scale = Mathf.Min(box / tex.width, box / tex.height, 1f);
+                float pw = tex.width * scale, ph = tex.height * scale;
+                Rect r = GUILayoutUtility.GetRect(box, ph, GUILayout.Width(box), GUILayout.Height(ph));
+                EditorGUI.DrawTextureTransparent(new Rect(r.x + (box - pw) * 0.5f, r.y, pw, ph), tex);
+            }
+            else
+            {
+                GUILayout.Box("—", GUILayout.Width(box), GUILayout.Height(box));
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
         private void DrawResizeSection(ref int rW, ref int rH, ref bool lockAspect, int origW, int origH)
         {
             EditorGUILayout.BeginVertical(sectionBox);
@@ -824,7 +1122,6 @@ namespace DataKeeper.Editor.Windows
         {
             EditorGUILayout.Space(4);
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Refresh Preview", GUILayout.Height(28))) RefreshPreview();
             Color prev = GUI.backgroundColor;
             GUI.backgroundColor = new Color(0.4f, 0.8f, 0.4f);
             if (GUILayout.Button("💾  Save as New", GUILayout.Height(28))) SaveSingle(overwrite: false);
@@ -901,9 +1198,11 @@ namespace DataKeeper.Editor.Windows
         {
             int w = src.width, ht = src.height;
             Color32[] sp = src.GetPixels32(), dp = new Color32[sp.Length];
-            for (int y = 0; y < ht; y++)
-            for (int x = 0; x < w; x++)
-                dp[y * w + x] = sp[(v ? ht - 1 - y : y) * w + (h ? w - 1 - x : x)];
+            Parallel.For(0, ht, y =>
+            {
+                for (int x = 0; x < w; x++)
+                    dp[y * w + x] = sp[(v ? ht - 1 - y : y) * w + (h ? w - 1 - x : x)];
+            });
             var r = new Texture2D(w, ht, TextureFormat.RGBA32, false);
             r.SetPixels32(dp);
             r.Apply();
@@ -923,9 +1222,11 @@ namespace DataKeeper.Editor.Windows
         {
             int sw = src.width, sh = src.height;
             Color32[] sp = src.GetPixels32(), dp = new Color32[sw * sh];
-            for (int y = 0; y < sh; y++)
-            for (int x = 0; x < sw; x++)
-                dp[ccw ? x * sh + (sh - 1 - y) : (sw - 1 - x) * sh + y] = sp[y * sw + x];
+            Parallel.For(0, sh, y =>
+            {
+                for (int x = 0; x < sw; x++)
+                    dp[ccw ? x * sh + (sh - 1 - y) : (sw - 1 - x) * sh + y] = sp[y * sw + x];
+            });
             var r = new Texture2D(sh, sw, TextureFormat.RGBA32, false);
             r.SetPixels32(dp);
             r.Apply();
@@ -949,22 +1250,24 @@ namespace DataKeeper.Editor.Windows
             float cx = w * 0.5f, cy = h * 0.5f;
             Color32[] sp = src.GetPixels32(), dp = new Color32[w * h];
             Color32 clear = new Color32(0, 0, 0, 0);
-            for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
+            Parallel.For(0, h, y =>
             {
-                float ddx = x - cx, ddy = y - cy;
-                float sx = cos * ddx - sin * ddy + cx, sy = sin * ddx + cos * ddy + cy;
-                if (sx < 0 || sx >= w - 1 || sy < 0 || sy >= h - 1)
+                for (int x = 0; x < w; x++)
                 {
-                    dp[y * w + x] = clear;
-                    continue;
-                }
+                    float ddx = x - cx, ddy = y - cy;
+                    float sx = cos * ddx - sin * ddy + cx, sy = sin * ddx + cos * ddy + cy;
+                    if (sx < 0 || sx >= w - 1 || sy < 0 || sy >= h - 1)
+                    {
+                        dp[y * w + x] = clear;
+                        continue;
+                    }
 
-                int x0 = (int)sx, y0 = (int)sy;
-                float tx = sx - x0, ty = sy - y0;
-                dp[y * w + x] = LC(LC(sp[y0 * w + x0], sp[y0 * w + x0 + 1], tx),
-                    LC(sp[(y0 + 1) * w + x0], sp[(y0 + 1) * w + x0 + 1], tx), ty);
-            }
+                    int x0 = (int)sx, y0 = (int)sy;
+                    float tx = sx - x0, ty = sy - y0;
+                    dp[y * w + x] = LC(LC(sp[y0 * w + x0], sp[y0 * w + x0 + 1], tx),
+                        LC(sp[(y0 + 1) * w + x0], sp[(y0 + 1) * w + x0 + 1], tx), ty);
+                }
+            });
 
             var res = new Texture2D(w, h, TextureFormat.RGBA32, false);
             res.SetPixels32(dp);
@@ -976,7 +1279,7 @@ namespace DataKeeper.Editor.Windows
         {
             Color32[] sp = src.GetPixels32(), dp = new Color32[tw * th];
             int sw = src.width, sh = src.height;
-            for (int dy = 0; dy < th; dy++)
+            Parallel.For(0, th, dy =>
             {
                 float fy = (dy + 0.5f) * sh / th - 0.5f;
                 int y0 = Mathf.Clamp((int)fy, 0, sh - 1), y1 = Mathf.Clamp(y0 + 1, 0, sh - 1);
@@ -989,7 +1292,7 @@ namespace DataKeeper.Editor.Windows
                     dp[dy * tw + dx] = LC(LC(sp[y0 * sw + x0], sp[y0 * sw + x1], txf),
                         LC(sp[y1 * sw + x0], sp[y1 * sw + x1], txf), tyf);
                 }
-            }
+            });
 
             var r = new Texture2D(tw, th, TextureFormat.RGBA32, false);
             r.SetPixels32(dp);
@@ -1002,7 +1305,7 @@ namespace DataKeeper.Editor.Windows
             bool isDefault = Mathf.Approximately(brightness, 0f)
                              && Mathf.Approximately(contrast, 0f)
                              && Mathf.Approximately(saturation, 1f)
-                             && !grayscale && !tintEnabled;
+                             && !tintEnabled;
             if (isDefault) return src;
 
             Color32[] sp = src.GetPixels32(), dp = new Color32[sp.Length];
@@ -1010,24 +1313,26 @@ namespace DataKeeper.Editor.Windows
             float tg = tintEnabled ? tintColor.g : 1f;
             float tb = tintEnabled ? tintColor.b : 1f;
             float cf = contrast >= 0f ? 1f + contrast * 3f : 1f + contrast;
+            float bright = brightness, sat = saturation; // locals for the parallel closure
 
-            for (int i = 0; i < sp.Length; i++)
+            // Per-pixel work is independent → run it across all cores.
+            Parallel.For(0, sp.Length, i =>
             {
                 float r = sp[i].r / 255f, g = sp[i].g / 255f, b = sp[i].b / 255f, a = sp[i].a / 255f;
 
                 // Brightness
-                r += brightness;
-                g += brightness;
-                b += brightness;
+                r += bright;
+                g += bright;
+                b += bright;
                 // Contrast (pivot 0.5)
                 r = (r - 0.5f) * cf + 0.5f;
                 g = (g - 0.5f) * cf + 0.5f;
                 b = (b - 0.5f) * cf + 0.5f;
                 // Saturation / greyscale
                 float lum = 0.2126f * r + 0.7152f * g + 0.0722f * b;
-                r = lum + (r - lum) * saturation;
-                g = lum + (g - lum) * saturation;
-                b = lum + (b - lum) * saturation;
+                r = lum + (r - lum) * sat;
+                g = lum + (g - lum) * sat;
+                b = lum + (b - lum) * sat;
                 // Tint
                 r *= tr;
                 g *= tg;
@@ -1036,12 +1341,258 @@ namespace DataKeeper.Editor.Windows
                 dp[i] = new Color32(
                     (byte)(Mathf.Clamp01(r) * 255), (byte)(Mathf.Clamp01(g) * 255),
                     (byte)(Mathf.Clamp01(b) * 255), (byte)(Mathf.Clamp01(a) * 255));
-            }
+            });
 
             var result = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false);
             result.SetPixels32(dp);
             result.Apply();
             return result;
+        }
+
+        // ═════════════════════════════════════════════════════════════════════════
+        //  RECOLOR PIPELINE  (OKLab – perceptual, texture-preserving)
+        // ═════════════════════════════════════════════════════════════════════════
+        //
+        //  Why OKLab and not HSV?
+        //  In HSV a hue change keeps "Value" constant, but perceptually yellow is far
+        //  brighter than blue at the same Value → naive hue shifts look wrong.
+        //  OKLab separates perceptual Lightness (L) from colour (a,b). We keep L (that
+        //  is the texture / shading detail) and only move a,b, so every palette colour
+        //  automatically lands at its correct perceived brightness.
+        //
+        private Color ActiveTarget() =>
+            palette.Count > 0 && selectedSwatch >= 0 && selectedSwatch < palette.Count
+                ? palette[selectedSwatch]
+                : Color.gray;
+
+        // ── Palette persistence (EditorPrefs – survives restarts & domain reloads) ─
+        private const string PalettePrefsKey = "DataKeeper.ImageManipulator.Palette";
+
+        private void LoadPalette()
+        {
+            string s = EditorPrefs.GetString(PalettePrefsKey, "");
+            if (string.IsNullOrEmpty(s)) return; // no saved palette → keep the defaults
+
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            const System.Globalization.NumberStyles ns = System.Globalization.NumberStyles.Float;
+            var parsed = new List<Color>();
+            foreach (string entry in s.Split(';'))
+            {
+                string[] p = entry.Split(',');
+                if (p.Length == 4 &&
+                    float.TryParse(p[0], ns, inv, out float r) &&
+                    float.TryParse(p[1], ns, inv, out float g) &&
+                    float.TryParse(p[2], ns, inv, out float b) &&
+                    float.TryParse(p[3], ns, inv, out float a))
+                    parsed.Add(new Color(r, g, b, a));
+            }
+
+            if (parsed.Count == 0) return;
+            palette.Clear();
+            palette.AddRange(parsed);
+            selectedSwatch = Mathf.Clamp(selectedSwatch, 0, palette.Count - 1);
+        }
+
+        private void SavePalette()
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < palette.Count; i++)
+            {
+                Color c = palette[i];
+                if (i > 0) sb.Append(';');
+                sb.Append(c.r.ToString(inv)).Append(',')
+                    .Append(c.g.ToString(inv)).Append(',')
+                    .Append(c.b.ToString(inv)).Append(',')
+                    .Append(c.a.ToString(inv));
+            }
+
+            EditorPrefs.SetString(PalettePrefsKey, sb.ToString());
+        }
+
+        private void RefreshRecolorPreview()
+        {
+            if (sourceTexture == null)
+            {
+                recolorPreview = null;
+                return;
+            }
+
+            EnsureReadable(assetPath);
+
+            // Preview runs on a downscaled copy so "Apply" stays snappy even on 2K/4K
+            // textures. Saving (SaveRecolor) always processes the full-resolution source.
+            Texture2D previewSrc = GetReadableCopy(sourceTexture);
+            const int cap = 512;
+            if (previewSrc.width > cap || previewSrc.height > cap)
+            {
+                float s = Mathf.Min((float)cap / previewSrc.width, (float)cap / previewSrc.height);
+                previewSrc = ResizeTexture(previewSrc,
+                    Mathf.Max(1, Mathf.RoundToInt(previewSrc.width * s)),
+                    Mathf.Max(1, Mathf.RoundToInt(previewSrc.height * s)));
+            }
+
+            recolorPreview = ApplyRecolor(previewSrc);
+            Repaint();
+        }
+
+        private void SaveRecolor(bool overwrite)
+        {
+            if (sourceTexture == null) return;
+
+            EnsureReadable(assetPath);
+            Texture2D finalTex = ApplyRecolor(GetReadableCopy(sourceTexture));
+
+            string savedPath = overwrite
+                ? assetPath
+                : AssetDatabase.GenerateUniqueAssetPath(
+                    $"{Path.GetDirectoryName(assetPath)}" +
+                    $"/{Path.GetFileNameWithoutExtension(assetPath)}_recolored" +
+                    $"{Path.GetExtension(assetPath)}");
+
+            WriteTexture(finalTex, savedPath);
+            AssetDatabase.ImportAsset(savedPath, ImportAssetOptions.ForceUpdate);
+
+            var srcImp = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+            var dstImp = AssetImporter.GetAtPath(savedPath) as TextureImporter;
+            if (srcImp != null && dstImp != null && !overwrite) CopyTextureImporterSettings(srcImp, dstImp);
+            TrackAndSetReadable(dstImp, savedPath);
+
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("Saved", $"Recolored texture saved to:\n{savedPath}", "OK");
+            Debug.Log($"[ImageManipulator] Recolored → {savedPath}");
+        }
+
+        private Texture2D ApplyRecolor(Texture2D src)
+        {
+            RgbToOklab(ActiveTarget(), out _, out float ta, out float tb);
+            ta *= recolorChroma;
+            tb *= recolorChroma;
+
+            Color32[] sp = src.GetPixels32();
+            Color32[] dp = new Color32[sp.Length];
+
+            // Hue-shift needs the source's dominant hue → precompute the mean (a,b).
+            float cosD = 1f, sinD = 0f;
+            if (recolorMode == RecolorMode.HueShift)
+            {
+                double sumA = 0, sumB = 0;
+                for (int i = 0; i < sp.Length; i++)
+                {
+                    RgbToOklab(sp[i], out _, out float pa, out float pb);
+                    sumA += pa;
+                    sumB += pb;
+                }
+
+                float meanHue = Mathf.Atan2((float)sumB, (float)sumA);
+                float targetHue = Mathf.Atan2(tb, ta);
+                float delta = targetHue - meanHue;
+                while (delta > Mathf.PI) delta -= 2f * Mathf.PI;
+                while (delta < -Mathf.PI) delta += 2f * Mathf.PI;
+                delta *= recolorStrength;
+                cosD = Mathf.Cos(delta);
+                sinD = Mathf.Sin(delta);
+            }
+
+            // Locals for the parallel closure (avoid touching instance fields per-pixel).
+            bool recolorModeIsRecolor = recolorMode == RecolorMode.Recolor;
+            float strength = recolorStrength, chroma = recolorChroma, lightShift = recolorLightness;
+            bool naturalShading = recolorNaturalShading;
+
+            // Per-pixel work is independent → run it across all cores.
+            Parallel.For(0, sp.Length, i =>
+            {
+                RgbToOklab(sp[i], out float pl, out float pa, out float pb);
+
+                float oa, ob;
+                if (recolorModeIsRecolor)
+                {
+                    oa = Mathf.Lerp(pa, ta, strength);
+                    ob = Mathf.Lerp(pb, tb, strength);
+                }
+                else // HueShift – rotate the pixel's chroma around the grey axis
+                {
+                    oa = (pa * cosD - pb * sinD) * chroma;
+                    ob = (pa * sinD + pb * cosD) * chroma;
+                }
+
+                float ol = Mathf.Clamp01(pl + lightShift);
+
+                // Colour theory: highlights desaturate toward white, shadows toward
+                // black. Faded in by strength so Strength 0 stays a true identity.
+                if (naturalShading)
+                {
+                    float env = 4f * ol * (1f - ol); // 1 at mid-grey, 0 at the extremes
+                    float envEff = Mathf.Lerp(1f, env, strength);
+                    oa *= envEff;
+                    ob *= envEff;
+                }
+
+                OklabToRgb(ol, oa, ob, out float r, out float g, out float b);
+                dp[i] = new Color32(
+                    (byte)(Mathf.Clamp01(r) * 255f),
+                    (byte)(Mathf.Clamp01(g) * 255f),
+                    (byte)(Mathf.Clamp01(b) * 255f),
+                    sp[i].a);
+            });
+
+            var res = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false);
+            res.SetPixels32(dp);
+            res.Apply();
+            return res;
+        }
+
+        // ── OKLab conversions (Björn Ottosson) – done in linear light ──────────────
+        private static float SrgbToLinear(float c) =>
+            c <= 0.04045f ? c / 12.92f : Mathf.Pow((c + 0.055f) / 1.055f, 2.4f);
+
+        private static float LinearToSrgb(float c) =>
+            c <= 0.0031308f ? c * 12.92f : 1.055f * Mathf.Pow(c, 1f / 2.4f) - 0.055f;
+
+        // sign-safe cube root (Mathf.Pow throws on negatives, which out-of-gamut hits)
+        private static float Cbrt(float x) =>
+            x < 0f ? -Mathf.Pow(-x, 1f / 3f) : Mathf.Pow(x, 1f / 3f);
+
+        private static void RgbToOklab(Color32 c, out float L, out float a, out float b) =>
+            LinearRgbToOklab(
+                SrgbToLinear(c.r / 255f), SrgbToLinear(c.g / 255f), SrgbToLinear(c.b / 255f),
+                out L, out a, out b);
+
+        private static void RgbToOklab(Color c, out float L, out float a, out float b) =>
+            LinearRgbToOklab(
+                SrgbToLinear(c.r), SrgbToLinear(c.g), SrgbToLinear(c.b),
+                out L, out a, out b);
+
+        private static void LinearRgbToOklab(float r, float g, float bl,
+            out float L, out float a, out float b)
+        {
+            float l = 0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * bl;
+            float m = 0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * bl;
+            float s = 0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * bl;
+
+            float l_ = Cbrt(l), m_ = Cbrt(m), s_ = Cbrt(s);
+
+            L = 0.2104542553f * l_ + 0.7936177850f * m_ - 0.0040720468f * s_;
+            a = 1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_;
+            b = 0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_;
+        }
+
+        private static void OklabToRgb(float L, float a, float b,
+            out float r, out float g, out float bl)
+        {
+            float l_ = L + 0.3963377774f * a + 0.2158037573f * b;
+            float m_ = L - 0.1055613458f * a - 0.0638541728f * b;
+            float s_ = L - 0.0894841775f * a - 1.2914855480f * b;
+
+            float l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
+
+            float lr = 4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s;
+            float lg = -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s;
+            float lb = -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s;
+
+            r = LinearToSrgb(lr);
+            g = LinearToSrgb(lg);
+            bl = LinearToSrgb(lb);
         }
 
         private static Color32 LC(Color32 a, Color32 b, float t) => new Color32(
