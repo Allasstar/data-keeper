@@ -51,8 +51,9 @@ namespace DataKeeper.Editor.Windows
         // ── Recolor state (OKLab palette-match) ───────────────────────────────────
         private enum RecolorMode
         {
-            Recolor, // map the whole image onto the picked colour (keeps texture, becomes "much this colour")
-            HueShift // rotate the source's dominant hue onto the picked colour (keeps colour variety)
+            Recolor,  // map the whole image onto the picked colour (keeps texture, becomes "much this colour")
+            HueShift, // rotate the source's dominant hue onto the picked colour (keeps colour variety)
+            Layering  // composite a colour / second image on top with a Photoshop-style blend mode
         }
 
         private RecolorMode recolorMode = RecolorMode.Recolor;
@@ -74,6 +75,83 @@ namespace DataKeeper.Editor.Windows
         private float recolorLightness = 0f; // -0.5 … +0.5 (perceptual value shift)
         private bool recolorNaturalShading = true; // desaturate highlights→white, shadows→black
         private Texture2D recolorPreview;
+
+        // ── Layering state (Photoshop-style blend compositing) ────────────────────
+        private enum LayerSourceType
+        {
+            Color, // flat colour from the field below (or pulled off the palette)
+            Image  // a second texture, fitted onto the base
+        }
+
+        private enum LayerFit
+        {
+            Stretch, // scale to the base size, aspect ignored
+            Fit,     // scale to fit inside the base, aspect kept, rest transparent
+            Fill,    // scale to cover the base, aspect kept, overflow cropped
+            Tile,    // repeat, driven by Tile Scale
+            Center   // 1:1 pixels, centred, rest transparent
+        }
+
+        // Photoshop's blend list. Everything up to Divide is separable (per-channel);
+        // Hue…Luminosity are the non-separable W3C compositing modes.
+        private enum LayerBlendMode
+        {
+            Normal,
+            Darken, Multiply, ColorBurn, LinearBurn,
+            Lighten, Screen, ColorDodge, LinearDodge,
+            Overlay, SoftLight, HardLight, VividLight, LinearLight, PinLight, HardMix,
+            Difference, Exclusion, Subtract, Divide,
+            Hue, Saturation, Color, Luminosity
+        }
+
+        // Which alpha decides *how much* of the blend lands on each pixel.
+        private enum BlendMaskSource
+        {
+            None,          // blend everywhere at full Opacity
+            LayerAlpha,    // the layer's own alpha
+            BaseAlpha,     // the source image's alpha
+            MultiplyBoth,  // layerA × baseA
+            MinBoth,
+            MaxBoth,
+            AverageBoth,
+            LayerLuminance,
+            LayerR, LayerG, LayerB
+        }
+
+        // Which alpha the produced texture carries.
+        private enum ResultAlpha
+        {
+            Base,     // keep the source's alpha (safest for sprites)
+            Layer,
+            Multiply,
+            Min,
+            Max,
+            Mix,      // lerp(baseA, layerA, layerAlphaMix)
+            Union,    // standard "over": aB + aEff − aB·aEff
+            Opaque
+        }
+
+        private LayerSourceType layerSourceType = LayerSourceType.Color;
+        private Color layerColor = new Color(0.26f, 0.55f, 0.87f, 1f);
+        private Texture2D layerTexture;
+        private string layerTexturePath = "";
+        private LayerFit layerFit = LayerFit.Stretch;
+        private float layerTileScale = 1f;          // 0.1 … 8   (Tile only)
+        private Vector2 layerOffset = Vector2.zero; //  -1 … +1  in fractions of the base size
+
+        private LayerBlendMode layerBlendMode = LayerBlendMode.Multiply;
+        private float layerOpacity = 1f;    //  0 … 1
+        private float layerAlphaScale = 1f; //  0 … 2  multiplies the layer's own alpha
+
+        private BlendMaskSource layerMask = BlendMaskSource.LayerAlpha;
+        private bool layerMaskInvert = false;
+        private float layerMaskContrast = 1f; // gamma on the mask, 0.1 … 4
+
+        private ResultAlpha layerResultAlpha = ResultAlpha.Base;
+        private float layerAlphaMix = 0.5f; //  0 … 1  (ResultAlpha.Mix only)
+
+        private bool layerPreserveLuma = false; // re-apply the base's OKLab lightness after blending
+        private bool layerClipToBase = false;   // never paint where the base is transparent
 
         // Live = recompute preview on every change; off = only when "Apply" is pressed.
         // Shared by the Recolor and Color Adjust tabs.
@@ -570,38 +648,51 @@ namespace DataKeeper.Editor.Windows
 
             EditorGUILayout.EndVertical();
 
+            // Mode selector — picks which parameter block is shown below.
+            EditorGUILayout.BeginVertical(sectionBox);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Mode", GUILayout.Width(48));
+            EditorGUI.BeginChangeCheck();
+            recolorMode = (RecolorMode)GUILayout.Toolbar((int)recolorMode,
+                new[] { "Recolor", "Hue Shift", "Layering" });
+            bool changed = EditorGUI.EndChangeCheck();
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
+
             DrawPalette();
 
             // Adjustments
             EditorGUILayout.BeginVertical(sectionBox);
-            GUILayout.Label("Recolor", EditorStyles.boldLabel);
 
-            EditorGUI.BeginChangeCheck();
+            if (recolorMode == RecolorMode.Layering)
+            {
+                changed |= DrawLayeringSection();
+            }
+            else
+            {
+                GUILayout.Label("Recolor", EditorStyles.boldLabel);
 
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Mode", GUILayout.Width(48));
-            recolorMode = (RecolorMode)GUILayout.Toolbar((int)recolorMode,
-                new[] { "Recolor", "Hue Shift" });
-            EditorGUILayout.EndHorizontal();
+                EditorGUI.BeginChangeCheck();
 
-            EditorGUILayout.HelpBox(
-                recolorMode == RecolorMode.Recolor
-                    ? "Recolor: every pixel is pushed onto the selected palette colour while its perceptual " +
-                      "lightness (the texture detail / shading) is preserved. Strength 1 = fully that colour."
-                    : "Hue Shift: the image's dominant hue is rotated onto the palette colour. Keeps the " +
-                      "original colour variety — good for textures that already contain several colours.",
-                MessageType.Info);
+                EditorGUILayout.HelpBox(
+                    recolorMode == RecolorMode.Recolor
+                        ? "Recolor: every pixel is pushed onto the selected palette colour while its perceptual " +
+                          "lightness (the texture detail / shading) is preserved. Strength 1 = fully that colour."
+                        : "Hue Shift: the image's dominant hue is rotated onto the palette colour. Keeps the " +
+                          "original colour variety — good for textures that already contain several colours.",
+                    MessageType.Info);
 
-            recolorStrength = EditorGUILayout.Slider("Strength", recolorStrength, 0f, 1f);
-            recolorChroma = EditorGUILayout.Slider("Chroma", recolorChroma, 0f, 2f);
-            recolorLightness = EditorGUILayout.Slider("Lightness", recolorLightness, -0.5f, 0.5f);
-            recolorNaturalShading = EditorGUILayout.Toggle(
-                new GUIContent("Natural Shading",
-                    "Colour theory: highlights fade toward white and deep shadows toward black, " +
-                    "instead of every tone carrying full chroma. Recommended for physically-plausible results."),
-                recolorNaturalShading);
+                recolorStrength = EditorGUILayout.Slider("Strength", recolorStrength, 0f, 1f);
+                recolorChroma = EditorGUILayout.Slider("Chroma", recolorChroma, 0f, 2f);
+                recolorLightness = EditorGUILayout.Slider("Lightness", recolorLightness, -0.5f, 0.5f);
+                recolorNaturalShading = EditorGUILayout.Toggle(
+                    new GUIContent("Natural Shading",
+                        "Colour theory: highlights fade toward white and deep shadows toward black, " +
+                        "instead of every tone carrying full chroma. Recommended for physically-plausible results."),
+                    recolorNaturalShading);
 
-            bool changed = EditorGUI.EndChangeCheck();
+                changed |= EditorGUI.EndChangeCheck();
+            }
 
             EditorGUILayout.Space(2);
             EditorGUILayout.BeginHorizontal();
@@ -614,11 +705,19 @@ namespace DataKeeper.Editor.Windows
 
             if (GUILayout.Button("Reset", GUILayout.Width(70)))
             {
-                recolorMode = RecolorMode.Recolor;
-                recolorStrength = 1f;
-                recolorChroma = 1f;
-                recolorLightness = 0f;
-                recolorNaturalShading = true;
+                // Reset the active mode's parameters, not the mode itself.
+                if (recolorMode == RecolorMode.Layering)
+                {
+                    ResetLayering();
+                }
+                else
+                {
+                    recolorStrength = 1f;
+                    recolorChroma = 1f;
+                    recolorLightness = 0f;
+                    recolorNaturalShading = true;
+                }
+
                 changed = true;
             }
 
@@ -720,6 +819,184 @@ namespace DataKeeper.Editor.Windows
             }
 
             EditorGUILayout.EndVertical();
+        }
+
+        // ── Layering parameters. Returns true when anything changed. ──────────────
+        private bool DrawLayeringSection()
+        {
+            GUILayout.Label("Layering", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Layering: a flat colour or a second image is composited on top of the source using a " +
+                "Photoshop blend mode. The Alpha / Mask block decides where the blend lands and which " +
+                "alpha the result keeps.",
+                MessageType.Info);
+
+            EditorGUI.BeginChangeCheck();
+
+            // ── 1. What gets layered on top ───────────────────────────────────────
+            GUILayout.Label("Layer Source", EditorStyles.miniBoldLabel);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Type", GUILayout.Width(48));
+            layerSourceType = (LayerSourceType)GUILayout.Toolbar((int)layerSourceType,
+                new[] { "Color", "Image" });
+            EditorGUILayout.EndHorizontal();
+
+            if (layerSourceType == LayerSourceType.Color)
+            {
+                EditorGUILayout.BeginHorizontal();
+                layerColor = EditorGUILayout.ColorField(
+                    new GUIContent("Color", "The colour blended on top. Its alpha feeds the Layer Alpha mask."),
+                    layerColor);
+                if (GUILayout.Button(
+                        new GUIContent("← Swatch", "Copy the selected palette swatch into the layer colour."),
+                        GUILayout.Width(74)))
+                {
+                    Color c = ActiveTarget();
+                    layerColor = new Color(c.r, c.g, c.b, layerColor.a);
+                    GUI.changed = true;
+                }
+
+                EditorGUILayout.EndHorizontal();
+            }
+            else
+            {
+                var newLayer = (Texture2D)EditorGUILayout.ObjectField(
+                    new GUIContent("Image", "The texture blended on top of the source."),
+                    layerTexture, typeof(Texture2D), false);
+                if (newLayer != layerTexture)
+                {
+                    layerTexture = newLayer;
+                    layerTexturePath = layerTexture ? AssetDatabase.GetAssetPath(layerTexture) : "";
+                    GUI.changed = true;
+                }
+
+                if (layerTexture == null)
+                    EditorGUILayout.HelpBox("Pick a texture to layer, or switch back to Color.",
+                        MessageType.Warning);
+
+                layerFit = (LayerFit)EditorGUILayout.EnumPopup(
+                    new GUIContent("Fit", "How the layer image is mapped onto the base resolution."),
+                    layerFit);
+
+                if (layerFit == LayerFit.Tile)
+                    layerTileScale = EditorGUILayout.Slider(
+                        new GUIContent("Tile Scale", "Repeats across the base width / height."),
+                        layerTileScale, 0.1f, 8f);
+
+                if (layerFit != LayerFit.Stretch)
+                    layerOffset = EditorGUILayout.Vector2Field(
+                        new GUIContent("Offset", "Shift the layer, in fractions of the base size."),
+                        layerOffset);
+            }
+
+            EditorGUILayout.Space(4);
+
+            // ── 2. Blend mode + strength ──────────────────────────────────────────
+            GUILayout.Label("Blend", EditorStyles.miniBoldLabel);
+            layerBlendMode = (LayerBlendMode)EditorGUILayout.EnumPopup(
+                new GUIContent("Blend Mode", "The same maths as the Photoshop layer blend modes."),
+                layerBlendMode);
+            EditorGUILayout.LabelField(" ", BlendModeHint(layerBlendMode), EditorStyles.wordWrappedMiniLabel);
+
+            layerOpacity = EditorGUILayout.Slider(
+                new GUIContent("Opacity", "Global strength of the layer. 0 = untouched source."),
+                layerOpacity, 0f, 1f);
+
+            layerPreserveLuma = EditorGUILayout.Toggle(
+                new GUIContent("Preserve Luminosity",
+                    "Re-apply the source's perceptual lightness (OKLab L) after blending — the colour " +
+                    "changes but the original shading and contrast survive intact."),
+                layerPreserveLuma);
+
+            EditorGUILayout.Space(4);
+
+            // ── 3. Which alpha gates the blend, and which alpha survives ──────────
+            GUILayout.Label("Alpha / Mask", EditorStyles.miniBoldLabel);
+            layerMask = (BlendMaskSource)EditorGUILayout.EnumPopup(
+                new GUIContent("Blend Mask",
+                    "Which alpha (or channel) decides how much of the blend lands per pixel. " +
+                    "The \"…Both\" options mix the layer's alpha with the base's."),
+                layerMask);
+
+            using (new EditorGUI.DisabledGroupScope(layerMask == BlendMaskSource.None))
+            {
+                layerMaskInvert = EditorGUILayout.Toggle("Invert Mask", layerMaskInvert);
+                layerMaskContrast = EditorGUILayout.Slider(
+                    new GUIContent("Mask Contrast", "Gamma on the mask. <1 widens the blend, >1 tightens it."),
+                    layerMaskContrast, 0.1f, 4f);
+            }
+
+            layerAlphaScale = EditorGUILayout.Slider(
+                new GUIContent("Layer Alpha ×", "Multiplies the layer's own alpha before it is used."),
+                layerAlphaScale, 0f, 2f);
+
+            layerClipToBase = EditorGUILayout.Toggle(
+                new GUIContent("Clip To Base Alpha",
+                    "Never paint where the source is transparent — keeps sprite silhouettes clean."),
+                layerClipToBase);
+
+            EditorGUILayout.Space(2);
+            layerResultAlpha = (ResultAlpha)EditorGUILayout.EnumPopup(
+                new GUIContent("Result Alpha", "Which alpha the produced texture carries."),
+                layerResultAlpha);
+
+            using (new EditorGUI.DisabledGroupScope(layerResultAlpha != ResultAlpha.Mix))
+                layerAlphaMix = EditorGUILayout.Slider(
+                    new GUIContent("Alpha Mix", "0 = base alpha, 1 = layer alpha."),
+                    layerAlphaMix, 0f, 1f);
+
+            return EditorGUI.EndChangeCheck();
+        }
+
+        private void ResetLayering()
+        {
+            layerSourceType = LayerSourceType.Color;
+            layerColor = new Color(0.26f, 0.55f, 0.87f, 1f);
+            layerFit = LayerFit.Stretch;
+            layerTileScale = 1f;
+            layerOffset = Vector2.zero;
+            layerBlendMode = LayerBlendMode.Multiply;
+            layerOpacity = 1f;
+            layerAlphaScale = 1f;
+            layerMask = BlendMaskSource.LayerAlpha;
+            layerMaskInvert = false;
+            layerMaskContrast = 1f;
+            layerResultAlpha = ResultAlpha.Base;
+            layerAlphaMix = 0.5f;
+            layerPreserveLuma = false;
+            layerClipToBase = false;
+        }
+
+        private static string BlendModeHint(LayerBlendMode m)
+        {
+            switch (m)
+            {
+                case LayerBlendMode.Normal: return "Plain overlay — the layer simply replaces the base.";
+                case LayerBlendMode.Darken: return "Keeps the darker of the two, per channel.";
+                case LayerBlendMode.Multiply: return "Darkens; white in the layer is a no-op. Good for shadows and dirt.";
+                case LayerBlendMode.ColorBurn: return "Strong darkening with boosted contrast.";
+                case LayerBlendMode.LinearBurn: return "Darkens by subtracting brightness. Flatter than Color Burn.";
+                case LayerBlendMode.Lighten: return "Keeps the lighter of the two, per channel.";
+                case LayerBlendMode.Screen: return "Brightens; black in the layer is a no-op. Good for glow and light.";
+                case LayerBlendMode.ColorDodge: return "Strong brightening with boosted contrast.";
+                case LayerBlendMode.LinearDodge: return "Additive light — the classic \"Add\" mode.";
+                case LayerBlendMode.Overlay: return "Multiply in the shadows, Screen in the highlights. Contrast boost.";
+                case LayerBlendMode.SoftLight: return "A gentle Overlay — subtle tinting and shading.";
+                case LayerBlendMode.HardLight: return "Overlay driven by the layer instead of the base.";
+                case LayerBlendMode.VividLight: return "Burn / Dodge combo. Very strong contrast.";
+                case LayerBlendMode.LinearLight: return "Linear Burn / Dodge combo. Strong, and clips easily.";
+                case LayerBlendMode.PinLight: return "Replaces tones based on the layer's brightness.";
+                case LayerBlendMode.HardMix: return "Posterises to the eight primary corners.";
+                case LayerBlendMode.Difference: return "Absolute difference — inverts where the layer is bright.";
+                case LayerBlendMode.Exclusion: return "A softer Difference; mid-tones go grey.";
+                case LayerBlendMode.Subtract: return "Subtracts the layer from the base.";
+                case LayerBlendMode.Divide: return "Divides the base by the layer. Aggressive brightening.";
+                case LayerBlendMode.Hue: return "The layer's hue, the base's saturation and brightness.";
+                case LayerBlendMode.Saturation: return "The layer's saturation, the base's hue and brightness.";
+                case LayerBlendMode.Color: return "The layer's hue + saturation, the base's brightness. Classic tinting.";
+                case LayerBlendMode.Luminosity: return "The layer's brightness, the base's colour.";
+                default: return "";
+            }
         }
 
         // ═════════════════════════════════════════════════════════════════════════
@@ -1443,11 +1720,12 @@ namespace DataKeeper.Editor.Windows
             EnsureReadable(assetPath);
             Texture2D finalTex = ApplyRecolor(GetReadableCopy(sourceTexture));
 
+            string suffix = recolorMode == RecolorMode.Layering ? "_layered" : "_recolored";
             string savedPath = overwrite
                 ? assetPath
                 : AssetDatabase.GenerateUniqueAssetPath(
                     $"{Path.GetDirectoryName(assetPath)}" +
-                    $"/{Path.GetFileNameWithoutExtension(assetPath)}_recolored" +
+                    $"/{Path.GetFileNameWithoutExtension(assetPath)}{suffix}" +
                     $"{Path.GetExtension(assetPath)}");
 
             WriteTexture(finalTex, savedPath);
@@ -1459,12 +1737,15 @@ namespace DataKeeper.Editor.Windows
             TrackAndSetReadable(dstImp, savedPath);
 
             AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog("Saved", $"Recolored texture saved to:\n{savedPath}", "OK");
-            Debug.Log($"[ImageManipulator] Recolored → {savedPath}");
+            string verb = recolorMode == RecolorMode.Layering ? "Layered" : "Recolored";
+            EditorUtility.DisplayDialog("Saved", $"{verb} texture saved to:\n{savedPath}", "OK");
+            Debug.Log($"[ImageManipulator] {verb} → {savedPath}");
         }
 
         private Texture2D ApplyRecolor(Texture2D src)
         {
+            if (recolorMode == RecolorMode.Layering) return ApplyLayering(src);
+
             RgbToOklab(ActiveTarget(), out _, out float ta, out float tb);
             ta *= recolorChroma;
             tb *= recolorChroma;
@@ -1540,6 +1821,338 @@ namespace DataKeeper.Editor.Windows
             res.SetPixels32(dp);
             res.Apply();
             return res;
+        }
+
+        // ═════════════════════════════════════════════════════════════════════════
+        //  LAYERING PIPELINE  (Photoshop-style blend compositing)
+        // ═════════════════════════════════════════════════════════════════════════
+        //
+        //  Blending runs on sRGB-encoded 0…1 values, not linear light — that is what
+        //  Photoshop does by default, so Multiply/Screen/Overlay land on the numbers
+        //  an artist expects from the same modes in Photoshop.
+        //
+        //  Compositing follows the W3C formula so a transparent base behaves:
+        //      Cs' = (1 − αb)·Cs + αb·B(Cb, Cs)      blend fades out over holes
+        //      Cr  = (1 − αEff)·Cb + αEff·Cs'        αEff = opacity × mask
+        //
+        private Texture2D ApplyLayering(Texture2D src)
+        {
+            int w = src.width, h = src.height;
+            Color32[] sp = src.GetPixels32();
+            Color32[] dp = new Color32[sp.Length];
+            Color32[] lp = BuildLayerBuffer(w, h);
+
+            // Locals for the parallel closure (never touch instance fields per-pixel).
+            LayerBlendMode mode = layerBlendMode;
+            BlendMaskSource maskSrc = layerMask;
+            ResultAlpha resAlpha = layerResultAlpha;
+            float opacity = layerOpacity, alphaScale = layerAlphaScale;
+            float maskGamma = layerMaskContrast, alphaMix = layerAlphaMix;
+            bool maskInvert = layerMaskInvert, preserveLuma = layerPreserveLuma, clipToBase = layerClipToBase;
+
+            Parallel.For(0, sp.Length, i =>
+            {
+                Color32 bc = sp[i], lc = lp[i];
+
+                float br = bc.r / 255f, bg = bc.g / 255f, bb = bc.b / 255f, ba = bc.a / 255f;
+                float sr = lc.r / 255f, sg = lc.g / 255f, sb = lc.b / 255f;
+                float sa = Mathf.Clamp01(lc.a / 255f * alphaScale);
+
+                // ── mask: how much of the blend lands here ────────────────────────
+                float mask;
+                switch (maskSrc)
+                {
+                    case BlendMaskSource.None: mask = 1f; break;
+                    case BlendMaskSource.LayerAlpha: mask = sa; break;
+                    case BlendMaskSource.BaseAlpha: mask = ba; break;
+                    case BlendMaskSource.MultiplyBoth: mask = sa * ba; break;
+                    case BlendMaskSource.MinBoth: mask = Mathf.Min(sa, ba); break;
+                    case BlendMaskSource.MaxBoth: mask = Mathf.Max(sa, ba); break;
+                    case BlendMaskSource.AverageBoth: mask = (sa + ba) * 0.5f; break;
+                    case BlendMaskSource.LayerLuminance: mask = Lum(sr, sg, sb); break;
+                    case BlendMaskSource.LayerR: mask = sr; break;
+                    case BlendMaskSource.LayerG: mask = sg; break;
+                    case BlendMaskSource.LayerB: mask = sb; break;
+                    default: mask = 1f; break;
+                }
+
+                if (maskInvert) mask = 1f - mask;
+                if (maskSrc != BlendMaskSource.None && !Mathf.Approximately(maskGamma, 1f))
+                    mask = Mathf.Pow(Mathf.Clamp01(mask), maskGamma);
+
+                float eff = Mathf.Clamp01(opacity * Mathf.Clamp01(mask));
+                if (clipToBase) eff *= ba;
+
+                // ── blend ─────────────────────────────────────────────────────────
+                float rr, rg, rb;
+                if (eff <= 0f)
+                {
+                    rr = br; rg = bg; rb = bb;
+                }
+                else
+                {
+                    Blend(mode, br, bg, bb, sr, sg, sb, out float nr, out float ng, out float nb);
+
+                    // Fade the blend back toward the raw layer colour over holes in
+                    // the base, so blending onto transparency stays well-defined.
+                    nr = (1f - ba) * sr + ba * nr;
+                    ng = (1f - ba) * sg + ba * ng;
+                    nb = (1f - ba) * sb + ba * nb;
+
+                    rr = Mathf.Lerp(br, nr, eff);
+                    rg = Mathf.Lerp(bg, ng, eff);
+                    rb = Mathf.Lerp(bb, nb, eff);
+
+                    if (preserveLuma)
+                    {
+                        // Swap the blended colour's OKLab lightness for the base's.
+                        RgbToOklab(new Color(br, bg, bb), out float baseL, out _, out _);
+                        RgbToOklab(new Color(Mathf.Clamp01(rr), Mathf.Clamp01(rg), Mathf.Clamp01(rb)),
+                            out _, out float oa, out float ob);
+                        OklabToRgb(baseL, oa, ob, out rr, out rg, out rb);
+                    }
+                }
+
+                // ── result alpha ──────────────────────────────────────────────────
+                float outA;
+                switch (resAlpha)
+                {
+                    case ResultAlpha.Base: outA = ba; break;
+                    case ResultAlpha.Layer: outA = sa; break;
+                    case ResultAlpha.Multiply: outA = ba * sa; break;
+                    case ResultAlpha.Min: outA = Mathf.Min(ba, sa); break;
+                    case ResultAlpha.Max: outA = Mathf.Max(ba, sa); break;
+                    case ResultAlpha.Mix: outA = Mathf.Lerp(ba, sa, alphaMix); break;
+                    case ResultAlpha.Union: outA = ba + eff - ba * eff; break;
+                    case ResultAlpha.Opaque: outA = 1f; break;
+                    default: outA = ba; break;
+                }
+
+                dp[i] = new Color32(
+                    (byte)(Mathf.Clamp01(rr) * 255f),
+                    (byte)(Mathf.Clamp01(rg) * 255f),
+                    (byte)(Mathf.Clamp01(rb) * 255f),
+                    (byte)(Mathf.Clamp01(outA) * 255f));
+            });
+
+            var res = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            res.SetPixels32(dp);
+            res.Apply();
+            return res;
+        }
+
+        // Builds the top layer at the base resolution: either a flat colour, or the
+        // picked texture mapped in with the selected fit mode.
+        private Color32[] BuildLayerBuffer(int w, int h)
+        {
+            var buf = new Color32[w * h];
+
+            if (layerSourceType == LayerSourceType.Color || layerTexture == null)
+            {
+                Color32 c = layerColor;
+                for (int i = 0; i < buf.Length; i++) buf[i] = c;
+                return buf;
+            }
+
+            // The path can be stale after a domain reload — re-resolve before relying on it.
+            if (string.IsNullOrEmpty(layerTexturePath))
+                layerTexturePath = AssetDatabase.GetAssetPath(layerTexture);
+            EnsureReadable(layerTexturePath);
+            Texture2D lay = GetReadableCopy(layerTexture);
+
+            // Stretch is just a resample; the rest place a scaled copy on a
+            // transparent canvas (or repeat it), so do the scaling up front.
+            int lw = lay.width, lh = lay.height;
+            switch (layerFit)
+            {
+                case LayerFit.Stretch:
+                    lay = ResizeTexture(lay, w, h);
+                    lw = w;
+                    lh = h;
+                    break;
+                case LayerFit.Fit:
+                case LayerFit.Fill:
+                {
+                    float s = layerFit == LayerFit.Fit
+                        ? Mathf.Min((float)w / lw, (float)h / lh)
+                        : Mathf.Max((float)w / lw, (float)h / lh);
+                    lw = Mathf.Max(1, Mathf.RoundToInt(lay.width * s));
+                    lh = Mathf.Max(1, Mathf.RoundToInt(lay.height * s));
+                    lay = ResizeTexture(lay, lw, lh);
+                    break;
+                }
+                case LayerFit.Tile:
+                {
+                    float s = Mathf.Max(0.01f, layerTileScale);
+                    lw = Mathf.Max(1, Mathf.RoundToInt(w / s));
+                    lh = Mathf.Max(1, Mathf.RoundToInt(h / s));
+                    lay = ResizeTexture(lay, lw, lh);
+                    break;
+                }
+                // Center keeps the layer's native pixels.
+            }
+
+            Color32[] src = lay.GetPixels32();
+            bool tile = layerFit == LayerFit.Tile;
+            int offX = Mathf.RoundToInt(layerOffset.x * w) + (tile ? 0 : (w - lw) / 2);
+            int offY = Mathf.RoundToInt(layerOffset.y * h) + (tile ? 0 : (h - lh) / 2);
+            Color32 clear = new Color32(0, 0, 0, 0);
+
+            Parallel.For(0, h, y =>
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int sx = x - offX, sy = y - offY;
+                    if (tile)
+                    {
+                        sx = ((sx % lw) + lw) % lw;
+                        sy = ((sy % lh) + lh) % lh;
+                    }
+                    else if (sx < 0 || sx >= lw || sy < 0 || sy >= lh)
+                    {
+                        buf[y * w + x] = clear;
+                        continue;
+                    }
+
+                    buf[y * w + x] = src[sy * lw + sx];
+                }
+            });
+
+            return buf;
+        }
+
+        // ── Blend dispatch. Separable modes run per channel; the last four need all
+        //    three channels at once, so they are handled before the split. ──────────
+        private static void Blend(LayerBlendMode m,
+            float br, float bg, float bb, float sr, float sg, float sb,
+            out float rr, out float rg, out float rb)
+        {
+            switch (m)
+            {
+                case LayerBlendMode.Hue:
+                    SetLum(SetSat(sr, sg, sb, Sat(br, bg, bb)), Lum(br, bg, bb), out rr, out rg, out rb);
+                    return;
+                case LayerBlendMode.Saturation:
+                    SetLum(SetSat(br, bg, bb, Sat(sr, sg, sb)), Lum(br, bg, bb), out rr, out rg, out rb);
+                    return;
+                case LayerBlendMode.Color:
+                    SetLum(new Vector3(sr, sg, sb), Lum(br, bg, bb), out rr, out rg, out rb);
+                    return;
+                case LayerBlendMode.Luminosity:
+                    SetLum(new Vector3(br, bg, bb), Lum(sr, sg, sb), out rr, out rg, out rb);
+                    return;
+                default:
+                    rr = BlendChannel(m, br, sr);
+                    rg = BlendChannel(m, bg, sg);
+                    rb = BlendChannel(m, bb, sb);
+                    return;
+            }
+        }
+
+        // b = base (backdrop), s = layer (source). Both sRGB-encoded 0…1.
+        private static float BlendChannel(LayerBlendMode m, float b, float s)
+        {
+            switch (m)
+            {
+                case LayerBlendMode.Normal: return s;
+                case LayerBlendMode.Darken: return Mathf.Min(b, s);
+                case LayerBlendMode.Multiply: return b * s;
+                case LayerBlendMode.ColorBurn: return s <= 0f ? 0f : 1f - Mathf.Min(1f, (1f - b) / s);
+                case LayerBlendMode.LinearBurn: return b + s - 1f;
+                case LayerBlendMode.Lighten: return Mathf.Max(b, s);
+                case LayerBlendMode.Screen: return b + s - b * s;
+                case LayerBlendMode.ColorDodge: return s >= 1f ? 1f : Mathf.Min(1f, b / (1f - s));
+                case LayerBlendMode.LinearDodge: return b + s;
+                case LayerBlendMode.Overlay: return HardLight(s, b); // Hard Light with the roles swapped
+                case LayerBlendMode.HardLight: return HardLight(b, s);
+                case LayerBlendMode.SoftLight: return SoftLight(b, s);
+                case LayerBlendMode.VividLight:
+                    return s <= 0.5f
+                        ? BlendChannel(LayerBlendMode.ColorBurn, b, 2f * s)
+                        : BlendChannel(LayerBlendMode.ColorDodge, b, 2f * (s - 0.5f));
+                case LayerBlendMode.LinearLight: return b + 2f * s - 1f;
+                case LayerBlendMode.PinLight:
+                    return s <= 0.5f ? Mathf.Min(b, 2f * s) : Mathf.Max(b, 2f * s - 1f);
+                case LayerBlendMode.HardMix: return b + 2f * s - 1f >= 1f ? 1f : 0f;
+                case LayerBlendMode.Difference: return Mathf.Abs(b - s);
+                case LayerBlendMode.Exclusion: return b + s - 2f * b * s;
+                case LayerBlendMode.Subtract: return b - s;
+                case LayerBlendMode.Divide: return s <= 0f ? 1f : Mathf.Min(1f, b / s);
+                default: return s;
+            }
+        }
+
+        private static float HardLight(float b, float s) =>
+            s <= 0.5f ? b * (2f * s) : 1f - (1f - b) * (2f - 2f * s);
+
+        private static float SoftLight(float b, float s)
+        {
+            if (s <= 0.5f) return b - (1f - 2f * s) * b * (1f - b);
+            float d = b <= 0.25f ? ((16f * b - 12f) * b + 4f) * b : Mathf.Sqrt(b);
+            return b + (2f * s - 1f) * (d - b);
+        }
+
+        // ── Non-separable helpers (W3C compositing spec) ──────────────────────────
+        private static float Lum(float r, float g, float b) => 0.3f * r + 0.59f * g + 0.11f * b;
+
+        private static float Sat(float r, float g, float b) =>
+            Mathf.Max(r, Mathf.Max(g, b)) - Mathf.Min(r, Mathf.Min(g, b));
+
+        // Shift a colour to the target luminosity, then pull it back into gamut.
+        private static void SetLum(Vector3 c, float l, out float rr, out float rg, out float rb)
+        {
+            float d = l - Lum(c.x, c.y, c.z);
+            float r = c.x + d, g = c.y + d, b = c.z + d;
+
+            float lum = Lum(r, g, b);
+            float n = Mathf.Min(r, Mathf.Min(g, b));
+            float x = Mathf.Max(r, Mathf.Max(g, b));
+
+            if (n < 0f && lum - n > 1e-6f)
+            {
+                float k = lum / (lum - n);
+                r = lum + (r - lum) * k;
+                g = lum + (g - lum) * k;
+                b = lum + (b - lum) * k;
+            }
+
+            if (x > 1f && x - lum > 1e-6f)
+            {
+                float k = (1f - lum) / (x - lum);
+                r = lum + (r - lum) * k;
+                g = lum + (g - lum) * k;
+                b = lum + (b - lum) * k;
+            }
+
+            rr = r;
+            rg = g;
+            rb = b;
+        }
+
+        // Rescale a colour so its saturation becomes `s`: the darkest channel goes to
+        // 0, the brightest to s, and the middle one keeps its relative position.
+        // Indices are used rather than value comparisons so duplicate channel values
+        // (grey, or any two-equal colour) can't land on the wrong branch.
+        private static Vector3 SetSat(float r, float g, float b, float s)
+        {
+            int iMin = 0, iMax = 0;
+            float mn = r, mx = r;
+            if (g < mn) { mn = g; iMin = 1; }
+            if (b < mn) { mn = b; iMin = 2; }
+            if (g > mx) { mx = g; iMax = 1; }
+            if (b > mx) { mx = b; iMax = 2; }
+
+            if (iMin == iMax || mx - mn <= 1e-6f)
+                return Vector3.zero; // flat colour → nothing to rescale
+
+            int iMid = 3 - iMin - iMax;
+            float mid = iMid == 0 ? r : iMid == 1 ? g : b;
+
+            var outc = Vector3.zero;
+            outc[iMax] = s;
+            outc[iMid] = (mid - mn) * s / (mx - mn);
+            outc[iMin] = 0f;
+            return outc;
         }
 
         // ── OKLab conversions (Björn Ottosson) – done in linear light ──────────────
