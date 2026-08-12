@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using UnityEditor;
@@ -6,7 +6,7 @@ using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ImageManipulatorTool  –  Tools/Image Manipulator
-//  Tabs: Single | Batch | Color Adjust | Recolor | Channel Extract | Channel Import (ORM)
+//  Tabs: Single | Batch | Color Adjust | Recolor | Channel Extract | Channel Import (ORM) | Gradient
 // ─────────────────────────────────────────────────────────────────────────────
 namespace DataKeeper.Editor.Windows
 {
@@ -20,13 +20,14 @@ namespace DataKeeper.Editor.Windows
             ColorAdjust,
             Recolor,
             ChannelExtract,
-            ChannelImport
+            ChannelImport,
+            Gradient
         }
 
         private Tab activeTab = Tab.Single;
 
         private readonly string[] tabLabels =
-            { "Single", "Batch", "Color Adjust", "Recolor", "Ch. Extract", "Ch. Import (ORM)" };
+            { "Single", "Batch", "Color Adjust", "Recolor", "Ch. Extract", "Ch. Import (ORM)", "Gradient" };
 
         // ── Single-image state ────────────────────────────────────────────────────
         private Texture2D sourceTexture;
@@ -185,6 +186,49 @@ namespace DataKeeper.Editor.Windows
         private string ormOutputPath = "Assets";
         private string ormOutputName = "ORM_Packed";
 
+        // ── Gradient-generator state ──────────────────────────────────────────────
+        private enum GradientShape
+        {
+            Linear, // straight ramp along Angle
+            Radial  // ramp outward from Position
+        }
+
+        // What happens outside the 0…1 range of the ramp.
+        private enum GradientWrapMode
+        {
+            Clamp,
+            Repeat,
+            PingPong
+        }
+
+        // Serialized so a hand-authored ramp survives domain reloads.
+        [SerializeField] private Gradient gradientRamp = new Gradient
+        {
+            colorKeys = new[] { new GradientColorKey(Color.black, 0f), new GradientColorKey(Color.white, 1f) },
+            alphaKeys = new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) }
+        };
+
+        private GradientShape gradientShape = GradientShape.Linear;
+        private int gradientWidth = 512;
+        private int gradientHeight = 512;
+        private float gradientAngle = 0f;                            // 0° = left → right, CCW
+        private Vector2 gradientCenter = new Vector2(0.5f, 0.5f);    // normalised, (0,0) = bottom-left
+        private float gradientSpread = 1f;                           // ramp length (linear) / radius (radial)
+        private GradientWrapMode gradientWrap = GradientWrapMode.Clamp;
+        private bool gradientCircular = true;                        // radial: compensate for non-square images
+        private bool gradientDither = true;                          // ordered dither → kills 8-bit banding
+        private bool gradientSRGB = true;
+        private bool gradientAsSprite = false;
+        private string gradientOutputPath = "Assets";
+        private string gradientOutputName = "Gradient";
+        private Texture2D gradientPreview;
+
+        private const int GRADIENT_LUT = 4096;
+        private const float GRADIENT_PREVIEW_MAX = 512f;
+
+        // 4×4 Bayer matrix, normalised to −0.5…+0.5 (applied in 0…255 units before rounding).
+        private static readonly float[] Bayer4 = BuildBayer4();
+
         // ── isReadable restore tracking ───────────────────────────────────────────
         // Maps asset path → original isReadable value before the tool changed it.
         private readonly Dictionary<string, bool> _originalReadability = new Dictionary<string, bool>();
@@ -254,6 +298,7 @@ namespace DataKeeper.Editor.Windows
                 case Tab.Recolor: DrawRecolorTab(); break;
                 case Tab.ChannelExtract: DrawChannelExtractTab(); break;
                 case Tab.ChannelImport: DrawChannelImportTab(); break;
+                case Tab.Gradient: DrawGradientTab(); break;
             }
 
             EditorGUILayout.EndScrollView();
@@ -1303,6 +1348,385 @@ namespace DataKeeper.Editor.Windows
             AssetDatabase.Refresh();
             EditorUtility.DisplayDialog("Saved", $"ORM texture saved to:\n{outPath}", "OK");
             Debug.Log($"[ImageManipulator] ORM saved → {outPath}");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════════
+        //  TAB: GRADIENT
+        // ═════════════════════════════════════════════════════════════════════════
+        private void DrawGradientTab()
+        {
+            if (gradientPreview == null) RefreshGradientPreview();
+
+            // Ramp + shape
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("Gradient", EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            gradientRamp = EditorGUILayout.GradientField("Ramp", gradientRamp);
+            gradientShape = (GradientShape)EditorGUILayout.EnumPopup(
+                new GUIContent("Shape", "Linear — straight ramp along Angle.\nRadial — ramp outward from Position."),
+                gradientShape);
+            if (EditorGUI.EndChangeCheck()) RefreshGradientPreview();
+            EditorGUILayout.EndVertical();
+
+            // Size
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("Image Size", EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            gradientWidth = Mathf.Clamp(EditorGUILayout.IntField("Width", gradientWidth), 1, 8192);
+            gradientHeight = Mathf.Clamp(EditorGUILayout.IntField("Height", gradientHeight), 1, 8192);
+            if (EditorGUI.EndChangeCheck()) RefreshGradientPreview();
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Presets:", GUILayout.Width(52));
+            foreach (int p in new[] { 64, 128, 256, 512, 1024, 2048 })
+                if (GUILayout.Button(p.ToString(), GUILayout.Width(44)))
+                {
+                    gradientWidth = gradientHeight = p;
+                    RefreshGradientPreview();
+                }
+
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Ramps:", GUILayout.Width(52));
+            if (GUILayout.Button(new GUIContent("256 × 1", "Horizontal 1-pixel lookup ramp")))
+            {
+                gradientWidth = 256;
+                gradientHeight = 1;
+                RefreshGradientPreview();
+            }
+
+            if (GUILayout.Button(new GUIContent("1 × 256", "Vertical 1-pixel lookup ramp")))
+            {
+                gradientWidth = 1;
+                gradientHeight = 256;
+                RefreshGradientPreview();
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
+
+            bool linear = gradientShape == GradientShape.Linear;
+
+            // Direction
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label(linear ? "Direction" : "Direction  (ellipse rotation)", EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            gradientAngle = EditorGUILayout.Slider(
+                new GUIContent("Angle", "0° = left → right, counter-clockwise. 90° = bottom → top."),
+                gradientAngle, 0f, 360f);
+            if (EditorGUI.EndChangeCheck()) RefreshGradientPreview();
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Presets:", GUILayout.Width(52));
+            DrawAngleButton("→", 0f);
+            DrawAngleButton("↗", 45f);
+            DrawAngleButton("↑", 90f);
+            DrawAngleButton("↖", 135f);
+            DrawAngleButton("←", 180f);
+            DrawAngleButton("↙", 225f);
+            DrawAngleButton("↓", 270f);
+            DrawAngleButton("↘", 315f);
+            if (GUILayout.Button(new GUIContent("Flip", "Rotate 180°"), GUILayout.Width(40)))
+            {
+                gradientAngle = Mathf.Repeat(gradientAngle + 180f, 360f);
+                RefreshGradientPreview();
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
+
+            // Position
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label(linear ? "Position  (ramp midpoint)" : "Position  (center)", EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            gradientCenter.x = EditorGUILayout.Slider("X", gradientCenter.x, -1f, 2f);
+            gradientCenter.y = EditorGUILayout.Slider("Y", gradientCenter.y, -1f, 2f);
+            gradientSpread = EditorGUILayout.Slider(
+                new GUIContent(linear ? "Length" : "Radius",
+                    linear
+                        ? "1 = the ramp spans the whole image along Angle."
+                        : "1 = the ramp ends at the image edge."),
+                gradientSpread, 0.01f, 4f);
+            gradientWrap = (GradientWrapMode)EditorGUILayout.EnumPopup(
+                new GUIContent("Beyond Ends", "How the area outside the ramp is filled."), gradientWrap);
+            if (!linear)
+                gradientCircular = EditorGUILayout.Toggle(
+                    new GUIContent("Keep Circular",
+                        "Compensate for non-square images so the gradient stays a circle."),
+                    gradientCircular);
+            if (EditorGUI.EndChangeCheck()) RefreshGradientPreview();
+
+            // 3 × 3 position presets, laid out like the image (top row = y 1)
+            for (int row = 0; row < 3; row++)
+            {
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label(row == 1 ? "Presets:" : " ", GUILayout.Width(52));
+                for (int col = 0; col < 3; col++)
+                {
+                    float px = col * 0.5f, py = 1f - row * 0.5f;
+                    bool active = Mathf.Approximately(gradientCenter.x, px) &&
+                                  Mathf.Approximately(gradientCenter.y, py);
+                    if (GUILayout.Toggle(active, new GUIContent("●", $"({px:0.#}, {py:0.#})"),
+                            "Button", GUILayout.Width(26)) && !active)
+                    {
+                        gradientCenter = new Vector2(px, py);
+                        RefreshGradientPreview();
+                    }
+                }
+
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.EndVertical();
+
+            // Output
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("Output", EditorStyles.boldLabel);
+            EditorGUILayout.BeginHorizontal();
+            gradientOutputPath = EditorGUILayout.TextField("Folder  (Assets/…)", gradientOutputPath);
+            if (GUILayout.Button("…", GUILayout.Width(26)))
+            {
+                string picked = EditorUtility.OpenFolderPanel("Output Folder", gradientOutputPath, "");
+                if (!string.IsNullOrEmpty(picked))
+                {
+                    string root = Application.dataPath.Substring(0, Application.dataPath.Length - "Assets".Length)
+                        .Replace('\\', '/');
+                    picked = picked.Replace('\\', '/');
+                    if (picked.StartsWith(root)) gradientOutputPath = picked.Substring(root.Length).TrimEnd('/');
+                    GUI.FocusControl(null);
+                }
+            }
+
+            EditorGUILayout.EndHorizontal();
+            gradientOutputName = EditorGUILayout.TextField("File Name", gradientOutputName);
+
+            EditorGUI.BeginChangeCheck();
+            gradientDither = EditorGUILayout.Toggle(
+                new GUIContent("Dither", "Ordered dithering — removes 8-bit banding on long, subtle ramps."),
+                gradientDither);
+            if (EditorGUI.EndChangeCheck()) RefreshGradientPreview();
+
+            gradientSRGB = EditorGUILayout.Toggle(
+                new GUIContent("sRGB", "Off for data ramps (masks, lookup tables)."), gradientSRGB);
+            gradientAsSprite = EditorGUILayout.Toggle(
+                new GUIContent("Import as Sprite", "Sets the texture type to Sprite (2D and UI)."), gradientAsSprite);
+            EditorGUILayout.LabelField("Saved as PNG, uncompressed, no mipmaps.", EditorStyles.miniLabel);
+            EditorGUILayout.EndVertical();
+
+            // Preview
+            DrawPreviewWidget(gradientPreview, PREVIEW_MAX);
+            if (gradientPreview != null &&
+                (gradientPreview.width != gradientWidth || gradientPreview.height != gradientHeight))
+                EditorGUILayout.LabelField(
+                    $"Preview downscaled — output will be {gradientWidth} × {gradientHeight} px",
+                    EditorStyles.centeredGreyMiniLabel);
+
+            EditorGUILayout.Space(4);
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button(
+                    new GUIContent("↺  Reset",
+                        "Restores direction, position, wrap and output options to their defaults.\n" +
+                        "The ramp and the image size are left alone."),
+                    GUILayout.Height(28), GUILayout.Width(90)))
+                ResetGradientSettings();
+
+            if (GUILayout.Button("Refresh Preview", GUILayout.Height(28)))
+            {
+                RefreshGradientPreview();
+                Repaint();
+            }
+
+            Color prev = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.4f, 0.8f, 0.4f);
+            if (GUILayout.Button("💾  Generate & Save", GUILayout.Height(28))) SaveGradient();
+            GUI.backgroundColor = prev;
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space(6);
+        }
+
+        // Resets everything except the ramp itself and the image size.
+        private void ResetGradientSettings()
+        {
+            gradientShape = GradientShape.Linear;
+            gradientAngle = 0f;
+            gradientCenter = new Vector2(0.5f, 0.5f);
+            gradientSpread = 1f;
+            gradientWrap = GradientWrapMode.Clamp;
+            gradientCircular = true;
+            gradientDither = true;
+            gradientSRGB = true;
+            gradientAsSprite = false;
+            gradientOutputPath = "Assets";
+            gradientOutputName = "Gradient";
+            GUI.FocusControl(null);
+            RefreshGradientPreview();
+            Repaint();
+        }
+
+        private void DrawAngleButton(string label, float deg)
+        {
+            bool active = Mathf.Approximately(gradientAngle, deg);
+            if (GUILayout.Toggle(active, new GUIContent(label, $"{deg}°"), "Button", GUILayout.Width(28)) && !active)
+            {
+                gradientAngle = deg;
+                RefreshGradientPreview();
+            }
+        }
+
+        private void RefreshGradientPreview()
+        {
+            // Preview is capped so dragging sliders with a 4K output stays interactive.
+            float scale = Mathf.Min(1f, GRADIENT_PREVIEW_MAX / Mathf.Max(gradientWidth, gradientHeight));
+            int pw = Mathf.Max(1, Mathf.RoundToInt(gradientWidth * scale));
+            int ph = Mathf.Max(1, Mathf.RoundToInt(gradientHeight * scale));
+
+            Texture2D next = BuildGradient(pw, ph);
+            if (gradientPreview != null) DestroyImmediate(gradientPreview);
+            gradientPreview = next;
+        }
+
+        private void SaveGradient()
+        {
+            string folder = gradientOutputPath.TrimEnd('/', '\\');
+            if (!AssetDatabase.IsValidFolder(folder))
+            {
+                EditorUtility.DisplayDialog("Error", $"Folder '{folder}' not found in project.", "OK");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(gradientOutputName))
+            {
+                EditorUtility.DisplayDialog("Error", "File name is empty.", "OK");
+                return;
+            }
+
+            Texture2D tex = BuildGradient(gradientWidth, gradientHeight);
+            string outPath = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{gradientOutputName}.png");
+            WriteTexture(tex, outPath);
+            DestroyImmediate(tex);
+            AssetDatabase.ImportAsset(outPath, ImportAssetOptions.ForceUpdate);
+
+            var imp = AssetImporter.GetAtPath(outPath) as TextureImporter;
+            if (imp != null)
+            {
+                imp.textureType = gradientAsSprite ? TextureImporterType.Sprite : TextureImporterType.Default;
+                if (gradientAsSprite) imp.spriteImportMode = SpriteImportMode.Single;
+                imp.sRGBTexture = gradientSRGB;
+                imp.alphaIsTransparency = true;
+                imp.mipmapEnabled = false;
+                imp.wrapMode = gradientWrap == GradientWrapMode.Clamp
+                    ? TextureWrapMode.Clamp
+                    : TextureWrapMode.Repeat;
+                // Block compression bands badly on smooth ramps.
+                imp.textureCompression = TextureImporterCompression.Uncompressed;
+                imp.SaveAndReimport();
+            }
+
+            AssetDatabase.Refresh();
+            var saved = AssetDatabase.LoadAssetAtPath<Texture2D>(outPath);
+            if (saved != null) EditorGUIUtility.PingObject(saved);
+            RefreshGradientPreview();
+            Debug.Log($"[ImageManipulator] Gradient saved → {outPath}");
+        }
+
+        // Renders the gradient at an arbitrary resolution.
+        // Instance fields are copied to locals before the parallel fill.
+        private Texture2D BuildGradient(int w, int h)
+        {
+            w = Mathf.Clamp(w, 1, 8192);
+            h = Mathf.Clamp(h, 1, 8192);
+
+            // Gradient.Evaluate is main-thread only → bake it into a LUT first.
+            Color[] lut = new Color[GRADIENT_LUT];
+            for (int i = 0; i < GRADIENT_LUT; i++)
+                lut[i] = gradientRamp.Evaluate(i / (float)(GRADIENT_LUT - 1));
+
+            float rad = gradientAngle * Mathf.Deg2Rad;
+            float dx = Mathf.Cos(rad), dy = Mathf.Sin(rad);
+            // Normalising by |dx|+|dy| makes Length = 1 span the image at any angle.
+            float linLen = Mathf.Max(0.0001f, (Mathf.Abs(dx) + Mathf.Abs(dy)) * gradientSpread);
+            float radius = Mathf.Max(0.0001f, gradientSpread * 0.5f);
+            float aspect = w / (float)h;
+
+            Vector2 c = gradientCenter;
+            GradientShape shape = gradientShape;
+            GradientWrapMode wrap = gradientWrap;
+            bool circular = gradientCircular;
+            bool dither = gradientDither;
+
+            Color32[] px = new Color32[w * h];
+            Parallel.For(0, h, y =>
+            {
+                float v = (y + 0.5f) / h - c.y;
+                int row = y * w;
+                int bayerRow = (y & 3) << 2;
+                for (int x = 0; x < w; x++)
+                {
+                    float u = (x + 0.5f) / w - c.x;
+
+                    float t;
+                    if (shape == GradientShape.Linear)
+                    {
+                        t = (u * dx + v * dy) / linLen + 0.5f;
+                    }
+                    else
+                    {
+                        // Rotate into the ellipse's own space, then un-squash the short axis.
+                        float ex = u * dx + v * dy;
+                        float ey = -u * dy + v * dx;
+                        if (circular)
+                        {
+                            if (aspect > 1f) ex *= aspect;
+                            else ey /= aspect;
+                        }
+
+                        t = Mathf.Sqrt(ex * ex + ey * ey) / radius;
+                    }
+
+                    Color col = lut[(int)(WrapGradientT(t, wrap) * (GRADIENT_LUT - 1) + 0.5f)];
+                    float d = dither ? Bayer4[bayerRow | (x & 3)] : 0f;
+                    px[row + x] = new Color32(
+                        QuantizeDithered(col.r, d), QuantizeDithered(col.g, d),
+                        QuantizeDithered(col.b, d), QuantizeDithered(col.a, d));
+                }
+            });
+
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            tex.SetPixels32(px);
+            tex.Apply();
+            return tex;
+        }
+
+        // Always returns a value inside 0…1.
+        private static float WrapGradientT(float t, GradientWrapMode mode)
+        {
+            switch (mode)
+            {
+                case GradientWrapMode.Repeat:
+                    t -= Mathf.Floor(t);
+                    return t >= 1f ? 0.9999f : t;
+                case GradientWrapMode.PingPong:
+                    float p = Mathf.Abs(t) % 2f;
+                    return p > 1f ? 2f - p : p;
+                default:
+                    return t < 0f ? 0f : (t > 1f ? 1f : t);
+            }
+        }
+
+        private static byte QuantizeDithered(float v, float dither)
+        {
+            int i = (int)(v * 255f + dither + 0.5f);
+            return (byte)(i < 0 ? 0 : (i > 255 ? 255 : i));
+        }
+
+        private static float[] BuildBayer4()
+        {
+            int[] m = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
+            float[] o = new float[16];
+            for (int i = 0; i < 16; i++) o[i] = (m[i] + 0.5f) / 16f - 0.5f;
+            return o;
         }
 
         // ═════════════════════════════════════════════════════════════════════════
