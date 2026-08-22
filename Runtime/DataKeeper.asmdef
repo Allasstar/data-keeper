@@ -6,7 +6,8 @@
         "Unity.TextMeshPro.Editor",
         "Unity.Addressables",
         "Unity.ResourceManager",
-        "Unity.Addressables.Editor"
+        "Unity.Addressables.Editor",
+        "Unity.Localization"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -20,6 +21,11 @@
             "name": "com.unity.addressables",
             "expression": "",
             "define": "DATAKEEPER_ADDRESSABLES"
+        },
+        {
+            "name": "com.unity.localization",
+            "expression": "",
+            "define": "DATAKEEPER_LOCALIZATION"
         }
     ],
     "noEngineReferences": false
