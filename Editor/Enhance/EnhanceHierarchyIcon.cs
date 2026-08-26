@@ -73,6 +73,8 @@ namespace DataKeeper.Editor.Enhance
             typeof(Canvas),
             typeof(DataKeeper.UI.ButtonUI),
             typeof(DataKeeper.UI.ToggleUI),
+            typeof(DataKeeper.UI.TabsUI),
+            typeof(DataKeeper.UI.CarouselUI),
             typeof(UnityEngine.UI.Button),
             typeof(UnityEngine.UI.Slider),
             typeof(UnityEngine.UI.Toggle),

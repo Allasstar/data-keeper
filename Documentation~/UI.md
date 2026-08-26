@@ -17,9 +17,38 @@ uGUI components extending Unity's built-in UI. All are available under `Add Comp
 
 | Component | Description |
 | --- | --- |
-| `AutoGridLayoutGroup` | Grid that computes cell size/count from available space |
-| `AspectRatioGridLayoutGroup` | Grid whose cells keep a fixed aspect ratio |
+| `AutoGridLayoutGroup` | Grid that derives its cell size from the container (aspect-ratio or fill cells) |
 | `WrapLayoutGroup` | Flows children onto new rows/columns when out of space |
+
+### AutoGridLayoutGroup
+
+Unlike Unity's `GridLayoutGroup` the cell size is not authored — it is computed from the container size, the padding/spacing and the constraint:
+
+| Constraint | Fixed | Derived from child count |
+| --- | --- | --- |
+| `FixedColumnCount` | columns | rows |
+| `FixedRowCount` | rows | columns |
+
+| Cell Size Mode | Cell size |
+| --- | --- |
+| `AspectRatio` | the constrained axis fills the container, the other follows `aspectRatio` (width / height) |
+| `Fill` | both axes fill the container, cells stretch to the grid |
+
+`startCorner`, `startAxis`, `childAlignment`, `padding` and `spacing` behave like on Unity's grid. The axis that is *not* driven by the container reports its total size as the preferred layout size, so a `ContentSizeFitter` on that axis works (e.g. `FixedColumnCount` + vertical fitter = a grid that grows downwards).
+
+> `AspectRatioGridLayoutGroup` was merged into this component: `FixedRows` → `FixedRowCount`, `FixedColumns` → `FixedColumnCount`, same `aspectRatio`.
+
+### WrapLayoutGroup
+
+Flows children along `mainAxis` and wraps to a new line when the line is full.
+
+Children keep their own size — no `LayoutElement` needed. The group reads each child's rect, packs the line, and writes back only the position, so a child's width/height stay its own and stay editable in the inspector. A child with no usable rect falls back to its preferred size so it still lands somewhere sensible.
+
+Children anchored to stretch are re-anchored to a corner on the first layout, keeping the size they had — every layout group collapses its children onto a single anchor point, and without that step a stretched child would drop to zero.
+
+`childAlignment` positions each line along the main axis and each child inside its line on the cross axis. `childForceExpandWidth` / `childForceExpandHeight` spread a line's leftover space over its children's slots — each child keeps its size and is aligned inside the slot it got. Only the one matching `mainAxis` applies (`...Width` for a horizontal flow, `...Height` for a vertical one). The cross axis reports the flowed content size, so a `ContentSizeFitter` on it fits the wrapped content.
+
+A child that sizes itself with a `ContentSizeFitter` settles a frame later, since a self-sizing child is applied after its parent group has measured it.
 
 ## Utility
 
