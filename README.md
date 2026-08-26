@@ -74,6 +74,14 @@ The `ServiceLocator` system, located in the `DataKeeper.ServiceLocatorPattern` n
 
 The `Pool<T>` class, located within the `DataKeeper.PoolSystem` namespace, is a generic implementation of an object pooling system. It provides the functionality to manage, reuse, and recycle instances of a given `Component`. This class is designed for efficient runtime object management, which is particularly useful in scenarios like Unity game development.
 
+## [UI](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/UI.md)
+
+The `DataKeeper.UI` namespace extends Unity's uGUI with selectables built on a shared color-palette base (`SelectableUI`, `ButtonUI`, `ToggleUI`, `TabsUI`), utility components (`SafeAreaUI`, `DragHandle`, `ResizeHandle`, `TMP_LinkHandler`), and reactive binding extensions that wire an `IReactive<T>` straight to a label, slider, toggle or input field. It also fills in the layout components uGUI is missing:
+
+-   **`AutoGridLayoutGroup`**: a grid that derives its cell size from the container instead of having it authored — aspect-ratio or fill cells, fixed column or row count.
+-   **`WrapLayoutGroup`**: flows children at their own size and wraps to a new row or column when the line runs out of space.
+-   **`MaxSizeLayoutElement`**: the maximum size `LayoutElement` never had. Caps what a `ContentSizeFitter` or a parent layout group will give an object, in pixels or as a fraction of the canvas.
+
 # [UIToolkit](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/UIToolkit.md)
 
 The `DataKeeper.UIToolkit` namespace is a comprehensive extension library for Unity's UI Toolkit system, providing fluent API extensions and utilities to streamline UI development. This namespace contains various extension classes that make it easier to work with Unity's `VisualElement` system by providing method chaining capabilities and simplified styling operations.
@@ -219,6 +227,7 @@ The `DataKeeper` namespace provides a suite of tools and utilities designed to e
 -   **`DataKeeper.PoolSystem`**: Provides a generic object pooling system.
 -   **`DataKeeper.ServiceLocatorPattern`**: Implements the Service Locator pattern for dependency injection.
 -   **`DataKeeper.Signals`**: Offers a signal-based event-driven system.
+-   **`DataKeeper.UI`**: Extends uGUI with themed selectables, layout groups that size themselves from their container or content, and reactive bindings.
 
 ## Key Classes
 
