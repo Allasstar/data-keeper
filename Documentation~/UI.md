@@ -19,6 +19,7 @@ uGUI components extending Unity's built-in UI. All are available under `Add Comp
 | --- | --- |
 | `AutoGridLayoutGroup` | Grid that derives its cell size from the container (aspect-ratio or fill cells) |
 | `WrapLayoutGroup` | Flows children onto new rows/columns when out of space |
+| `MaxSizeLayoutElement` | Caps the size a `ContentSizeFitter` or a parent layout group will give an object |
 
 ### AutoGridLayoutGroup
 
@@ -49,6 +50,74 @@ Children anchored to stretch are re-anchored to a corner on the first layout, ke
 `childAlignment` positions each line along the main axis and each child inside its line on the cross axis. `childForceExpandWidth` / `childForceExpandHeight` spread a line's leftover space over its children's slots — each child keeps its size and is aligned inside the slot it got. Only the one matching `mainAxis` applies (`...Width` for a horizontal flow, `...Height` for a vertical one). The cross axis reports the flowed content size, so a `ContentSizeFitter` on it fits the wrapped content.
 
 A child that sizes itself with a `ContentSizeFitter` settles a frame later, since a self-sizing child is applied after its parent group has measured it.
+
+### MaxSizeLayoutElement
+
+> Live example: **GameObject > UI > DataKeeper > Examples > Max Size Layout Element** builds a capped /
+> uncapped comparison of both modes into the open scene, plus a `LayoutElement` minimum paired with a
+> maximum.
+
+`LayoutElement` has a minimum and a preferred size but no maximum, so anything sized from its content — a
+text bubble, a tooltip, a list that hugs its items — grows without a ceiling. This adds one.
+
+Set `Horizontal Mode` / `Vertical Mode` per axis:
+
+| Mode | Cap |
+| --- | --- |
+| `Unconstrained` | none, the axis is untouched |
+| `Absolute` | the value, in pixels |
+| `CanvasFraction` | the value times the root canvas size (`0.4` = "never taller than 40% of the screen") |
+
+It works by reporting a clamped size at a higher `layoutPriority` (2) than everything else on the object.
+`LayoutUtility` resolves the highest priority first and only falls back to the largest value among equals, so
+this is the only way to make a size *smaller* — a second `LayoutElement` can never do it. Both the
+`ContentSizeFitter` and every layout group read through `LayoutUtility`, so both honour the cap with no
+further setup, and a `LayoutElement` minimum on the same object still composes (the maximum wins if they
+cross).
+
+An uncapped axis reports `-1` and is completely transparent, so the component can be left on an object with
+only one axis constrained.
+
+**A maximum is a ceiling, not a source.** Something on the object still has to report a size for it to cap —
+a `Text`, an `Image`, a nested layout group, or a plain `LayoutElement`. On an object that reports nothing
+the cap has nothing to clamp; the inspector says so.
+
+Cases where the cap cannot apply, all flagged in the inspector:
+
+- the parent layout group has **Child Control Size** off for that axis — it then sizes children straight from
+  their `RectTransform` and never queries a layout element;
+- the parent layout group has **Child Force Expand** on for that axis — force expand raises the flexible size
+  back to `1`, which overrides the cap;
+- the parent is a grid — every child gets the cell size.
+
+A capped axis reports a flexible size of `0`, so a capped child stops at its preferred size instead of
+absorbing a group's leftover space. "Flexible, but only up to N" is not expressible: a layout group asks for
+sizes once and distributes surplus in the same pass.
+
+> Clamping `sizeDelta` afterwards (in `LateUpdate`, or from a driven-property override) looks equivalent and
+> is not: the parent group has already positioned the siblings against the unclamped size, so the result is a
+> hole in the layout. The cap has to be visible at measurement time.
+
+#### Dropdowns
+
+`Dropdown` / `TMP_Dropdown` do not use this chain at all — `Show()` writes the list size directly, so no
+layout element is consulted. It sets the content height from the item count and then shrinks the template by
+the leftover: **the template's authored height already is the maximum**, and shorter content hugs. If a
+dropdown grows past the screen, either the template height is authored larger than the canvas, or a
+`ContentSizeFitter` was added to the template — which replaces the built-in shrink and removes the ceiling
+with it. Remove the fitter and set the template height.
+
+For a screen-relative cap, set the template height before it is cloned (it is read at `Show()` time):
+
+```csharp
+private void ClampTemplate()
+{
+    float canvasHeight = _canvas.rootCanvas.GetComponent<RectTransform>().rect.height;
+    Vector2 size = _template.sizeDelta;
+    size.y = Mathf.Min(_maxHeight, canvasHeight * _maxScreenFraction);
+    _template.sizeDelta = size;
+}
+```
 
 ## Utility
 

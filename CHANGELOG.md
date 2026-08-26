@@ -11,6 +11,7 @@
 - `WrapLayoutGroup` — wrapping now runs against the final container size (was one frame behind), the line break no longer counts padding twice, an oversized child no longer leaves an empty line, and `childForceExpandWidth` / `childForceExpandHeight` are implemented (they were serialized but unused) — they spread a line's leftover space over the children's slots, the one matching `mainAxis` applying. `childAlignment` aligns lines on the main axis and children inside their line on the cross axis. Cross-axis preferred size is reported from the flow, so a `ContentSizeFitter` fits wrapped content.
 
 ### Added
+- `MaxSizeLayoutElement` — the maximum size `LayoutElement` never had. Reports a clamped size at `layoutPriority` 2, which is the only way to make a resolved layout size *smaller* (`LayoutUtility` takes the largest value among equal priorities), so both `ContentSizeFitter` and every layout group honour it unchanged. Per-axis `Absolute` or `CanvasFraction` cap; an uncapped axis reports `-1` and stays transparent. The inspector flags the setups where a cap cannot apply — nothing on the object reporting a size, or a parent group with Child Control Size off / Child Force Expand on for that axis.
 - `AutoGridLayoutGroup` — inspector warns when a `ContentSizeFitter` constrains an axis the cell size is derived from, the setup that leaves the grid stuck at its current (possibly zero) size.
 
 ### Removed

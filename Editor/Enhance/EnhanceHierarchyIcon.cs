@@ -71,6 +71,7 @@ namespace DataKeeper.Editor.Enhance
             typeof(MeshRenderer),
             typeof(AudioListener),
             typeof(Canvas),
+            typeof(DataKeeper.UI.MaxSizeLayoutElement),
             typeof(DataKeeper.UI.ButtonUI),
             typeof(DataKeeper.UI.ToggleUI),
             typeof(DataKeeper.UI.TabsUI),
