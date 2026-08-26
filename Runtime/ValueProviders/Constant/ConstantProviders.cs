@@ -88,6 +88,14 @@ namespace DataKeeper.ValueProviders
     }
 
     [Serializable]
+    public class SpriteDirectProvider : ISpriteProvider
+    {
+        [SerializeField] public Sprite target;
+
+        public Sprite GetValue() => target;
+    }
+
+    [Serializable]
     [MovedFrom(true, "DataKeeper.BeeTween", null, "ImageValueProvider")]
     public class ImageDirectProvider : IImageProvider
     {

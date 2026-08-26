@@ -18,6 +18,7 @@ namespace DataKeeper.ValueProviders
     public interface IVector2Provider       : IValueProvider<Vector2> { }
     public interface IVector3Provider       : IValueProvider<Vector3> { }
     public interface IColorProvider         : IValueProvider<Color> { }
+    public interface ISpriteProvider        : IValueProvider<Sprite> { }
     public interface ITransformProvider     : IValueProvider<Transform> { }
     public interface IRectTransformProvider : IValueProvider<RectTransform> { }
     public interface IImageProvider         : IValueProvider<Image> { }

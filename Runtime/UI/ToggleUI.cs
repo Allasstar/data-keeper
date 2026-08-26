@@ -1,5 +1,7 @@
 using System;
+using DataKeeper.Attributes;
 using DataKeeper.Generic;
+using DataKeeper.ValueProviders;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -34,6 +36,7 @@ namespace DataKeeper.UI
         
         // Track last known interactable state to detect transitions.
         private bool _wasInteractable;
+        private bool _providersBound;
         
         public void UpdateUI()
         {
@@ -41,7 +44,7 @@ namespace DataKeeper.UI
             {
                 if (_iconSprite.Enabled)
                 {
-                    icon.sprite = m_IsOn ? _iconSprite.Value.On : _iconSprite.Value.Off;
+                    icon.sprite = _iconSprite.Value.Get(m_IsOn);
                 }
                 
                 if (_iconColor.Enabled)
@@ -64,7 +67,7 @@ namespace DataKeeper.UI
             
             if (_labelText.Enabled)
             {
-                label.text = m_IsOn ? _labelText.Value.On : _labelText.Value.Off;
+                label.text = _labelText.Value.Get(m_IsOn);
             }
         }
 
@@ -100,7 +103,37 @@ namespace DataKeeper.UI
         {
             base.OnEnable();
             _wasInteractable = IsInteractable();
+            BindProviders();
             UpdateUI();
+        }
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+            UnbindProviders();
+        }
+
+        // Providers that resolve on their own (a localized entry, a blackboard value) push a
+        // repaint instead of waiting for the next Set() call.
+        private void BindProviders()
+        {
+            if (_providersBound) return;
+
+            if (_labelText.Enabled) _labelText.Value.Bind(UpdateUI);
+            if (_iconSprite.Enabled) _iconSprite.Value.Bind(UpdateUI);
+            _providersBound = true;
+        }
+
+        // Swapping a provider at runtime has to go through Unbind/Bind: the handler must be
+        // released from the instance it was registered on, or a localized entry keeps this
+        // component alive through LocalizationSettings' static locale event.
+        private void UnbindProviders()
+        {
+            if (!_providersBound) return;
+
+            if (_labelText.Enabled) _labelText.Value.Unbind(UpdateUI);
+            if (_iconSprite.Enabled) _iconSprite.Value.Unbind(UpdateUI);
+            _providersBound = false;
         }
         
         // DoStateTransition is called by Unity every time interactable,
@@ -127,13 +160,45 @@ namespace DataKeeper.UI
 
         public void SetOnText(string onText)
         {
+            bool wasBound = _providersBound;
+            UnbindProviders();
+
             _labelText.Value.SetOnText(onText);
+
+            if (wasBound) BindProviders();
             UpdateUI();
         }
 
         public void SetOffText(string offText)
         {
+            bool wasBound = _providersBound;
+            UnbindProviders();
+
             _labelText.Value.SetOffText(offText);
+
+            if (wasBound) BindProviders();
+            UpdateUI();
+        }
+
+        public void SetOnSprite(Sprite onSprite)
+        {
+            bool wasBound = _providersBound;
+            UnbindProviders();
+
+            _iconSprite.Value.SetOnSprite(onSprite);
+
+            if (wasBound) BindProviders();
+            UpdateUI();
+        }
+
+        public void SetOffSprite(Sprite offSprite)
+        {
+            bool wasBound = _providersBound;
+            UnbindProviders();
+
+            _iconSprite.Value.SetOffSprite(offSprite);
+
+            if (wasBound) BindProviders();
             UpdateUI();
         }
 
@@ -212,10 +277,58 @@ namespace DataKeeper.UI
         }
         
         [Serializable]
-        public class ToggleSprite
+        public class ToggleSprite : ISerializationCallbackReceiver
         {
-            [field: SerializeField] public Sprite On { private set; get; }
-            [field: SerializeField] public Sprite Off { private set; get; }
+            [SerializeReference, SerializeReferenceSelector] private ISpriteProvider _on;
+            [SerializeReference, SerializeReferenceSelector] private ISpriteProvider _off;
+
+            // Pre-provider layout. Kept as auto-properties so the serialized names stay
+            // <On>k__BackingField / <Off>k__BackingField and existing prefabs still load their
+            // authored sprites, which OnAfterDeserialize turns into direct providers.
+            // Safe to delete once every prefab has been re-saved.
+            [field: SerializeField, HideInInspector] private Sprite On { get; set; }
+            [field: SerializeField, HideInInspector] private Sprite Off { get; set; }
+
+            public Sprite OnSprite => _on?.GetValue();
+            public Sprite OffSprite => _off?.GetValue();
+
+            public Sprite Get(bool isOn) => isOn ? OnSprite : OffSprite;
+
+            public void SetOnSprite(Sprite onSprite) => _on = AsDirect(_on, onSprite);
+            public void SetOffSprite(Sprite offSprite) => _off = AsDirect(_off, offSprite);
+
+            public void Bind(Action onValueChanged)
+            {
+                _on.Bind(onValueChanged);
+                _off.Bind(onValueChanged);
+            }
+
+            public void Unbind(Action onValueChanged)
+            {
+                _on.Unbind(onValueChanged);
+                _off.Unbind(onValueChanged);
+            }
+
+            public void OnBeforeSerialize() { }
+
+            // The legacy sprite is copied by reference, never compared: deserialization can run
+            // off the main thread, where the UnityEngine.Object equality operator is not safe.
+            public void OnAfterDeserialize()
+            {
+                _on ??= new SpriteDirectProvider { target = On };
+                _off ??= new SpriteDirectProvider { target = Off };
+            }
+
+            private static ISpriteProvider AsDirect(ISpriteProvider provider, Sprite sprite)
+            {
+                if (provider is SpriteDirectProvider direct)
+                {
+                    direct.target = sprite;
+                    return direct;
+                }
+
+                return new SpriteDirectProvider { target = sprite };
+            }
         }
        
         [Serializable]
@@ -233,19 +346,58 @@ namespace DataKeeper.UI
         }
         
         [Serializable]
-        public class ToggleString
+        public class ToggleString : ISerializationCallbackReceiver
         {
-            [field: SerializeField] public string On { private set; get; } = "On";
-            [field: SerializeField] public string Off { private set; get; } = "Off";
+            // No field initializers: a serialized object that predates these fields keeps whatever
+            // the constructor left, so a default here would hide the legacy values from the
+            // migration below. OnAfterDeserialize seeds them instead.
+            [SerializeReference, SerializeReferenceSelector] private IStringProvider _on;
+            [SerializeReference, SerializeReferenceSelector] private IStringProvider _off;
 
-            public void SetOnText(string onText)
+            // Pre-provider layout. Kept as auto-properties so the serialized names stay
+            // <On>k__BackingField / <Off>k__BackingField and existing prefabs still load their
+            // authored text, which OnAfterDeserialize turns into constant providers.
+            // Safe to delete once every prefab has been re-saved.
+            [field: SerializeField, HideInInspector] private string On { get; set; }
+            [field: SerializeField, HideInInspector] private string Off { get; set; }
+
+            public string OnText => _on?.GetValue();
+            public string OffText => _off?.GetValue();
+
+            public string Get(bool isOn) => isOn ? OnText : OffText;
+
+            public void SetOnText(string onText) => _on = AsConstant(_on, onText);
+            public void SetOffText(string offText) => _off = AsConstant(_off, offText);
+
+            public void Bind(Action onValueChanged)
             {
-                On = onText;
+                _on.Bind(onValueChanged);
+                _off.Bind(onValueChanged);
             }
-            
-            public void SetOffText(string offText)
+
+            public void Unbind(Action onValueChanged)
             {
-                Off = offText;
+                _on.Unbind(onValueChanged);
+                _off.Unbind(onValueChanged);
+            }
+
+            public void OnBeforeSerialize() { }
+
+            public void OnAfterDeserialize()
+            {
+                _on ??= new StringConstantProvider { Value = string.IsNullOrEmpty(On) ? "On" : On };
+                _off ??= new StringConstantProvider { Value = string.IsNullOrEmpty(Off) ? "Off" : Off };
+            }
+
+            private static IStringProvider AsConstant(IStringProvider provider, string text)
+            {
+                if (provider is StringConstantProvider constant)
+                {
+                    constant.Value = text;
+                    return constant;
+                }
+
+                return new StringConstantProvider { Value = text };
             }
         }
     }

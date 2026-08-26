@@ -95,6 +95,15 @@ namespace DataKeeper.ValueProviders
     }
 
     [Serializable]
+    public class SpriteScriptableObjectProvider : ISpriteProvider
+    {
+        [RequireInterface(typeof(IValueProvider<Sprite>))]
+        [SerializeField] private Object _asset;
+
+        public Sprite GetValue() => _asset.Cast<IValueProvider<Sprite>>()?.GetValue();
+    }
+
+    [Serializable]
     public class ImageScriptableObjectProvider : IImageProvider
     {
         [RequireInterface(typeof(IValueProvider<Image>))]
