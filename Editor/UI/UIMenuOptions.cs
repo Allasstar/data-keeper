@@ -15,7 +15,7 @@ namespace DataKeeper.Editor.UI
     // parent to the right object, register a single undo step and select the result.
     public static class UIMenuOptions
     {
-        private const string MENU_ROOT = "GameObject/UI/DataKeeper/";
+        private const string MENU_ROOT = "GameObject/UI (DataKeeper)/";
 
         private static readonly Color TextColor = new Color(0.196f, 0.196f, 0.196f);
         private static readonly Color PanelColor = new Color(1f, 1f, 1f, 0.392f);

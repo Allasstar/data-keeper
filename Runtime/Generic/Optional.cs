@@ -1,10 +1,11 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace DataKeeper.Generic
 {
     [Serializable]
-    public struct Optional<T>
+    public struct Optional<T> : IEquatable<Optional<T>>
     {
         [SerializeField] private bool enabled;
         [SerializeField] private T value;
@@ -58,6 +59,20 @@ namespace DataKeeper.Generic
         {
             enabled = false;
             return this;
+        }
+
+        // Without this, EqualityComparer<Optional<T>>.Default falls back to reflection-based
+        // ValueType.Equals, which boxes both operands on every comparison.
+        public bool Equals(Optional<T> other)
+        {
+            return enabled == other.enabled && EqualityComparer<T>.Default.Equals(value, other.value);
+        }
+
+        public override bool Equals(object obj) => obj is Optional<T> other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            return ((enabled ? 1 : 0) * 397) ^ (value == null ? 0 : EqualityComparer<T>.Default.GetHashCode(value));
         }
     }
 }

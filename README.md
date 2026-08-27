@@ -80,7 +80,7 @@ The `DataKeeper.UI` namespace extends Unity's uGUI with selectables built on a s
 
 -   **`AutoGridLayoutGroup`**: a grid that derives its cell size from the container instead of having it authored — aspect-ratio or fill cells, fixed column or row count.
 -   **`WrapLayoutGroup`**: flows children at their own size and wraps to a new row or column when the line runs out of space.
--   **`MaxSizeLayoutElement`**: the maximum size `LayoutElement` never had. Caps what a `ContentSizeFitter` or a parent layout group will give an object, in pixels or as a fraction of the canvas.
+-   **`ClampLayoutElement`**: per-axis minimum and maximum size in one component - the maximum `LayoutElement` never had. Bounds what a `ContentSizeFitter` or a parent layout group will give an object, in pixels.
 
 # [UIToolkit](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/UIToolkit.md)
 
