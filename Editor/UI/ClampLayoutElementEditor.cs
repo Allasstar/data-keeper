@@ -57,6 +57,7 @@ namespace DataKeeper.Editor.UI
                 }
 
                 DrawContradictionWarning(element);
+                DrawPriorityWarning(element);
                 DrawSizeSourceWarnings(element);
                 DrawSourceWarning(element);
                 DrawParentWarnings(element);
@@ -79,6 +80,47 @@ namespace DataKeeper.Editor.UI
             float min = element.GetMinSize(axis);
             float max = element.GetMaxSize(axis);
             return min >= 0f && max >= 0f && min > max;
+        }
+
+        // LayoutUtility takes the highest priority and, on a tie, the largest value - and the unclamped value
+        // is by definition the larger one. Either way the clamp is dropped without a trace.
+        private static void DrawPriorityWarning(ClampLayoutElement element)
+        {
+            int competing = Mathf.Max(CompetingPriority(element, 0), CompetingPriority(element, 1));
+            if (competing < element.layoutPriority) return;
+
+            EditorGUILayout.HelpBox(
+                "Another layout element on this object reports at Layout Priority " + competing +
+                ", so it wins and the bounds are ignored. Raise Layout Priority above " + competing +
+                ", or lower the priority on that component.",
+                MessageType.Warning);
+        }
+
+        private static int CompetingPriority(ClampLayoutElement element, int axis)
+        {
+            if (element.GetMinSize(axis) < 0f && element.GetMaxSize(axis) < 0f) return int.MinValue;
+
+            element.GetComponents(typeof(ILayoutElement), Elements);
+
+            int highest = int.MinValue;
+
+            for (int i = 0; i < Elements.Count; i++)
+            {
+                if (ReferenceEquals(Elements[i], element)) continue;
+                if (Elements[i] is Behaviour behaviour && !behaviour.isActiveAndEnabled) continue;
+
+                ILayoutElement other = (ILayoutElement)Elements[i];
+                if (other.layoutPriority <= highest) continue;
+
+                float min = axis == 0 ? other.minWidth : other.minHeight;
+                float preferred = axis == 0 ? other.preferredWidth : other.preferredHeight;
+                if (min < 0f && preferred < 0f) continue;
+
+                highest = other.layoutPriority;
+            }
+
+            Elements.Clear();
+            return highest;
         }
 
         private static void DrawSizeSourceWarnings(ClampLayoutElement element)
@@ -131,6 +173,7 @@ namespace DataKeeper.Editor.UI
             for (int i = 0; i < Elements.Count; i++)
             {
                 if (ReferenceEquals(Elements[i], element)) continue;
+                if (Elements[i] is ClampLayoutSourceWatcher) continue;
                 hasSource = true;
                 break;
             }

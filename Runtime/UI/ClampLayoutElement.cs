@@ -35,10 +35,16 @@ namespace DataKeeper.UI
         public Optional<float> maxWidth { get => m_MaxWidth; set => SetProperty(ref m_MaxWidth, Sanitize(value)); }
         public Optional<float> minHeight { get => m_MinHeight; set => SetProperty(ref m_MinHeight, Sanitize(value)); }
         public Optional<float> maxHeight { get => m_MaxHeight; set => SetProperty(ref m_MaxHeight, Sanitize(value)); }
-        public Optional<RectTransform> sizeSource { get => m_SizeSource; set => SetProperty(ref m_SizeSource, value); }
+        public Optional<RectTransform> sizeSource
+        {
+            get => m_SizeSource;
+            set { if (SetProperty(ref m_SizeSource, value)) SyncSourceWatcher(); }
+        }
         public int layoutPriority { get => m_LayoutPriority; set => SetProperty(ref m_LayoutPriority, value); }
 
         private readonly List<Component> m_Elements = new List<Component>();
+
+        private RectTransform m_WatchedSource;
 
         protected ClampLayoutElement()
         {
@@ -141,30 +147,51 @@ namespace DataKeeper.UI
             return result;
         }
 
-        private void SetProperty<T>(ref T field, T value)
+        private bool SetProperty<T>(ref T field, T value)
         {
-            if (EqualityComparer<T>.Default.Equals(field, value)) return;
+            if (EqualityComparer<T>.Default.Equals(field, value)) return false;
 
             field = value;
             SetDirty();
+            return true;
         }
 
-        protected void SetDirty()
+        public void SetDirty()
         {
             if (!IsActive()) return;
 
             LayoutRebuilder.MarkLayoutForRebuild(transform as RectTransform);
         }
 
+        // Nothing in uGUI links a source to this object, so the source has to report back. Resolved through
+        // GetSizeSource so a source that is off, empty or this object itself is never watched.
+        private void SyncSourceWatcher()
+        {
+            RectTransform source = IsActive() ? GetSizeSource() : null;
+            if (m_WatchedSource == source) return;
+
+            if (m_WatchedSource != null) ClampLayoutSourceWatcher.Unwatch(m_WatchedSource, this);
+
+            m_WatchedSource = source;
+
+            if (m_WatchedSource != null) ClampLayoutSourceWatcher.Watch(m_WatchedSource, this);
+        }
+
         protected override void OnEnable()
         {
             base.OnEnable();
+            SyncSourceWatcher();
             SetDirty();
         }
 
         protected override void OnDisable()
         {
-            SetDirty();
+            SyncSourceWatcher();
+
+            // enabled is already false by now, so IsActive() - and SetDirty with it - is a no-op. Unity's own
+            // LayoutElement loses the rebuild here for that reason; Graphic marks it unconditionally instead.
+            LayoutRebuilder.MarkLayoutForRebuild(transform as RectTransform);
+
             base.OnDisable();
         }
 
@@ -191,6 +218,16 @@ namespace DataKeeper.UI
             m_MinHeight = Sanitize(m_MinHeight);
             m_MaxHeight = Sanitize(m_MaxHeight);
             SetDirty();
+
+            // AddComponent is not allowed to run inside OnValidate.
+            UnityEditor.EditorApplication.delayCall += SyncSourceWatcherDelayed;
+        }
+
+        private void SyncSourceWatcherDelayed()
+        {
+            if (this == null) return;
+
+            SyncSourceWatcher();
         }
 #endif
     }
