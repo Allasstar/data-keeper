@@ -61,6 +61,10 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         public event Action Activated;
 
+        // The window appends the command entries; the side appends the ones that are about the
+        // clicked item rather than about the selection.
+        public event Action<DropdownMenu, ICommanderItem> ContextMenuRequested;
+
         public SidePanelView(SidePanelState state, VisualElement host, VisualTreeAsset template)
         {
             _state = state;
@@ -124,6 +128,25 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         // Phase 6's mutating commands ask for this before touching a scene item: a preview-backed
         // side has to become a real open scene first.
         public SceneSlot SceneSlot => _sceneSlot;
+
+        // What a command sees of this panel. Promotion and refresh are handed over as delegates
+        // because they are the only two things a command is allowed to do to the view.
+        // The selection is copied rather than handed over: a command holds its context across the
+        // refresh that follows it, and the live list is emptied by that refresh.
+        public CommanderSide Side => new CommanderSide(_state.Id, _state.Kind, _state.RootPath,
+            new List<ICommanderItem>(_selection.Items), _sceneSlot.Scene,
+            _state.Kind == SideKind.Scene && _sceneSlot.IsPreview,
+            () => _sceneSlot.PromoteToOpen(true), RefreshAfterCommand);
+
+        // A command destroys or moves the very objects the rows are bound to, so the selection
+        // goes and the source is re-read rather than patched.
+        public void RefreshAfterCommand()
+        {
+            if (_state.Kind == SideKind.Scene) _sceneSlot.Rebind();
+
+            _selection.Clear();
+            RefreshContent(false, true);
+        }
 
         // What the modes are told about this side. The scene has to travel with the state
         // because a preview scene exists nowhere the other side could look it up.
@@ -239,6 +262,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _tree.itemExpandedChanged += OnItemExpandedChanged;
             _tree.selectionChanged += OnSelectionChanged;
             _tree.itemsChosen += OnItemsChosen;
+            _tree.AddManipulator(new ContextualMenuManipulator(PopulateContextMenu));
         }
 
         private void SetupList()
@@ -272,6 +296,69 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _list.columnSortingChanged += OnColumnSortingChanged;
             _list.selectionChanged += OnSelectionChanged;
             _list.itemsChosen += OnItemsChosen;
+            _list.AddManipulator(new ContextualMenuManipulator(PopulateContextMenu));
+        }
+
+        // Right-clicking a row the user has not selected acts on that row, not on whatever was
+        // selected before — the collection views do not select on right-click themselves.
+        private void PopulateContextMenu(ContextualMenuPopulateEvent evt)
+        {
+            Activated?.Invoke();
+
+            var item = ItemUnder(evt.triggerEvent?.target as VisualElement);
+            if (item != null && !IsSelected(item)) SelectOnly(item);
+
+            ContextMenuRequested?.Invoke(evt.menu, item);
+            AppendItemActions(evt.menu, item);
+        }
+
+        // Rows are PickingMode.Ignore so the collection view keeps its own click handling, which
+        // means the event target is the item container — the row is found by looking inside it.
+        private ICommanderItem ItemUnder(VisualElement target)
+        {
+            for (var element = target; element != null; element = element.parent)
+            {
+                if (element == _tree || element == _list) return null;
+
+                var row = element as CommanderItemRow ?? element.Q<CommanderItemRow>();
+                if (row?.Item != null) return row.Item;
+            }
+
+            return null;
+        }
+
+        private bool IsSelected(ICommanderItem item)
+        {
+            foreach (var selected in _selection.Items)
+                if (selected.Id == item.Id)
+                    return true;
+
+            return false;
+        }
+
+        private void SelectOnly(ICommanderItem item)
+        {
+            RestoreSelection(new List<int> { item.Id });
+            _selection.Set(new object[] { item });
+            UpdateStatus();
+        }
+
+        private void AppendItemActions(DropdownMenu menu, ICommanderItem item)
+        {
+            var path = item?.AssetPath;
+            if (string.IsNullOrEmpty(path)) return;
+
+            var guid = item.Guid;
+
+            menu.AppendSeparator();
+            menu.AppendAction("Show in Explorer", _ => EditorUtility.RevealInFinder(path));
+            menu.AppendAction("Copy Path", _ => EditorGUIUtility.systemCopyBuffer = path);
+
+            menu.AppendAction("Copy GUID", _ => EditorGUIUtility.systemCopyBuffer = guid,
+                string.IsNullOrEmpty(guid) ? DropdownMenuAction.Status.Disabled : DropdownMenuAction.Status.Normal);
+
+            menu.AppendAction("Find References",
+                _ => AssetReferenceFinder.OpenWindow(AssetDatabase.LoadMainAssetAtPath(path)));
         }
 
         private void AddTextColumn(string columnName, string title, float width, float minWidth,

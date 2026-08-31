@@ -535,71 +535,14 @@ namespace DataKeeper.Editor.Windows
             }
         }
 
+        // The rewrite itself lives in GuidSwapService, shared with Asset Commander's Swap
+        // command; this window keeps only its own logging.
         private bool SwapGUIDsByPath(string path1, string path2, bool validateTypes = false)
         {
-            if (string.IsNullOrEmpty(path1) || string.IsNullOrEmpty(path2))
-            {
-                return false;
-            }
+            if (GuidSwapService.Swap(path1, path2, validateTypes, out var error)) return true;
 
-            if (validateTypes)
-            {
-                System.Type type1 = AssetDatabase.GetMainAssetTypeAtPath(path1);
-                System.Type type2 = AssetDatabase.GetMainAssetTypeAtPath(path2);
-                if (type1 != type2)
-                {
-                    log.Add($"ERROR: Asset types do not match for {Path.GetFileName(path1)} ({type1}) and {Path.GetFileName(path2)} ({type2})");
-                    return false;
-                }
-            }
-        
-            string metaPath1 = path1 + ".meta";
-            string metaPath2 = path2 + ".meta";
-
-            string fullMeta1 = GetFullPath(metaPath1);
-            string fullMeta2 = GetFullPath(metaPath2);
-        
-            if (!File.Exists(fullMeta1) || !File.Exists(fullMeta2))
-            {
-                return false;
-            }
-        
-            try
-            {
-                // Read meta files
-                string meta1Content = File.ReadAllText(fullMeta1);
-                string meta2Content = File.ReadAllText(fullMeta2);
-            
-                // Extract GUIDs
-                string guid1 = ExtractGUID(meta1Content);
-                string guid2 = ExtractGUID(meta2Content);
-            
-                if (string.IsNullOrEmpty(guid1) || string.IsNullOrEmpty(guid2))
-                {
-                    return false;
-                }
-            
-                // Swap GUIDs in meta files
-                string newMeta1 = meta1Content.Replace($"guid: {guid1}", $"guid: {guid2}");
-                string newMeta2 = meta2Content.Replace($"guid: {guid2}", $"guid: {guid1}");
-            
-                // Write back
-                File.WriteAllText(fullMeta1, newMeta1);
-                File.WriteAllText(fullMeta2, newMeta2);
-            
-                return true;
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"Error swapping GUIDs: {e.Message}");
-                return false;
-            }
-        }
-    
-        private string ExtractGUID(string metaContent)
-        {
-            var match = Regex.Match(metaContent, @"guid:\s*([a-f0-9]+)");
-            return match.Success ? match.Groups[1].Value : null;
+            log.Add($"ERROR: {error}");
+            return false;
         }
 
         private string GetFullPath(string relativePath)

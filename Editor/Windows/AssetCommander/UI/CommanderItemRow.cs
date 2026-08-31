@@ -39,8 +39,14 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             Add(_badge);
         }
 
+        // The right-click handler has only the element under the pointer to work from, so the
+        // row remembers what it is currently showing.
+        public ICommanderItem Item { get; private set; }
+
         public void Bind(ICommanderItem item)
         {
+            Item = item;
+
             if (item == null)
             {
                 Unbind();
@@ -62,6 +68,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         public void Unbind()
         {
+            Item = null;
             _icon.image = null;
             _name.text = "";
             _badge.text = "";

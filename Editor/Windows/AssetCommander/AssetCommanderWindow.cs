@@ -18,6 +18,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         private TwoPaneSplitView _split;
         private IndexStatusBar _statusBar;
+        private CommandBarView _commandBar;
         private Label _selectionStatus;
         private SideId _activeSide = SideId.A;
 
@@ -85,6 +86,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _views[0].SetPeer(_views[1]);
             _views[1].SetPeer(_views[0]);
 
+            _commandBar = new CommandBarView(rootVisualElement, ActiveContext);
+
             SetActiveSide(_activeSide);
 
             rootVisualElement.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
@@ -120,6 +123,12 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             view.Activated += () => SetActiveSide(id);
             view.Selection.OnChanged.AddListener(UpdateSelectionStatus);
 
+            // A command's availability depends on both sides' kinds, so pointing a side at a
+            // scene has to re-ask the whole bar, not only the side that moved.
+            state.OnRootChanged.AddListener(SyncCommands);
+
+            view.ContextMenuRequested += (menu, _) => _commandBar?.PopulateMenu(menu);
+
             return view;
         }
 
@@ -138,20 +147,42 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
             var selection = _views[(int)_activeSide]?.Selection;
             _selectionStatus.text = selection == null ? "Nothing selected" : selection.Describe();
+
+            SyncCommands();
+        }
+
+        private void SyncCommands() => _commandBar?.Sync();
+
+        // Which side is active decides what "the other side" means, so every command is asked
+        // about the pair in the order the user is looking at them.
+        private CommanderContext ActiveContext()
+        {
+            var active = _views[(int)_activeSide];
+            var other = _views[_activeSide == SideId.A ? 1 : 0];
+
+            return new CommanderContext(active?.Side, other?.Side);
         }
 
         // Tab is the commander's side switch, so it is claimed before the focus controller can
-        // treat it as "move to the next focusable element" — except inside the search field,
-        // where it still has to behave like a text field.
+        // treat it as "move to the next focusable element" — and the command keys are claimed
+        // before anything else can read them as text. Inside a text field none of that applies:
+        // Del, F2 and Tab mean there what they always mean.
         private void OnKeyDown(KeyDownEvent evt)
         {
-            if (evt.keyCode != KeyCode.Tab && evt.character != '\t') return;
-            if (evt.target is VisualElement element && element.GetFirstAncestorOfType<TextField>() != null) return;
+            if (evt.target is VisualElement element && element.GetFirstAncestorOfType<TextField>() != null)
+                return;
 
-            SetActiveSide(_activeSide == SideId.A ? SideId.B : SideId.A);
-            _views[(int)_activeSide]?.Focus();
+            if (evt.keyCode == KeyCode.Tab || evt.character == '\t')
+            {
+                SetActiveSide(_activeSide == SideId.A ? SideId.B : SideId.A);
+                _views[(int)_activeSide]?.Focus();
 
-            evt.StopPropagation();
+                evt.StopPropagation();
+                return;
+            }
+
+            if (_commandBar != null && _commandBar.HandleKey(evt.keyCode, evt.modifiers))
+                evt.StopPropagation();
         }
 
         private static float LoadSplitPosition()

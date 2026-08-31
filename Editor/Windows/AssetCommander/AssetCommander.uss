@@ -344,3 +344,131 @@
 .ac-command-buttons {
     flex-direction: row;
 }
+
+.ac-command {
+    font-size: 11px;
+    height: 20px;
+    margin: 0 0 0 3px;
+    padding: 0 8px;
+    border-width: 0;
+    border-radius: 2px;
+    background-color: var(--dk-accent-idle);
+    color: var(--dk-text);
+}
+
+.ac-command:hover:enabled {
+    background-color: var(--dk-accent);
+}
+
+.ac-command:disabled {
+    opacity: 0.35;
+}
+
+/* ── Plan dialog ────────────────────────────────────────────────────── */
+
+.ac-plan {
+    flex-grow: 1;
+    padding: 6px;
+    background-color: var(--dk-bg);
+}
+
+.ac-plan-options {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+}
+
+.ac-plan-pattern {
+    min-width: 240px;
+    margin-right: 4px;
+}
+
+.ac-plan-option {
+    min-width: 200px;
+    margin-right: 8px;
+}
+
+.ac-plan-hint {
+    font-size: 10px;
+    color: var(--dk-text-dim);
+    margin-right: 12px;
+}
+
+.ac-plan-rows {
+    flex-grow: 1;
+    background-color: var(--dk-bg-panel);
+    border-width: 1px;
+    border-color: var(--dk-border);
+}
+
+.ac-plan-row {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    overflow: hidden;
+    padding-left: 4px;
+}
+
+.ac-plan-source {
+    font-size: 11px;
+    color: var(--dk-text);
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ac-plan-arrow {
+    font-size: 11px;
+    color: var(--dk-text-dim);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.ac-plan-destination {
+    font-size: 11px;
+    color: var(--dk-text-dim);
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ac-plan-note {
+    font-size: 9px;
+    color: var(--dk-text-dim);
+    background-color: var(--dk-accent-idle);
+    border-radius: 2px;
+    padding: 0 4px;
+    margin-left: auto;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.ac-plan-note--alert {
+    color: var(--dk-text);
+    background-color: var(--dk-warn-bg);
+}
+
+.ac-plan-summary {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--dk-text-dim);
+    padding: 4px 2px;
+    white-space: normal;
+}
+
+.ac-plan-buttons {
+    flex-direction: row;
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+
+.ac-plan-buttons > .unity-button {
+    min-width: 90px;
+    height: 22px;
+}
+
+.ac-plan-confirm {
+    -unity-font-style: bold;
+}
