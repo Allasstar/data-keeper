@@ -24,7 +24,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         private Scene _scene;
         private bool _showComponents;
-        private string _filter = "";
+        private SearchFilter _filter = SearchFilter.Empty;
 
         public Scene Scene => _scene;
 
@@ -39,10 +39,10 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             }
         }
 
-        public string Filter
+        public SearchFilter Filter
         {
             get => _filter;
-            set => _filter = value ?? "";
+            set => _filter = value ?? SearchFilter.Empty;
         }
 
         public IReadOnlyList<TreeViewItemData<ICommanderItem>> RootItems => _rootItems;
@@ -169,10 +169,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         // Parents survive the filter for the same reason folders do: the tree has to stay
         // navigable while the filter is being typed.
-        private bool Matches(ICommanderItem item) =>
-            _filter.Length == 0
-            || item.HasChildren
-            || item.Name.IndexOf(_filter, StringComparison.OrdinalIgnoreCase) >= 0;
+        private bool Matches(ICommanderItem item) => item.HasChildren || _filter.Matches(item);
     }
 
     public sealed class ScenePlaceholderItem : ICommanderItem

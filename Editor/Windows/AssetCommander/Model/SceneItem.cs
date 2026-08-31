@@ -12,6 +12,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         private string _subLabel;
         private string _badge;
+        private string _badgeOverride;
+        private bool _badgeOverrideIsAlert;
         private Texture _icon;
         private GlobalObjectId? _sceneId;
         private int _missingScripts = -1;
@@ -48,18 +50,32 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         // SerializedObject walk or a GlobalObjectId.
         public string SubLabel => _subLabel ??= BuildSubLabel();
 
+        // A flat result set loses the hierarchy that told the user where the object was, so a
+        // mode puts the path back in place of the component summary.
+        public void SetSubLabel(string value) => _subLabel = value;
+
         public GlobalObjectId? SceneId => _sceneId ??= GlobalObjectId.GetGlobalObjectIdSlow(_gameObject);
 
-        public string Badge => _badge ??= BuildBadge();
+        public string Badge => _badgeOverride ?? (_badge ??= BuildBadge());
 
         // Whether the badge is an alert falls out of building it, so the build has to have run.
         public bool BadgeIsAlert
         {
             get
             {
+                if (_badgeOverride != null) return _badgeOverrideIsAlert;
+
                 _ = Badge;
                 return _missingScripts > 0;
             }
+        }
+
+        // An analysis mode says something more specific about the object than the default
+        // reference count, and its answer wins.
+        public void SetBadge(string text, bool alert = false)
+        {
+            _badgeOverride = text;
+            _badgeOverrideIsAlert = alert;
         }
 
         private string BuildSubLabel()

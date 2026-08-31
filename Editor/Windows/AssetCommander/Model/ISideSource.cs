@@ -7,7 +7,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
     // source without the view knowing which kind of side it is showing.
     public interface ISideSource
     {
-        string Filter { get; set; }
+        SearchFilter Filter { get; set; }
 
         IReadOnlyList<TreeViewItemData<ICommanderItem>> RootItems { get; }
 

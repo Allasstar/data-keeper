@@ -6,6 +6,7 @@
         </uie:Toolbar>
         <ui:VisualElement name="breadcrumb" class="ac-breadcrumb" />
         <ui:VisualElement name="modes" class="ac-chips" />
+        <ui:Label name="mode-notice" class="ac-mode-notice ac-hidden" />
         <ui:VisualElement name="view-row" class="ac-view-row">
             <ui:VisualElement name="view-toggle" class="ac-chips" />
             <uie:ToolbarSearchField name="search" class="ac-search" />

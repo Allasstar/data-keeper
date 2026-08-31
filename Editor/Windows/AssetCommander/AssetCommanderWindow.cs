@@ -21,13 +21,43 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         private Label _selectionStatus;
         private SideId _activeSide = SideId.A;
 
+        private string _pendingModeId;
+        private string _pendingRoot;
+
         [MenuItem("Tools/Windows/Asset Commander", priority = 6)]
-        public static void ShowWindow()
+        public static void ShowWindow() => Open();
+
+        public static AssetCommanderWindow Open()
         {
             var window = GetWindow<AssetCommanderWindow>();
             window.titleContent = new GUIContent("Asset Commander",
                 EditorGUIUtility.FindTexture("d_Project"));
             window.minSize = new Vector2(900, 500);
+            return window;
+        }
+
+        // How other menu items hand this window a question to answer. The request is held until
+        // CreateGUI has run, because GetWindow does not guarantee the UI exists yet.
+        public static void Show(string modeId, string sideARoot)
+        {
+            var window = Open();
+            window._pendingModeId = modeId;
+            window._pendingRoot = sideARoot;
+
+            if (window._views[0] != null) window.ApplyRequest();
+        }
+
+        private void ApplyRequest()
+        {
+            var state = _states[(int)SideId.A];
+
+            if (!string.IsNullOrEmpty(_pendingRoot)) state.SetRoot(_pendingRoot);
+            if (!string.IsNullOrEmpty(_pendingModeId)) state.ModeId = _pendingModeId;
+
+            if (_pendingModeId != null || _pendingRoot != null) SetActiveSide(SideId.A);
+
+            _pendingModeId = null;
+            _pendingRoot = null;
         }
 
         public void CreateGUI()
@@ -49,6 +79,12 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
             _views[0] = CreateSide(SideId.A, "side-a", sideTemplate);
             _views[1] = CreateSide(SideId.B, "side-b", sideTemplate);
+
+            // Cross-Side mode asks about the other panel, so each side is told who that is once
+            // both exist.
+            _views[0].SetPeer(_views[1]);
+            _views[1].SetPeer(_views[0]);
+
             SetActiveSide(_activeSide);
 
             rootVisualElement.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
@@ -58,6 +94,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             // The index outlives the window, so opening it only has to ask for one — a
             // rebuild is a toolbar button away.
             ProjectIndex.EnsureBuilt();
+
+            ApplyRequest();
         }
 
         private void OnDisable()

@@ -22,10 +22,16 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             new ReactiveEditorPref<int>((int)SideViewMode.Tree, Prefix + "ViewModeB");
 
         public static readonly ReactiveEditorPref<string> ModeIdA =
-            new ReactiveEditorPref<string>("search", Prefix + "ModeIdA");
+            new ReactiveEditorPref<string>(CommanderModes.SearchId, Prefix + "ModeIdA");
 
         public static readonly ReactiveEditorPref<string> ModeIdB =
-            new ReactiveEditorPref<string>("search", Prefix + "ModeIdB");
+            new ReactiveEditorPref<string>(CommanderModes.SearchId, Prefix + "ModeIdB");
+
+        public static readonly ReactiveEditorPref<bool> CrossSideReverseA =
+            new ReactiveEditorPref<bool>(false, Prefix + "CrossSideReverseA");
+
+        public static readonly ReactiveEditorPref<bool> CrossSideReverseB =
+            new ReactiveEditorPref<bool>(false, Prefix + "CrossSideReverseB");
 
         public static readonly ReactiveEditorPref<bool> ShowComponentsA =
             new ReactiveEditorPref<bool>(false, Prefix + "ShowComponentsA");
@@ -40,12 +46,16 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         public static ReactiveEditorPref<bool> ShowComponents(SideId id) =>
             id == SideId.A ? ShowComponentsA : ShowComponentsB;
 
+        public static ReactiveEditorPref<bool> CrossSideReverse(SideId id) =>
+            id == SideId.A ? CrossSideReverseA : CrossSideReverseB;
+
         public static void Load(SidePanelState state)
         {
             state.SetRoot(Root(state.Id).Value);
             state.ViewMode = (SideViewMode)ViewMode(state.Id).Value;
             state.ModeId = ModeId(state.Id).Value;
             state.ShowComponents = ShowComponents(state.Id).Value;
+            state.CrossSideReverse = CrossSideReverse(state.Id).Value;
         }
 
         public static void Save(SidePanelState state)
@@ -54,6 +64,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             ViewMode(state.Id).UniqueValue = (int)state.ViewMode;
             ModeId(state.Id).UniqueValue = state.ModeId;
             ShowComponents(state.Id).UniqueValue = state.ShowComponents;
+            CrossSideReverse(state.Id).UniqueValue = state.CrossSideReverse;
         }
     }
 }

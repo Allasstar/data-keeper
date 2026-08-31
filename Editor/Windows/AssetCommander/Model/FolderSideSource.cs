@@ -27,14 +27,14 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             new List<TreeViewItemData<ICommanderItem>>();
 
         private string _rootPath = SidePanelState.RootFolderPath;
-        private string _filter = "";
+        private SearchFilter _filter = SearchFilter.Empty;
 
         public string RootPath => _rootPath;
 
-        public string Filter
+        public SearchFilter Filter
         {
             get => _filter;
-            set => _filter = value ?? "";
+            set => _filter = value ?? SearchFilter.Empty;
         }
 
         public IReadOnlyList<TreeViewItemData<ICommanderItem>> RootItems => _rootItems;
@@ -127,12 +127,11 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             return result;
         }
 
-        // Folders survive the filter so the tree stays navigable while it is being typed in;
-        // the recursive name search is Phase 5's SearchMode.
+        // Folders survive the filter so the tree stays navigable while it is being typed in.
+        // The filter only ever narrows this level: a recursive answer is what the analysis
+        // modes are for.
         private bool Matches(AssetItem item) =>
-            _filter.Length == 0
-            || item.Kind == CommanderItemKind.Folder
-            || item.Name.IndexOf(_filter, StringComparison.OrdinalIgnoreCase) >= 0;
+            item.Kind == CommanderItemKind.Folder || _filter.Matches(item);
 
         private List<AssetItem> Read(string folderPath)
         {

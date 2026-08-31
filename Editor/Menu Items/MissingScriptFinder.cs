@@ -1,48 +1,24 @@
-using UnityEngine;
+using DataKeeper.Editor.Windows.AssetCommander;
 using UnityEditor;
-using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 namespace DataKeeper.Editor.MenuItems
 {
-    public class MissingScriptFinder : EditorWindow
+    // Was a console dump: one warning per broken object, in a log the user then had to scroll.
+    // Asset Commander answers the same question as a selectable, pingable list, so the menu item
+    // stays and points there instead.
+    public static class MissingScriptFinder
     {
         [MenuItem("Tools/Find Missing Scripts in Scene", priority = 1)]
         public static void FindMissingScripts()
         {
-            // Find all GameObjects in the scene
-            GameObject[] allObjects = GameObject.FindObjectsOfType<GameObject>();
-            List<GameObject> objectsWithMissingScripts = new List<GameObject>();
+            var scene = SceneManager.GetActiveScene();
 
-            foreach (GameObject go in allObjects)
-            {
-                Component[] components = go.GetComponents<Component>();
-                
-                foreach (Component component in components)
-                {
-                    // Check if the component is null, which indicates a missing script
-                    if (component == null)
-                    {
-                        objectsWithMissingScripts.Add(go);
-                        Debug.LogWarning($"Missing script found on GameObject: {go.name}", go);
-                        break;
-                    }
-                }
-            }
+            // An unsaved scene has no asset path for a side to point at, so the window falls
+            // back to the same question asked of the project's assets.
+            var root = string.IsNullOrEmpty(scene.path) ? null : scene.path;
 
-            // Optional: Display results in console
-            if (objectsWithMissingScripts.Count > 0)
-            {
-                Debug.Log($"!!! Found {objectsWithMissingScripts.Count} GameObjects with missing scripts.");
-
-                foreach (var objectsWithMissingScript in objectsWithMissingScripts)
-                {
-                    Debug.Log($"Found {objectsWithMissingScript.gameObject.name} GameObjects with missing scripts.", objectsWithMissingScript);
-                }
-            }
-            else
-            {
-                Debug.Log("No missing scripts found in the scene.");
-            }
+            AssetCommanderWindow.Show(CommanderModes.MissingScriptsId, root);
         }
     }
 }

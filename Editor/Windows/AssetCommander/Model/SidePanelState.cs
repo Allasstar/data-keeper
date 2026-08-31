@@ -31,15 +31,17 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         public readonly Signal OnRootChanged = new Signal();
         public readonly Signal OnViewChanged = new Signal();
+        public readonly Signal OnModeChanged = new Signal();
         public readonly Signal OnFilterChanged = new Signal();
         public readonly Signal OnComponentsChanged = new Signal();
 
         private string _rootPath = RootFolderPath;
         private SideKind _kind = SideKind.Folder;
         private SideViewMode _viewMode = SideViewMode.Tree;
-        private string _modeId = "search";
+        private string _modeId = CommanderModes.SearchId;
         private string _filter = "";
         private bool _showComponents;
+        private bool _crossSideReverse;
 
         public SidePanelState(SideId id)
         {
@@ -67,7 +69,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             {
                 if (_modeId == value) return;
                 _modeId = value;
-                OnViewChanged.Invoke();
+                OnModeChanged.Invoke();
             }
         }
 
@@ -80,6 +82,19 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 if (_filter == value) return;
                 _filter = value;
                 OnFilterChanged.Invoke();
+            }
+        }
+
+        // Cross-Side mode only: false asks what this side references on the other, true asks
+        // what the other side references here. Per side, so both panels can ask at once.
+        public bool CrossSideReverse
+        {
+            get => _crossSideReverse;
+            set
+            {
+                if (_crossSideReverse == value) return;
+                _crossSideReverse = value;
+                OnModeChanged.Invoke();
             }
         }
 

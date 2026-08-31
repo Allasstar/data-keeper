@@ -28,7 +28,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         public int Id { get; }
         public string Name { get; }
-        public string SubLabel { get; }
+        public string SubLabel { get; private set; }
         public CommanderItemKind Kind { get; }
         public string AssetPath { get; }
         public bool HasChildren { get; }
@@ -37,10 +37,20 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         public GlobalObjectId? SceneId => null;
 
-        // Asset badges are the analysis modes' business (Phase 5); the row already knows how to
-        // draw one.
-        public string Badge => null;
-        public bool BadgeIsAlert => false;
+        // Written by the analysis modes, which are the only thing that has anything to say
+        // about an asset beyond its own name; the row already knows how to draw a badge.
+        public string Badge { get; private set; }
+        public bool BadgeIsAlert { get; private set; }
+
+        public void SetBadge(string text, bool alert = false)
+        {
+            Badge = text;
+            BadgeIsAlert = alert;
+        }
+
+        // A result set spans folders, so a mode replaces the type label with where the asset
+        // actually is — two prefabs called Player are otherwise the same row twice.
+        public void SetSubLabel(string value) => SubLabel = value;
 
         // Pulled per bind rather than stored on the item: AssetDatabase already caches icons,
         // and materialising 10k of them at build time is the exact cost the lazy tree avoids.
