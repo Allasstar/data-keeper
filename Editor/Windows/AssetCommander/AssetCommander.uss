@@ -233,6 +233,22 @@
     overflow: hidden;
 }
 
+.ac-row-badge {
+    font-size: 9px;
+    color: var(--dk-text-dim);
+    background-color: var(--dk-accent-idle);
+    border-radius: 2px;
+    padding: 0 4px 0 4px;
+    margin-left: auto;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.ac-row-badge--alert {
+    color: var(--dk-text);
+    background-color: var(--dk-warn-bg);
+}
+
 .ac-row--dim .ac-row-name {
     color: var(--dk-text-dim);
     -unity-font-style: italic;
@@ -243,6 +259,25 @@
     color: var(--dk-text-dim);
     -unity-text-align: middle-left;
     overflow: hidden;
+}
+
+.ac-scene-notice {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 2px 4px 2px 6px;
+    background-color: var(--dk-warn-bg);
+    border-bottom-width: 1px;
+    border-color: var(--dk-border);
+}
+
+.ac-scene-notice-text {
+    font-size: 10px;
+    color: var(--dk-text);
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .ac-placeholder {

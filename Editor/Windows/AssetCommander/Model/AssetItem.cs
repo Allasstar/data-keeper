@@ -37,6 +37,11 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         public GlobalObjectId? SceneId => null;
 
+        // Asset badges are the analysis modes' business (Phase 5); the row already knows how to
+        // draw one.
+        public string Badge => null;
+        public bool BadgeIsAlert => false;
+
         // Pulled per bind rather than stored on the item: AssetDatabase already caches icons,
         // and materialising 10k of them at build time is the exact cost the lazy tree avoids.
         public Texture Icon => AssetDatabase.GetCachedIcon(AssetPath);
@@ -100,5 +105,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         public bool HasChildren => false;
         public long Size => 0;
         public long ModifiedTicks => 0;
+        public string Badge => null;
+        public bool BadgeIsAlert => false;
     }
 }

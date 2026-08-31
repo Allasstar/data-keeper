@@ -32,12 +32,14 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         public readonly Signal OnRootChanged = new Signal();
         public readonly Signal OnViewChanged = new Signal();
         public readonly Signal OnFilterChanged = new Signal();
+        public readonly Signal OnComponentsChanged = new Signal();
 
         private string _rootPath = RootFolderPath;
         private SideKind _kind = SideKind.Folder;
         private SideViewMode _viewMode = SideViewMode.Tree;
         private string _modeId = "search";
         private string _filter = "";
+        private bool _showComponents;
 
         public SidePanelState(SideId id)
         {
@@ -78,6 +80,19 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 if (_filter == value) return;
                 _filter = value;
                 OnFilterChanged.Invoke();
+            }
+        }
+
+        // Scene sides only: every GameObject carries at least a Transform, so folding components
+        // into the tree by default would put an expand arrow on every single row.
+        public bool ShowComponents
+        {
+            get => _showComponents;
+            set
+            {
+                if (_showComponents == value) return;
+                _showComponents = value;
+                OnComponentsChanged.Invoke();
             }
         }
 

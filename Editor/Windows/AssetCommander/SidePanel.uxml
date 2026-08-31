@@ -10,6 +10,10 @@
             <ui:VisualElement name="view-toggle" class="ac-chips" />
             <uie:ToolbarSearchField name="search" class="ac-search" />
         </ui:VisualElement>
+        <ui:VisualElement name="scene-notice" class="ac-scene-notice ac-hidden">
+            <ui:Label name="scene-notice-text" class="ac-scene-notice-text" />
+            <ui:Button name="scene-open" class="ac-chip" text="Open" />
+        </ui:VisualElement>
         <ui:VisualElement name="content" class="ac-content">
             <ui:TreeView name="tree" class="ac-view" />
             <ui:MultiColumnListView name="list" class="ac-view" />

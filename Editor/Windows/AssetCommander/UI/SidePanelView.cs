@@ -29,6 +29,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         private readonly SidePanelState _state;
         private readonly FolderSideSource _folderSource = new FolderSideSource();
+        private readonly SceneSideSource _sceneSource = new SceneSideSource();
+        private readonly SceneSlot _sceneSlot = new SceneSlot();
         private readonly CommanderSelection _selection;
 
         private readonly VisualElement _panel;
@@ -36,21 +38,29 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         private readonly VisualElement _breadcrumb;
         private readonly VisualElement _modeChips;
         private readonly VisualElement _viewChips;
+        private readonly Button _componentsChip;
         private readonly ToolbarSearchField _search;
         private readonly TreeView _tree;
         private readonly MultiColumnListView _list;
         private readonly VisualElement _placeholder;
         private readonly Label _placeholderText;
+        private readonly VisualElement _sceneNotice;
+        private readonly Label _sceneNoticeText;
+        private readonly Button _sceneOpenButton;
         private readonly Label _status;
 
         private readonly Dictionary<string, Button> _modeButtons = new Dictionary<string, Button>();
         private readonly Dictionary<SideViewMode, Button> _viewButtons = new Dictionary<SideViewMode, Button>();
 
+        private readonly Action _sceneEventHandler;
+
+        private ISideSource _source;
         private List<ICommanderItem> _flat = new List<ICommanderItem>();
 
         private string _sortColumn;
         private bool _sortAscending = true;
         private bool _suppressSelection;
+        private bool _refreshQueued;
 
         public event Action Activated;
 
@@ -72,6 +82,9 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _list = _panel.Q<MultiColumnListView>("list");
             _placeholder = _panel.Q<VisualElement>("placeholder");
             _placeholderText = _panel.Q<Label>("placeholder-text");
+            _sceneNotice = _panel.Q<VisualElement>("scene-notice");
+            _sceneNoticeText = _panel.Q<Label>("scene-notice-text");
+            _sceneOpenButton = _panel.Q<Button>("scene-open");
             _status = _panel.Q<Label>("status");
             _panel.Q<Label>("side-label").text = state.Id.ToString();
 
@@ -79,19 +92,27 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _slot.allowSceneObjects = false;
             _slot.RegisterValueChangedCallback(OnSlotChanged);
             _search.RegisterValueChangedCallback(evt => _state.Filter = evt.newValue);
+            _sceneOpenButton.clicked += OpenPreviewedScene;
 
             BuildModeChips();
             BuildViewChips();
+            _componentsChip = BuildComponentsChip();
             SetupTree();
             SetupList();
 
             _panel.RegisterCallback<PointerDownEvent>(_ => Activated?.Invoke(), TrickleDown.TrickleDown);
 
+            _sceneEventHandler = QueueSceneRefresh;
+
             _state.OnRootChanged.AddListener(SyncRoot);
             _state.OnViewChanged.AddListener(SyncChips);
             _state.OnFilterChanged.AddListener(OnFilterChanged);
+            _state.OnComponentsChanged.AddListener(OnComponentsToggled);
             ProjectIndex.OnIndexChanged.AddListener(OnProjectChanged);
             EditorApplication.projectChanged += OnProjectChanged;
+            EditorApplication.hierarchyChanged += QueueSceneRefresh;
+            EditorApplication.playModeStateChanged += OnPlayModeChanged;
+            EditorSceneEvent.SubscribeToEvents(_sceneEventHandler);
 
             SyncRoot();
             SyncChips();
@@ -100,6 +121,10 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         public VisualElement Root => _panel;
 
         public CommanderSelection Selection => _selection;
+
+        // Phase 6's mutating commands ask for this before touching a scene item: a preview-backed
+        // side has to become a real open scene first.
+        public SceneSlot SceneSlot => _sceneSlot;
 
         public void SetActive(bool active) =>
             _panel.Q<VisualElement>("side-panel").EnableInClassList("ac-panel--active", active);
@@ -115,8 +140,15 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _state.OnRootChanged.RemoveListener(SyncRoot);
             _state.OnViewChanged.RemoveListener(SyncChips);
             _state.OnFilterChanged.RemoveListener(OnFilterChanged);
+            _state.OnComponentsChanged.RemoveListener(OnComponentsToggled);
             ProjectIndex.OnIndexChanged.RemoveListener(OnProjectChanged);
             EditorApplication.projectChanged -= OnProjectChanged;
+            EditorApplication.hierarchyChanged -= QueueSceneRefresh;
+            EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+            EditorSceneEvent.UnsubscribeFromEvents(_sceneEventHandler);
+
+            // The window must not leave a preview scene loaded behind it.
+            _sceneSlot.Dispose();
         }
 
         private void BuildModeChips()
@@ -140,6 +172,18 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 _viewChips.Add(chip);
                 _viewButtons[mode] = chip;
             }
+        }
+
+        private Button BuildComponentsChip()
+        {
+            var chip = new Button(() => _state.ShowComponents = !_state.ShowComponents)
+            {
+                text = "Components",
+            };
+
+            chip.AddToClassList("ac-chip");
+            _viewChips.Add(chip);
+            return chip;
         }
 
         private void SetupTree()
@@ -243,10 +287,31 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _slot.SetValueWithoutNotify(_state.RootAsset);
             BuildBreadcrumb();
 
-            _folderSource.SetRoot(_state.RootPath);
-            _folderSource.Filter = _state.Filter;
+            BindSource();
+            _source.Filter = _state.Filter;
             _selection.Clear();
             RefreshContent(false);
+        }
+
+        // A scene the editor already has open is used live; a closed one is loaded into a preview
+        // scene, which keeps browsing from disturbing the user's open-scene setup. Play Mode gets
+        // neither: a preview scene cannot survive the reload, and the live one belongs to the player.
+        private void BindSource()
+        {
+            if (_state.Kind == SideKind.Scene)
+            {
+                if (EditorApplication.isPlayingOrWillChangePlaymode) _sceneSlot.Release();
+                else _sceneSlot.Bind(_state.RootPath);
+
+                _sceneSource.ShowComponents = _state.ShowComponents;
+                _sceneSource.SetScene(_sceneSlot.Scene);
+                _source = _sceneSource;
+                return;
+            }
+
+            _sceneSlot.Release();
+            _folderSource.SetRoot(_state.RootPath);
+            _source = _folderSource;
         }
 
         private void SyncChips()
@@ -257,6 +322,9 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             foreach (var pair in _viewButtons)
                 pair.Value.EnableInClassList("ac-chip--selected", pair.Key == _state.ViewMode);
 
+            _componentsChip.EnableInClassList(HiddenClass, _state.Kind != SideKind.Scene);
+            _componentsChip.EnableInClassList("ac-chip--selected", _state.ShowComponents);
+
             ShowActiveView();
 
             // Tree and list keep separate selection state, so the one being switched to has to
@@ -266,8 +334,16 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         private void OnFilterChanged()
         {
-            _folderSource.Filter = _state.Filter;
+            _source.Filter = _state.Filter;
             RefreshContent(true);
+        }
+
+        private void OnComponentsToggled()
+        {
+            _sceneSource.ShowComponents = _state.ShowComponents;
+            SyncChips();
+
+            if (_state.Kind == SideKind.Scene) RefreshContent(true, true);
         }
 
         // Both the index signal and projectChanged land here; the disk cache is dropped so the
@@ -279,17 +355,58 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             RefreshContent(true, true);
         }
 
+        // hierarchyChanged fires for every rename, reparent and component edit, and the scene
+        // open/close/save events pile on top — so the rebuild is deferred to at most one per
+        // panel tick.
+        private void QueueSceneRefresh()
+        {
+            if (_state.Kind != SideKind.Scene || _refreshQueued) return;
+
+            _refreshQueued = true;
+            _panel.schedule.Execute(RunQueuedSceneRefresh);
+        }
+
+        private void RunQueuedSceneRefresh()
+        {
+            _refreshQueued = false;
+            if (_state.Kind != SideKind.Scene) return;
+
+            // A scene can be opened or closed behind the window's back, which flips this side
+            // between live and preview.
+            _sceneSlot.Rebind();
+            RefreshContent(true, true);
+        }
+
+        private void OnPlayModeChanged(PlayModeStateChange change)
+        {
+            if (_state.Kind != SideKind.Scene) return;
+            if (change != PlayModeStateChange.ExitingEditMode && change != PlayModeStateChange.EnteredEditMode)
+                return;
+
+            if (change == PlayModeStateChange.ExitingEditMode) _sceneSlot.Release();
+            else _sceneSlot.Bind(_state.RootPath);
+
+            _selection.Clear();
+            RefreshContent(false, true);
+        }
+
+        private void OpenPreviewedScene()
+        {
+            if (!_sceneSlot.PromoteToOpen(false)) return;
+
+            _selection.Clear();
+            RefreshContent(false, true);
+        }
+
         // The expansion/selection snapshot has to be taken before anything is invalidated —
         // it is read out of the source's own item tree, which the rebuild replaces.
         private void RefreshContent(bool preserveState, bool reread = false)
         {
-            if (_state.Kind != SideKind.Folder)
+            if (!HasContent())
             {
                 _flat = new List<ICommanderItem>();
                 _list.itemsSource = _flat;
-                _placeholderText.text = _state.Kind == SideKind.Scene
-                    ? $"{_state.RootPath}\nThe live scene hierarchy lands in Phase 4."
-                    : "Drop a folder or a scene here.";
+                _placeholderText.text = PlaceholderText();
                 ShowActiveView();
                 UpdateStatus();
                 return;
@@ -298,13 +415,13 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             var expanded = preserveState ? CollectExpandedIds() : null;
             var selected = preserveState ? CollectSelectedIds() : null;
 
-            if (reread) _folderSource.Invalidate();
+            if (reread) Reread();
 
-            _tree.SetRootItems(_folderSource.BuildRoot());
+            _tree.SetRootItems(_source.BuildRoot());
             _tree.Rebuild();
-            if (expanded != null && expanded.Count > 0) RestoreExpansion(_folderSource.RootItems, expanded);
+            if (expanded != null && expanded.Count > 0) RestoreExpansion(_source.RootItems, expanded);
 
-            _flat = _folderSource.BuildFlat();
+            _flat = _source.BuildFlat();
             _list.itemsSource = _flat;
             ApplySort();
             _list.Rebuild();
@@ -315,18 +432,52 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             UpdateStatus();
         }
 
+        private void Reread()
+        {
+            if (_state.Kind == SideKind.Scene) _sceneSource.SetScene(_sceneSlot.Scene);
+            else _folderSource.Invalidate();
+        }
+
+        private bool HasContent() =>
+            _state.Kind == SideKind.Folder || (_state.Kind == SideKind.Scene && _sceneSlot.IsValid);
+
+        private string PlaceholderText()
+        {
+            if (_state.Kind != SideKind.Scene) return "Drop a folder or a scene here.";
+
+            return EditorApplication.isPlayingOrWillChangePlaymode
+                ? $"{_sceneSlot.SceneName}\nScene sides are unavailable in Play Mode."
+                : $"{_sceneSlot.SceneName}\nCould not load this scene.";
+        }
+
         private void ShowActiveView()
         {
-            bool folder = _state.Kind == SideKind.Folder;
+            bool content = HasContent();
             bool tree = _state.ViewMode == SideViewMode.Tree;
 
-            _tree.EnableInClassList(HiddenClass, !folder || !tree);
-            _list.EnableInClassList(HiddenClass, !folder || tree);
-            _placeholder.EnableInClassList(HiddenClass, folder);
+            _tree.EnableInClassList(HiddenClass, !content || !tree);
+            _list.EnableInClassList(HiddenClass, !content || tree);
+            _placeholder.EnableInClassList(HiddenClass, content);
+
+            bool preview = _state.Kind == SideKind.Scene && _sceneSlot.IsPreview;
+            _sceneNotice.EnableInClassList(HiddenClass, !preview);
+            if (preview)
+                _sceneNoticeText.text = $"'{_sceneSlot.SceneName}' is loaded for preview — read-only.";
         }
 
         private void UpdateStatus()
         {
+            if (_state.Kind == SideKind.Scene)
+            {
+                var binding = _sceneSlot.Binding == SceneBinding.Live ? "open" : "preview";
+                _status.text = _sceneSlot.IsValid
+                    ? $"{_sceneSlot.SceneName} · {_flat.Count} roots · {binding}"
+                    : $"{_sceneSlot.SceneName} · not loaded";
+
+                if (_selection.Count > 0) _status.text += $" · {_selection.Count} selected";
+                return;
+            }
+
             if (_state.Kind != SideKind.Folder)
             {
                 _status.text = $"{_state.Kind} · {_state.RootPath}";
@@ -351,7 +502,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         private bool EnsureLoaded(int id)
         {
-            if (!_folderSource.TryLoadChildren(id, out var placeholderId, out var children)) return false;
+            if (!_source.TryLoadChildren(id, out var placeholderId, out var children)) return false;
 
             _tree.TryRemoveItem(placeholderId, false);
             for (int i = 0; i < children.Count; i++)
@@ -364,11 +515,11 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         private void LoadDescendants(int id, ref int loaded)
         {
             if (loaded > ExpandAllBudget) return;
-            if (!_folderSource.TryGetLoadedChildren(id, out var children)) return;
+            if (!_source.TryGetLoadedChildren(id, out var children)) return;
 
             foreach (var child in children)
             {
-                if (child.data.Kind != CommanderItemKind.Folder) continue;
+                if (!child.data.HasChildren) continue;
                 if (EnsureLoaded(child.id)) loaded++;
 
                 LoadDescendants(child.id, ref loaded);
@@ -379,7 +530,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         private HashSet<int> CollectExpandedIds()
         {
             var expanded = new HashSet<int>();
-            CollectExpandedIds(_folderSource.RootItems, expanded);
+            CollectExpandedIds(_source.RootItems, expanded);
             return expanded;
         }
 
@@ -387,11 +538,11 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         {
             foreach (var node in level)
             {
-                if (node.data.Kind != CommanderItemKind.Folder) continue;
+                if (!node.data.HasChildren) continue;
                 if (!_tree.IsExpanded(node.id)) continue;
 
                 into.Add(node.id);
-                if (_folderSource.TryGetLoadedChildren(node.id, out var children))
+                if (_source.TryGetLoadedChildren(node.id, out var children))
                     CollectExpandedIds(children, into);
             }
         }
@@ -407,7 +558,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 EnsureLoaded(node.id);
                 _tree.ExpandItem(node.id, false, false);
 
-                if (_folderSource.TryGetLoadedChildren(node.id, out var children))
+                if (_source.TryGetLoadedChildren(node.id, out var children))
                     RestoreExpansion(children, expanded);
             }
         }
@@ -457,15 +608,37 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                     return;
                 }
 
+                if (item.Kind == CommanderItemKind.GameObject || item.Kind == CommanderItemKind.Component)
+                {
+                    Ping(item);
+                    return;
+                }
+
                 var asset = AssetDatabase.LoadMainAssetAtPath(item.AssetPath);
                 if (asset != null) AssetDatabase.OpenAsset(asset);
                 return;
             }
         }
 
-        private static void Ping(ICommanderItem item)
+        // Preview-scene objects are deliberately left alone: they are in no hierarchy to ping,
+        // and selecting one would put an object nobody can find into the Inspector.
+        private void Ping(ICommanderItem item)
         {
-            if (item?.AssetPath == null) return;
+            if (item == null) return;
+
+            if (item.Kind == CommanderItemKind.GameObject || item.Kind == CommanderItemKind.Component)
+            {
+                if (_sceneSlot.IsPreview) return;
+
+                var target = item is GameObjectItem gameObjectItem
+                    ? (Object)gameObjectItem.GameObject
+                    : (item as ComponentItem)?.Component;
+
+                if (target != null) EditorGUIUtility.PingObject(target);
+                return;
+            }
+
+            if (item.AssetPath == null) return;
 
             var asset = AssetDatabase.LoadMainAssetAtPath(item.AssetPath);
             if (asset != null) EditorGUIUtility.PingObject(asset);
