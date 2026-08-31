@@ -1,0 +1,22 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <ui:VisualElement name="side-panel" class="ac-panel">
+        <uie:Toolbar class="ac-panel-toolbar">
+            <ui:Label name="side-label" class="ac-side-label" text="A" />
+            <uie:ObjectField name="slot" class="ac-slot" />
+        </uie:Toolbar>
+        <ui:VisualElement name="breadcrumb" class="ac-breadcrumb" />
+        <ui:VisualElement name="modes" class="ac-chips" />
+        <ui:VisualElement name="view-row" class="ac-view-row">
+            <ui:VisualElement name="view-toggle" class="ac-chips" />
+            <uie:ToolbarSearchField name="search" class="ac-search" />
+        </ui:VisualElement>
+        <ui:VisualElement name="content" class="ac-content">
+            <ui:TreeView name="tree" class="ac-view" />
+            <ui:MultiColumnListView name="list" class="ac-view" />
+            <ui:VisualElement name="placeholder" class="ac-placeholder">
+                <ui:Label name="placeholder-text" class="ac-placeholder-text" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Label name="status" class="ac-status" />
+    </ui:VisualElement>
+</ui:UXML>
