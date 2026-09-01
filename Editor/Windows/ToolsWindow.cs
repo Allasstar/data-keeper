@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using DataKeeper.Editor.MenuItems;
 using DataKeeper.Extensions;
 using UnityEngine;
@@ -8,6 +8,8 @@ using DataKeeper.UIToolkit;
 using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using DataKeeper.UIToolkit.Elements;
 
 namespace DataKeeper.Editor.Windows
@@ -52,6 +54,37 @@ namespace DataKeeper.Editor.Windows
         private static readonly Color SceneLabelColorNormal = new Color(0.8f, 0.8f, 0.8f);
         private static readonly Color SceneLabelColorLoaded = Color.white;
 
+        // Screenshot fields
+        private enum ScreenshotSource
+        {
+            Game,
+            Scene
+        }
+
+        private enum ScreenshotMode
+        {
+            WithUI,
+            NoUI,
+            Transparent
+        }
+
+        private const float ScreenshotMinScale = 0.5f;
+        private const float ScreenshotMaxScale = 3f;
+
+        private static ScreenshotSource screenshotSource = ScreenshotSource.Game;
+        private static ScreenshotMode screenshotMode = ScreenshotMode.WithUI;
+        private static float screenshotScale = 1f;
+        private static bool screenshotCopyToClipboard = false;
+
+        private Button screenshotWithUIBtn;
+        private Button screenshotNoUIBtn;
+        private Button screenshotTransparentBtn;
+        private Label screenshotInfoLabel;
+        private Slider screenshotScaleSlider;
+        private FloatField screenshotScaleField;
+
+        private static PropertyInfo urpPostProcessingProperty;
+
         [MenuItem("Tools/Windows/Tools", priority = 10)]
         public static void ShowWindow()
         {
@@ -70,9 +103,10 @@ namespace DataKeeper.Editor.Windows
 
             CreateGroundSnapSection(mainContainer);
             CreateGroupingToolsSection(mainContainer);
-            CreateTimeScaleSection(mainContainer);
-            CreateBuffersSection(mainContainer);
             CreateShortcutsSection(mainContainer);
+            CreateBuffersSection(mainContainer);
+            CreateTimeScaleSection(mainContainer);
+            CreateScreenshotSection(mainContainer);
             CreateSceneManagementSection(mainContainer);
 
             root.Add(mainContainer);
@@ -435,6 +469,13 @@ namespace DataKeeper.Editor.Windows
                 .SetFlexGrow(1).SetChildOf(filterRow);
 
 
+            // ── Clipboard slots ──
+            bufferSlotsContainer = new VisualElement()
+                .SetMarginBottom(6);
+
+            RefreshBufferSlotsUI();
+            section.Add(bufferSlotsContainer);
+
             // ── Copy / Paste / Paste Offset buttons ──
             var actionRow = new VisualElement()
                 .SetFlexRow()
@@ -464,13 +505,6 @@ namespace DataKeeper.Editor.Windows
             actionRow.Add(pasteBtn);
             actionRow.Add(pasteOffsetBtn);
             section.Add(actionRow);
-
-            // ── Clipboard slots ──
-            bufferSlotsContainer = new VisualElement()
-                .SetMarginBottom(6);
-
-            RefreshBufferSlotsUI();
-            section.Add(bufferSlotsContainer);
 
             // ── Readout label ──
             bufferLabel = new Label()
@@ -826,6 +860,455 @@ namespace DataKeeper.Editor.Windows
 
             createEmptyBtn.tooltip = "Create new empty GameObject with same position and rotation as selected";
             section.Add(createEmptyBtn);
+        }
+
+        private void CreateScreenshotSection(VisualElement parent)
+        {
+            var section = CreateSection("Screenshot Tool", parent);
+
+            // ── Source switch ──
+            var sourceRow = new VisualElement()
+                .SetFlexRow()
+                .SetMarginBottom(4)
+                .SetChildOf(section);
+
+            Button gameBtn = null;
+            Button sceneBtn = null;
+
+            gameBtn = new Button(() => SetScreenshotSource(ScreenshotSource.Game, gameBtn, sceneBtn))
+                .SetText("Game View")
+                .SetHeight(20)
+                .SetFlexGrow(1)
+                .SetMarginRight(4)
+                .SetChildOf(sourceRow);
+
+            sceneBtn = new Button(() => SetScreenshotSource(ScreenshotSource.Scene, gameBtn, sceneBtn))
+                .SetText("Scene View")
+                .SetHeight(20)
+                .SetFlexGrow(1)
+                .SetChildOf(sourceRow);
+
+            RefreshScreenshotSourceButtons(gameBtn, sceneBtn);
+
+            // ── Mode switch ──
+            var modeRow = new VisualElement()
+                .SetFlexRow()
+                .SetMarginBottom(4)
+                .SetChildOf(section);
+
+            screenshotWithUIBtn = new Button(() => SetScreenshotMode(ScreenshotMode.WithUI))
+                .SetText("With UI")
+                .SetHeight(20)
+                .SetFlexGrow(1)
+                .SetMarginRight(4)
+                .SetChildOf(modeRow);
+            screenshotWithUIBtn.tooltip =
+                "Grab the Game View backbuffer so Screen-Space Overlay canvases are included. Forces integer scale and an opaque background.";
+
+            screenshotNoUIBtn = new Button(() => SetScreenshotMode(ScreenshotMode.NoUI))
+                .SetText("No UI")
+                .SetHeight(20)
+                .SetFlexGrow(1)
+                .SetMarginRight(4)
+                .SetChildOf(modeRow);
+            screenshotNoUIBtn.tooltip = "Render the camera straight to a texture. Overlay UI cannot be in the shot.";
+
+            screenshotTransparentBtn = new Button(() => SetScreenshotMode(ScreenshotMode.Transparent))
+                .SetText("Transparent")
+                .SetHeight(20)
+                .SetFlexGrow(1)
+                .SetChildOf(modeRow);
+            screenshotTransparentBtn.tooltip = "Camera render with the background cleared to alpha 0.";
+
+            // ── Scale ──
+            var scaleRow = new VisualElement()
+                .SetFlexRow()
+                .SetMarginBottom(4)
+                .SetChildOf(section);
+
+            screenshotScaleSlider = new Slider(ScreenshotMinScale, ScreenshotMaxScale)
+                .SetFlexGrow(1f)
+                .SetChildOf(scaleRow);
+
+            screenshotScaleField = new FloatField()
+                .SetWidth(50)
+                .SetChildOf(scaleRow);
+
+            screenshotScaleSlider.value = screenshotScale;
+            screenshotScaleField.value = screenshotScale;
+
+            screenshotScaleSlider.RegisterValueChangedCallback(evt =>
+            {
+                screenshotScale = evt.newValue;
+                screenshotScaleField.SetValueWithoutNotify(screenshotScale);
+                RefreshScreenshotInfo();
+            });
+
+            screenshotScaleField.RegisterValueChangedCallback(evt =>
+            {
+                screenshotScale = Mathf.Clamp(evt.newValue, ScreenshotMinScale, ScreenshotMaxScale);
+                screenshotScaleSlider.SetValueWithoutNotify(screenshotScale);
+                RefreshScreenshotInfo();
+            });
+
+            var clipboardRow = new VisualElement()
+                .SetFlexRow()
+                .SetMarginBottom(6)
+                .SetChildOf(section);
+
+            new ToggleButton("Copy Image to Clipboard", screenshotCopyToClipboard, v => screenshotCopyToClipboard = v)
+                .SetFlexGrow(1)
+                .SetHeight(20)
+                .SetChildOf(clipboardRow);
+
+            screenshotInfoLabel = new Label()
+                .SetFontSize(10)
+                .SetMarginBottom(6)
+                .SetChildOf(section);
+            screenshotInfoLabel.style.whiteSpace = WhiteSpace.Normal;
+
+            var captureBtn = CreateIconButton(
+                "Take Screenshot",
+                "Camera Icon",
+                TakeScreenshot);
+            captureBtn.tooltip = "Save a PNG to Pictures/" + Application.productName;
+            section.Add(captureBtn);
+
+            var openFolderBtn = CreateIconButton(
+                "Open Screenshot Folder",
+                "d_Folder Icon",
+                OpenScreenshotFolder);
+            openFolderBtn.tooltip = ScreenshotFolder;
+            section.Add(openFolderBtn);
+
+            RefreshScreenshotModeButtons();
+            RefreshScreenshotInfo();
+        }
+
+        private void SetScreenshotSource(ScreenshotSource source, Button gameBtn, Button sceneBtn)
+        {
+            screenshotSource = source;
+            RefreshScreenshotSourceButtons(gameBtn, sceneBtn);
+            RefreshScreenshotModeButtons();
+            RefreshScreenshotInfo();
+        }
+
+        private void SetScreenshotMode(ScreenshotMode mode)
+        {
+            screenshotMode = mode;
+            RefreshScreenshotModeButtons();
+            RefreshScreenshotInfo();
+        }
+
+        private static void RefreshScreenshotSourceButtons(Button gameBtn, Button sceneBtn)
+        {
+            var activeColor = new Color(0.3f, 0.5f, 0.8f);
+            var inactiveColor = new Color(0.3f, 0.3f, 0.3f);
+            bool isGame = screenshotSource == ScreenshotSource.Game;
+            gameBtn.style.backgroundColor = isGame ? activeColor : inactiveColor;
+            sceneBtn.style.backgroundColor = isGame ? inactiveColor : activeColor;
+        }
+
+        private void RefreshScreenshotModeButtons()
+        {
+            // Overlay UI only lands in the Game View backbuffer grab, so for the Scene View
+            // the option is meaningless rather than merely unavailable.
+            bool canIncludeUI = screenshotSource == ScreenshotSource.Game;
+            if (!canIncludeUI && screenshotMode == ScreenshotMode.WithUI)
+                screenshotMode = ScreenshotMode.NoUI;
+
+            screenshotWithUIBtn.SetDisplay(canIncludeUI ? DisplayStyle.Flex : DisplayStyle.None);
+
+            var activeColor = new Color(0.3f, 0.5f, 0.8f);
+            var inactiveColor = new Color(0.3f, 0.3f, 0.3f);
+            screenshotWithUIBtn.style.backgroundColor =
+                screenshotMode == ScreenshotMode.WithUI ? activeColor : inactiveColor;
+            screenshotNoUIBtn.style.backgroundColor =
+                screenshotMode == ScreenshotMode.NoUI ? activeColor : inactiveColor;
+            screenshotTransparentBtn.style.backgroundColor =
+                screenshotMode == ScreenshotMode.Transparent ? activeColor : inactiveColor;
+        }
+
+        private void RefreshScreenshotInfo()
+        {
+            if (screenshotInfoLabel == null) return;
+
+            bool backbuffer = UsesBackbufferCapture();
+            float scale = backbuffer ? Mathf.Max(1, Mathf.RoundToInt(screenshotScale)) : screenshotScale;
+            Vector2Int native = GetScreenshotSourceSize();
+            int width = Mathf.Max(1, Mathf.RoundToInt(native.x * scale));
+            int height = Mathf.Max(1, Mathf.RoundToInt(native.y * scale));
+
+            string mode;
+            if (backbuffer)
+                mode = "Game View backbuffer — integer scale, opaque, Overlay UI included";
+            else if (screenshotSource == ScreenshotSource.Scene)
+                mode = "Scene camera render — no gizmos or grid";
+            else
+                mode = "Game camera render — no Overlay UI";
+
+            if (screenshotMode == ScreenshotMode.Transparent)
+                mode += ", alpha 0 background";
+
+            screenshotInfoLabel.text = $"{mode}\n{native.x}x{native.y} → {width}x{height} @ {scale:0.##}x";
+        }
+
+        private static bool UsesBackbufferCapture()
+        {
+            return screenshotSource == ScreenshotSource.Game && screenshotMode == ScreenshotMode.WithUI;
+        }
+
+        private static Vector2Int GetScreenshotSourceSize()
+        {
+            if (screenshotSource == ScreenshotSource.Scene)
+            {
+                var sceneView = SceneView.lastActiveSceneView;
+                if (sceneView != null && sceneView.camera != null)
+                    return new Vector2Int(sceneView.camera.pixelWidth, sceneView.camera.pixelHeight);
+            }
+
+            Vector2 gameViewSize = Handles.GetMainGameViewSize();
+            return new Vector2Int(Mathf.RoundToInt(gameViewSize.x), Mathf.RoundToInt(gameViewSize.y));
+        }
+
+        private static string ScreenshotFolder =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), Application.productName);
+
+        private static string NextScreenshotPath(string directory)
+        {
+            string stamp = DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
+            string path = Path.Combine(directory, $"Screenshot_{stamp}.png");
+
+            int suffix = 1;
+            while (File.Exists(path))
+                path = Path.Combine(directory, $"Screenshot_{stamp}_{suffix++}.png");
+
+            return path;
+        }
+
+        private static void OpenScreenshotFolder()
+        {
+            string directory = ScreenshotFolder;
+            Directory.CreateDirectory(directory);
+            EditorUtility.RevealInFinder(directory + Path.DirectorySeparatorChar);
+        }
+
+        private static void TakeScreenshot()
+        {
+            string directory = ScreenshotFolder;
+            Directory.CreateDirectory(directory);
+            string path = NextScreenshotPath(directory);
+
+            if (UsesBackbufferCapture())
+            {
+                CaptureBackbuffer(path);
+                return;
+            }
+
+            Camera camera;
+            if (screenshotSource == ScreenshotSource.Scene)
+            {
+                var sceneView = SceneView.lastActiveSceneView;
+                camera = sceneView == null ? null : sceneView.camera;
+            }
+            else
+            {
+                camera = Camera.main;
+                if (camera == null && Camera.allCamerasCount > 0)
+                    camera = Camera.allCameras[0];
+            }
+
+            if (camera == null)
+            {
+                Debug.LogWarning(screenshotSource == ScreenshotSource.Scene
+                    ? "No active Scene View to capture from"
+                    : "No enabled camera in the scene to capture from");
+                return;
+            }
+
+            Vector2Int native = GetScreenshotSourceSize();
+            int outWidth = Mathf.Max(1, Mathf.RoundToInt(native.x * screenshotScale));
+            int outHeight = Mathf.Max(1, Mathf.RoundToInt(native.y * screenshotScale));
+
+            // Below 1x we still render at native size and filter down, otherwise thin
+            // geometry and text alias badly instead of being averaged.
+            float renderScale = Mathf.Max(1f, screenshotScale);
+            int renderWidth = Mathf.Max(1, Mathf.RoundToInt(native.x * renderScale));
+            int renderHeight = Mathf.Max(1, Mathf.RoundToInt(native.y * renderScale));
+
+            var texture = RenderCameraToTexture(camera, renderWidth, renderHeight, outWidth, outHeight,
+                screenshotMode == ScreenshotMode.Transparent);
+
+            File.WriteAllBytes(path, texture.EncodeToPNG());
+            DestroyImmediate(texture);
+
+            FinishScreenshot(path, outWidth, outHeight);
+        }
+
+        private static Texture2D RenderCameraToTexture(Camera camera, int renderWidth, int renderHeight, int outWidth,
+            int outHeight, bool transparent)
+        {
+            var previousTarget = camera.targetTexture;
+            var previousClearFlags = camera.clearFlags;
+            var previousBackground = camera.backgroundColor;
+            var previousActive = RenderTexture.active;
+            bool previousPostProcessing = false;
+
+            var renderTexture = RenderTexture.GetTemporary(renderWidth, renderHeight, 24, RenderTextureFormat.ARGB32);
+            renderTexture.filterMode = FilterMode.Bilinear;
+            camera.targetTexture = renderTexture;
+
+            if (transparent)
+            {
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0f, 0f, 0f, 0f);
+                // URP's UberPost writes alpha = 1, which would flatten the cutout back to opaque.
+                previousPostProcessing = SetUrpPostProcessing(camera, false);
+            }
+
+            camera.Render();
+
+            var readTexture = renderTexture;
+            RenderTexture downsampled = null;
+
+            if (outWidth != renderWidth || outHeight != renderHeight)
+            {
+                downsampled = RenderTexture.GetTemporary(outWidth, outHeight, 0, RenderTextureFormat.ARGB32);
+                downsampled.filterMode = FilterMode.Bilinear;
+                Graphics.Blit(renderTexture, downsampled);
+                readTexture = downsampled;
+            }
+
+            RenderTexture.active = readTexture;
+            var texture = new Texture2D(outWidth, outHeight, TextureFormat.RGBA32, false);
+            texture.ReadPixels(new Rect(0, 0, outWidth, outHeight), 0, 0);
+            texture.Apply();
+
+            RenderTexture.active = previousActive;
+            camera.targetTexture = previousTarget;
+            camera.clearFlags = previousClearFlags;
+            camera.backgroundColor = previousBackground;
+            if (transparent) SetUrpPostProcessing(camera, previousPostProcessing);
+
+            if (downsampled != null) RenderTexture.ReleaseTemporary(downsampled);
+            RenderTexture.ReleaseTemporary(renderTexture);
+
+            return texture;
+        }
+
+        // URP is not an asmdef reference so the package still compiles on Built-in RP;
+        // the camera data is reached by reflection and simply no-ops elsewhere.
+        private static bool SetUrpPostProcessing(Camera camera, bool enabled)
+        {
+            var dataType = Type.GetType(
+                "UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
+            if (dataType == null) return false;
+
+            var cameraData = camera.GetComponent(dataType);
+            if (cameraData == null) return false;
+
+            if (urpPostProcessingProperty == null)
+                urpPostProcessingProperty = dataType.GetProperty("renderPostProcessing");
+            if (urpPostProcessingProperty == null) return false;
+
+            bool previous = (bool)urpPostProcessingProperty.GetValue(cameraData);
+            urpPostProcessingProperty.SetValue(cameraData, enabled);
+            return previous;
+        }
+
+        private static void CaptureBackbuffer(string path)
+        {
+            int superSize = Mathf.Max(1, Mathf.RoundToInt(screenshotScale));
+            ScreenCapture.CaptureScreenshot(path, superSize);
+
+            Vector2 native = Handles.GetMainGameViewSize();
+            int width = Mathf.RoundToInt(native.x) * superSize;
+            int height = Mathf.RoundToInt(native.y) * superSize;
+
+            // CaptureScreenshot only lands at the end of a rendered frame, and outside
+            // Play mode the Game View does not tick on its own — pump it until the file shows up.
+            int ticks = 0;
+            int settle = 0;
+            EditorApplication.CallbackFunction poll = null;
+
+            poll = () =>
+            {
+                ticks++;
+
+                if (File.Exists(path) && new FileInfo(path).Length > 0)
+                {
+                    if (++settle < 2) return;
+                    EditorApplication.update -= poll;
+                    FinishScreenshot(path, width, height);
+                    return;
+                }
+
+                if (ticks > 300)
+                {
+                    EditorApplication.update -= poll;
+                    Debug.LogWarning($"Screenshot timed out — is a Game View open and rendering? {path}");
+                    return;
+                }
+
+                RepaintMainGameView();
+                EditorApplication.QueuePlayerLoopUpdate();
+            };
+
+            RepaintMainGameView();
+            EditorApplication.QueuePlayerLoopUpdate();
+            EditorApplication.update += poll;
+        }
+
+        private static void RepaintMainGameView()
+        {
+            var gameViewType = Type.GetType("UnityEditor.GameView,UnityEditor");
+            if (gameViewType == null) return;
+
+            var windows = Resources.FindObjectsOfTypeAll(gameViewType);
+            for (int i = 0; i < windows.Length; i++)
+            {
+                var window = windows[i] as EditorWindow;
+                if (window != null) window.Repaint();
+            }
+        }
+
+        private static void FinishScreenshot(string path, int width, int height)
+        {
+            Debug.Log($"Screenshot saved ({width}x{height}): <a href=\"{path}\">{path}</a>");
+
+            if (screenshotCopyToClipboard)
+                CopyImageToClipboard(path);
+        }
+
+        private static void CopyImageToClipboard(string path)
+        {
+#if UNITY_EDITOR_WIN
+            // systemCopyBuffer is text-only. SetData("PNG") is what keeps alpha alive for
+            // apps that read it (Discord, Photoshop, GIMP); SetImage covers everything else,
+            // where transparent pixels will come through black.
+            string escaped = path.Replace("'", "''");
+            string script =
+                "Add-Type -AssemblyName System.Windows.Forms,System.Drawing;" +
+                $"$img=[System.Drawing.Image]::FromFile('{escaped}');" +
+                "$ms=New-Object System.IO.MemoryStream;" +
+                "$img.Save($ms,[System.Drawing.Imaging.ImageFormat]::Png);" +
+                "$d=New-Object System.Windows.Forms.DataObject;" +
+                "$d.SetData('PNG',$false,$ms);" +
+                "$d.SetImage($img);" +
+                "[System.Windows.Forms.Clipboard]::SetDataObject($d,$true);";
+
+            var startInfo = new System.Diagnostics.ProcessStartInfo("powershell.exe")
+            {
+                Arguments = $"-NoProfile -STA -NonInteractive -WindowStyle Hidden -Command \"{script}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            System.Diagnostics.Process.Start(startInfo);
+#else
+            EditorGUIUtility.systemCopyBuffer = path;
+            Debug.Log("Image clipboard copy is Windows-only — copied the file path instead.");
+#endif
         }
 
         // Add these methods to handle the functionality
