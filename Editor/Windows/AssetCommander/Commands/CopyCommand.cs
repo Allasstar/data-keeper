@@ -10,16 +10,12 @@ namespace DataKeeper.Editor.Windows.AssetCommander
     // follow it. That is the difference from Move and it is said out loud in the plan dialog.
     public sealed class CopyCommand : ICommanderCommand
     {
-        private static readonly CommandShortcut[] Keys = { new CommandShortcut(KeyCode.F5) };
-
         public string Id => "copy";
         public string DisplayName => "Copy";
 
         public string Tooltip =>
-            "F5 — copy the selection to the other side. The copies get new GUIDs; existing "
+            "Copy the selection to the other side. The copies get new GUIDs; existing "
             + "references keep pointing at the originals.";
-
-        public IReadOnlyList<CommandShortcut> Shortcuts => Keys;
 
         public bool CanExecute(CommanderContext context)
         {

@@ -1,4 +1,5 @@
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -20,7 +21,12 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         private IndexStatusBar _statusBar;
         private CommandBarView _commandBar;
         private Label _selectionStatus;
+        private ToolbarToggle _syncToggle;
         private SideId _activeSide = SideId.A;
+
+        // Swap sets both roots in turn, and the first of those two writes would otherwise be
+        // mirrored straight over the second.
+        private bool _swapping;
 
         private string _pendingModeId;
         private string _pendingRoot;
@@ -88,9 +94,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
             _commandBar = new CommandBarView(rootVisualElement, ActiveContext);
 
+            SetupSideTools();
             SetActiveSide(_activeSide);
-
-            rootVisualElement.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
 
             _statusBar = new IndexStatusBar(rootVisualElement);
 
@@ -132,6 +137,51 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             return view;
         }
 
+        private void SetupSideTools()
+        {
+            _syncToggle = rootVisualElement.Q<ToolbarToggle>("sync-sides");
+            _syncToggle.tooltip = "Walk side B to the same folder as side A while you navigate.";
+            _syncToggle.SetValueWithoutNotify(AssetCommanderPrefs.SyncSides.Value);
+            _syncToggle.RegisterValueChangedCallback(OnSyncToggled);
+
+            var swap = rootVisualElement.Q<ToolbarButton>("swap-sides");
+            swap.tooltip = "Exchange what the two sides are pointing at.";
+            swap.clicked += SwapSides;
+
+            _states[(int)SideId.A].OnRootChanged.AddListener(MirrorSides);
+        }
+
+        private void OnSyncToggled(ChangeEvent<bool> evt)
+        {
+            AssetCommanderPrefs.SyncSides.UniqueValue = evt.newValue;
+            MirrorSides();
+        }
+
+        // Side A leads: navigating it walks B to the same folder, which is how two versions of one
+        // tree get compared. B can still be moved on its own — it is simply overwritten the next
+        // time A moves. Scenes are left out: two panels on one scene show the same hierarchy twice.
+        private void MirrorSides()
+        {
+            if (_swapping || _syncToggle == null || !_syncToggle.value) return;
+
+            var lead = _states[(int)SideId.A];
+            if (lead.Kind != SideKind.Folder) return;
+
+            _states[(int)SideId.B].SetRoot(lead.RootPath);
+        }
+
+        private void SwapSides()
+        {
+            var a = _states[(int)SideId.A];
+            var b = _states[(int)SideId.B];
+            var rootA = a.RootPath;
+
+            _swapping = true;
+            a.SetRoot(b.RootPath);
+            b.SetRoot(rootA);
+            _swapping = false;
+        }
+
         private void SetActiveSide(SideId id)
         {
             _activeSide = id;
@@ -161,28 +211,6 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             var other = _views[_activeSide == SideId.A ? 1 : 0];
 
             return new CommanderContext(active?.Side, other?.Side);
-        }
-
-        // Tab is the commander's side switch, so it is claimed before the focus controller can
-        // treat it as "move to the next focusable element" — and the command keys are claimed
-        // before anything else can read them as text. Inside a text field none of that applies:
-        // Del, F2 and Tab mean there what they always mean.
-        private void OnKeyDown(KeyDownEvent evt)
-        {
-            if (evt.target is VisualElement element && element.GetFirstAncestorOfType<TextField>() != null)
-                return;
-
-            if (evt.keyCode == KeyCode.Tab || evt.character == '\t')
-            {
-                SetActiveSide(_activeSide == SideId.A ? SideId.B : SideId.A);
-                _views[(int)_activeSide]?.Focus();
-
-                evt.StopPropagation();
-                return;
-            }
-
-            if (_commandBar != null && _commandBar.HandleKey(evt.keyCode, evt.modifiers))
-                evt.StopPropagation();
         }
 
         private static float LoadSplitPosition()

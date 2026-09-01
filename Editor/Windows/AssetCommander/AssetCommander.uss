@@ -172,10 +172,20 @@
     opacity: 0.4;
 }
 
-/* Sits apart from the mode chips: it changes the question the selected mode asks, rather
-   than selecting one. */
+/* A mode chip that does not apply to this side kind is dimmed but stays enabled: a disabled
+   element gets no pointer events, so :disabled would also mean "no tooltip", and the tooltip
+   is the only place the reason is written down. The click is refused in C# instead. */
+.ac-chip--unavailable {
+    opacity: 0.4;
+}
+
+.ac-chip--unavailable:hover {
+    color: var(--dk-text-dim);
+}
+
+/* Belongs to the Cross-Side chip it follows and appears only with it, so it is squared off
+   rather than spaced away: it changes the question that mode asks rather than selecting one. */
 .ac-chip--toggle {
-    margin-left: 8px;
     border-radius: 2px;
 }
 
@@ -272,6 +282,24 @@
 .ac-row--dim .ac-row-name {
     color: var(--dk-text-dim);
     -unity-font-style: italic;
+}
+
+/* ── Drop feedback ──────────────────────────────────────────────────── */
+
+/* Drawn as a ring rather than a fill so the row's own selection colour still reads through:
+   during a drag the user has to see both what they are dropping onto and what they picked up. */
+.ac-row--drop {
+    border-width: 1px;
+    border-color: var(--dk-accent);
+    border-radius: 2px;
+    background-color: var(--dk-accent-idle);
+}
+
+/* The panel itself is the target when the cursor is over its background rather than a folder
+   row — dropping there means "the side's root", and the border is what says so. */
+.ac-panel--drop {
+    border-color: var(--dk-accent);
+    border-width: 2px;
 }
 
 .ac-cell {

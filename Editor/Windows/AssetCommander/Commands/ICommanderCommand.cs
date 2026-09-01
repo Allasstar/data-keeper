@@ -16,42 +16,6 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         Reopened = 2,
     }
 
-    public readonly struct CommandShortcut
-    {
-        public readonly KeyCode Key;
-        public readonly EventModifiers Modifiers;
-
-        public CommandShortcut(KeyCode key, EventModifiers modifiers = EventModifiers.None)
-        {
-            Key = key;
-            Modifiers = modifiers;
-        }
-
-        public bool Matches(KeyCode key, EventModifiers modifiers)
-        {
-            if (key != Key) return false;
-
-            const EventModifiers Relevant = EventModifiers.Control | EventModifiers.Command
-                                            | EventModifiers.Alt | EventModifiers.Shift;
-
-            return (modifiers & Relevant) == Modifiers;
-        }
-
-        public string Label
-        {
-            get
-            {
-                var name = Key == KeyCode.Delete ? "Del" : Key.ToString();
-                if ((Modifiers & EventModifiers.Shift) != 0) name = "Shift+" + name;
-                if ((Modifiers & EventModifiers.Alt) != 0) name = "Alt+" + name;
-                if ((Modifiers & (EventModifiers.Control | EventModifiers.Command)) != 0)
-                    name = "Ctrl+" + name;
-
-                return name;
-            }
-        }
-    }
-
     // One side as a command sees it: flattened out of SidePanelView the same way SideContext is
     // flattened out of SidePanelState, so a command can be handed a made-up side with no window
     // behind it. The two delegates are the only things a command is allowed to do to the panel.
@@ -203,8 +167,6 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         string DisplayName { get; }
         string Tooltip { get; }
 
-        IReadOnlyList<CommandShortcut> Shortcuts { get; }
-
         bool CanExecute(CommanderContext context);
 
         OperationPlan Plan(CommanderContext context);
@@ -234,16 +196,6 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         {
             foreach (var command in Registry)
                 if (command.Id == id)
-                    return command;
-
-            return null;
-        }
-
-        public static ICommanderCommand ForShortcut(KeyCode key, EventModifiers modifiers)
-        {
-            foreach (var command in Registry)
-            foreach (var shortcut in command.Shortcuts)
-                if (shortcut.Matches(key, modifiers))
                     return command;
 
             return null;

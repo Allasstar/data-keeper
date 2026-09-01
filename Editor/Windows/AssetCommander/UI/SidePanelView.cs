@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEditor;
 using UnityEditor.UIElements;
+using UnityEngine;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
 
@@ -16,6 +17,17 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         // otherwise read the entire project from disk in one callback.
         private const int ExpandAllBudget = 20000;
 
+        // Only this window's own drags are answered — an asset dragged in from the Project window
+        // has no source panel to be moved out of, so it is refused rather than half-handled.
+        private const string DragKey = "DataKeeper.AssetCommander";
+
+        // Far enough that a click that wobbles is still a click.
+        private const float DragThreshold = 6f;
+
+        // Id sentinel meaning "the cursor is over the panel, not over a row". Item ids are
+        // AssetDatabase-derived and never int.MinValue.
+        private const int NoDropTarget = int.MinValue;
+
         private readonly SidePanelState _state;
         private readonly FolderSideSource _folderSource = new FolderSideSource();
         private readonly SceneSideSource _sceneSource = new SceneSideSource();
@@ -24,6 +36,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         private readonly CommanderSelection _selection;
 
         private readonly VisualElement _panel;
+        private readonly VisualElement _panelRoot;
         private readonly ObjectField _slot;
         private readonly VisualElement _breadcrumb;
         private readonly VisualElement _modeChips;
@@ -59,6 +72,14 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         private bool _suppressSelection;
         private bool _refreshQueued;
 
+        private Vector2 _dragOrigin;
+        private bool _dragArmed;
+
+        private CommanderItemRow _dropRow;
+        private ICommanderCommand _dropCommand;
+        private int _dropOverId = NoDropTarget;
+        private bool _dropCopy;
+
         public event Action Activated;
 
         // The window appends the command entries; the side appends the ones that are about the
@@ -73,6 +94,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _panel = template.Instantiate();
             _panel.style.flexGrow = 1;
             host.Add(_panel);
+
+            _panelRoot = _panel.Q<VisualElement>("side-panel");
 
             _slot = _panel.Q<ObjectField>("slot");
             _breadcrumb = _panel.Q<VisualElement>("breadcrumb");
@@ -103,7 +126,15 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             SetupTree();
             SetupList();
 
-            _panel.RegisterCallback<PointerDownEvent>(_ => Activated?.Invoke(), TrickleDown.TrickleDown);
+            _panel.RegisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
+            _panel.RegisterCallback<PointerMoveEvent>(OnPointerMove, TrickleDown.TrickleDown);
+            _panel.RegisterCallback<PointerUpEvent>(_ => _dragArmed = false, TrickleDown.TrickleDown);
+            _panel.RegisterCallback<KeyDownEvent>(OnKeyDown);
+
+            _panel.RegisterCallback<DragUpdatedEvent>(OnDragUpdated);
+            _panel.RegisterCallback<DragPerformEvent>(OnDragPerform);
+            _panel.RegisterCallback<DragLeaveEvent>(_ => ClearDropFeedback());
+            _panel.RegisterCallback<DragExitedEvent>(_ => ClearDropFeedback());
 
             _sceneEventHandler = QueueSceneRefresh;
 
@@ -163,7 +194,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         }
 
         public void SetActive(bool active) =>
-            _panel.Q<VisualElement>("side-panel").EnableInClassList("ac-panel--active", active);
+            _panelRoot.EnableInClassList("ac-panel--active", active);
 
         public void Focus()
         {
@@ -191,26 +222,35 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _sceneSlot.Dispose();
         }
 
+        // The tooltip is set in SyncChips rather than here: what a mode is depends on the side
+        // it is asked about, and an unavailable one has to say so.
         private void BuildModeChips()
         {
             foreach (var mode in CommanderModes.All)
             {
-                var id = mode.Id;
-                var chip = new Button(() => _state.ModeId = id)
-                {
-                    text = mode.DisplayName,
-                    tooltip = mode.Tooltip,
-                };
+                var captured = mode;
+                var chip = new Button(() => SelectMode(captured)) { text = mode.DisplayName };
 
                 chip.AddToClassList("ac-chip");
                 _modeChips.Add(chip);
-                _modeButtons[id] = chip;
+                _modeButtons[mode.Id] = chip;
             }
         }
 
+        // A mode chip that does not apply to this side stays enabled so that hovering it still
+        // explains itself, so the refusal lives here instead of in SetEnabled.
+        private void SelectMode(ICommanderMode mode)
+        {
+            if (!mode.Supports(_state.Kind)) return;
+
+            _state.ModeId = mode.Id;
+        }
+
+        // Part of Cross-Side, not a seventh mode: it is inserted directly after that chip rather
+        // than appended to the row, so the control and the mode it belongs to read as one thing.
         private Button BuildReverseChip()
         {
-            var chip = new Button(() => _state.CrossSideReverse = !_state.CrossSideReverse)
+            var chip = new Button(ToggleReverse)
             {
                 text = "Reversed",
                 tooltip = "Ask what the other side references here, instead of what this side "
@@ -219,9 +259,29 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
             chip.AddToClassList("ac-chip");
             chip.AddToClassList("ac-chip--toggle");
-            _modeChips.Add(chip);
+
+            var crossSide = _modeButtons[CommanderModes.CrossSideId];
+            _modeChips.Insert(_modeChips.IndexOf(crossSide) + 1, chip);
+
             return chip;
         }
+
+        private void ToggleReverse()
+        {
+            if (!CrossSideReferencesMode.SupportsReverse(_state.Kind)) return;
+
+            _state.CrossSideReverse = !_state.CrossSideReverse;
+        }
+
+        // What the mode does, and — when it cannot answer for this side — why the chip is dim.
+        private string ModeTooltip(ICommanderMode mode, bool supported) =>
+            supported
+                ? mode.Tooltip
+                : mode.Tooltip + UnavailableSuffix(
+                    $"it does not apply to a {Describe(_state.Kind)} side");
+
+        private static string UnavailableSuffix(string reason) =>
+            "\n\nUnavailable here: " + reason + ".";
 
         private void BuildViewChips()
         {
@@ -245,6 +305,314 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             chip.AddToClassList("ac-chip");
             _viewChips.Add(chip);
             return chip;
+        }
+
+        // ── Drag and drop ────────────────────────────────────
+
+        // A drop is not a second implementation of anything: it resolves to one of the same
+        // ICommanderCommands the buttons run, is planned by the same Plan call, and is confirmed
+        // in the same dialog. All the gesture contributes is where the things land.
+        private static readonly ICommanderCommand DropMove = CommanderCommands.Get("move");
+        private static readonly ICommanderCommand DropCopy = CommanderCommands.Get("copy");
+        private static readonly ICommanderCommand DropPrefab = CommanderCommands.Get("prefab");
+
+        private void OnPointerDown(PointerDownEvent evt)
+        {
+            Activated?.Invoke();
+
+            // Armed, not started: the collection view updates its selection on this same event,
+            // so what is being dragged is only known once the pointer has actually moved.
+            _dragArmed = evt.button == 0 && RowUnder(evt.target as VisualElement) != null;
+            _dragOrigin = evt.position;
+        }
+
+        private void OnPointerMove(PointerMoveEvent evt)
+        {
+            if (!_dragArmed) return;
+
+            if ((evt.pressedButtons & 1) == 0)
+            {
+                _dragArmed = false;
+                return;
+            }
+
+            if ((((Vector2)evt.position) - _dragOrigin).sqrMagnitude < DragThreshold * DragThreshold)
+                return;
+
+            _dragArmed = false;
+            StartDrag();
+        }
+
+        private void StartDrag()
+        {
+            if (_selection.Count == 0) return;
+
+            DragAndDrop.PrepareStartDrag();
+            DragAndDrop.SetGenericData(DragKey, _state.Id);
+
+            var objects = new List<Object>(_selection.Count);
+            var paths = new List<string>(_selection.Count);
+
+            foreach (var item in _selection.Items)
+            {
+                if (!string.IsNullOrEmpty(item.AssetPath))
+                {
+                    var asset = AssetDatabase.LoadMainAssetAtPath(item.AssetPath);
+                    if (asset != null) objects.Add(asset);
+                    paths.Add(item.AssetPath);
+                    continue;
+                }
+
+                // A preview-scene GameObject is in no hierarchy and nothing outside this window
+                // could resolve it, so it travels as generic data only — never as an object
+                // reference the rest of the editor might accept a drop of.
+                if (item is GameObjectItem gameObjectItem && gameObjectItem.GameObject != null
+                    && !_sceneSlot.IsPreview)
+                    objects.Add(gameObjectItem.GameObject);
+            }
+
+            DragAndDrop.objectReferences = objects.ToArray();
+            DragAndDrop.paths = paths.ToArray();
+            DragAndDrop.StartDrag(_selection.Describe());
+        }
+
+        private void OnDragUpdated(DragUpdatedEvent evt)
+        {
+            var row = RowUnder(evt.target as VisualElement);
+            var command = ResolveDrop(row, evt.modifiers, out _);
+
+            if (command == null)
+            {
+                DragAndDrop.visualMode = DragAndDropVisualMode.Rejected;
+                ClearDropFeedback();
+                return;
+            }
+
+            DragAndDrop.visualMode = command == DropCopy
+                ? DragAndDropVisualMode.Copy
+                : DragAndDropVisualMode.Move;
+
+            ShowDropFeedback(row);
+            evt.StopPropagation();
+        }
+
+        private void OnDragPerform(DragPerformEvent evt)
+        {
+            var row = RowUnder(evt.target as VisualElement);
+            var command = ResolveDrop(row, evt.modifiers, out var context);
+
+            ClearDropFeedback();
+            if (command == null) return;
+
+            DragAndDrop.AcceptDrag();
+            evt.StopPropagation();
+
+            CommandRunner.Run(command, context);
+        }
+
+        // DragUpdated arrives for every mouse move, so which command answers is cached against the
+        // row under the cursor and the modifier state, and only re-asked when one of those moves.
+        private ICommanderCommand ResolveDrop(CommanderItemRow row, EventModifiers modifiers,
+            out CommanderContext context)
+        {
+            context = default;
+
+            if (_peer == null) return null;
+            if (!(DragAndDrop.GetGenericData(DragKey) is SideId source)) return null;
+
+            // Within one panel there is no other side to transfer to, and a command asked to move
+            // a selection onto itself is a question with no useful answer.
+            if (source == _state.Id) return null;
+
+            var over = row?.Item;
+            int overId = over?.Id ?? NoDropTarget;
+            bool copy = (modifiers & (EventModifiers.Control | EventModifiers.Command)) != 0;
+
+            context = new CommanderContext(_peer.Side, DropTarget(over));
+
+            if (overId == _dropOverId && copy == _dropCopy) return _dropCommand;
+
+            var transfer = copy ? DropCopy : DropMove;
+
+            _dropCommand = transfer.CanExecute(context)
+                ? transfer
+                : DropPrefab.CanExecute(context) ? DropPrefab : null;
+            _dropOverId = overId;
+            _dropCopy = copy;
+
+            return _dropCommand;
+        }
+
+        // This side as a destination. A folder row under the cursor becomes the root the transfer
+        // plans against; a GameObject row becomes the target side's whole "selection", which is
+        // the shape PrefabCommand already reads to decide what an instance is parented to.
+        private CommanderSide DropTarget(ICommanderItem over)
+        {
+            if (_state.Kind == SideKind.Folder)
+            {
+                var root = over != null && over.Kind == CommanderItemKind.Folder
+                    ? over.AssetPath
+                    : _state.RootPath;
+
+                return new CommanderSide(_state.Id, SideKind.Folder, root,
+                    Array.Empty<ICommanderItem>(), default, false, null, RefreshAfterCommand);
+            }
+
+            var selection = over is GameObjectItem
+                ? new List<ICommanderItem> { over }
+                : (IReadOnlyList<ICommanderItem>)Array.Empty<ICommanderItem>();
+
+            return new CommanderSide(_state.Id, _state.Kind, _state.RootPath, selection,
+                _sceneSlot.Scene, _state.Kind == SideKind.Scene && _sceneSlot.IsPreview,
+                () => _sceneSlot.PromoteToOpen(true), RefreshAfterCommand);
+        }
+
+        private void ShowDropFeedback(CommanderItemRow row)
+        {
+            if (_dropRow != row)
+            {
+                _dropRow?.SetDropTarget(false);
+                _dropRow = row;
+                _dropRow?.SetDropTarget(true);
+            }
+
+            // Over the background rather than a row means "this side's root", and the panel
+            // border is what says so.
+            _panelRoot.EnableInClassList("ac-panel--drop", row == null);
+        }
+
+        private void ClearDropFeedback()
+        {
+            _dropRow?.SetDropTarget(false);
+            _dropRow = null;
+            _panelRoot.EnableInClassList("ac-panel--drop", false);
+
+            _dropOverId = NoDropTarget;
+            _dropCommand = null;
+        }
+
+        // Navigation only — no command is bound to a key in this window. Arrows, Home/End,
+        // PageUp/PageDown, Enter and the tree's Left/Right are the collection views' own and are
+        // left to them; what is added here is the movement a two-panel browser needs and a list
+        // cannot know about — leaving a folder, reaching the search box, dropping a selection.
+        // Registered on the bubble phase so the view under the cursor always answers first.
+        private void OnKeyDown(KeyDownEvent evt)
+        {
+            const EventModifiers Ctrl = EventModifiers.Control | EventModifiers.Command;
+
+            bool ctrl = (evt.modifiers & Ctrl) != 0;
+            bool inText = evt.target is VisualElement element
+                          && element.GetFirstAncestorOfType<TextField>() != null;
+
+            // These two work from inside the search box as well: one reaches it, the other is
+            // how the user gets back out. Anything else typed in there is text.
+            if (ctrl && evt.keyCode == KeyCode.F)
+            {
+                FocusSearch();
+                evt.StopPropagation();
+                return;
+            }
+
+            if (evt.keyCode == KeyCode.Escape)
+            {
+                if (ClearSearchOrSelection()) evt.StopPropagation();
+                return;
+            }
+
+            if (inText) return;
+
+            if (ctrl && evt.keyCode == KeyCode.A)
+            {
+                SelectAllVisible();
+                evt.StopPropagation();
+                return;
+            }
+
+            if (evt.keyCode == KeyCode.Backspace && GoUp()) evt.StopPropagation();
+        }
+
+        private void FocusSearch()
+        {
+            Activated?.Invoke();
+
+            var input = _search.Q<TextField>();
+            if (input != null) input.Focus();
+            else _search.Focus();
+        }
+
+        // Escape peels one layer at a time: the filter first, because a hidden filter is the
+        // more confusing of the two states to be left in, then the selection.
+        private bool ClearSearchOrSelection()
+        {
+            if (!string.IsNullOrEmpty(_state.Filter))
+            {
+                _search.value = "";
+                Focus();
+                return true;
+            }
+
+            if (_selection.Count == 0) return false;
+
+            RestoreSelection(new List<int>());
+            _selection.Clear();
+            UpdateStatus();
+            return true;
+        }
+
+        // "All" means what is on screen: the flat list in List view, and in Tree view every row
+        // the user can actually see — a collapsed folder's children are not part of the
+        // selection they think they are making.
+        private void SelectAllVisible()
+        {
+            Activated?.Invoke();
+
+            var items = new List<ICommanderItem>();
+
+            if (_state.ViewMode == SideViewMode.List) items.AddRange(_flat);
+            else if (_source != null) CollectVisibleItems(_source.RootItems, items);
+
+            if (items.Count == 0) return;
+
+            var ids = new List<int>(items.Count);
+            foreach (var item in items) ids.Add(item.Id);
+
+            RestoreSelection(ids);
+            _selection.Set(items);
+            UpdateStatus();
+        }
+
+        private void CollectVisibleItems(IReadOnlyList<TreeViewItemData<ICommanderItem>> level,
+            List<ICommanderItem> into)
+        {
+            foreach (var node in level)
+            {
+                if (node.data.Kind == CommanderItemKind.Placeholder) continue;
+
+                into.Add(node.data);
+
+                if (!node.data.HasChildren || !_tree.IsExpanded(node.id)) continue;
+                if (_source.TryGetLoadedChildren(node.id, out var children))
+                    CollectVisibleItems(children, into);
+            }
+        }
+
+        // Backspace is "leave this folder", the one movement the collection views have no idea
+        // about. A scene side has no parent to go to — its root is the scene file — and neither
+        // does "Packages", which is not a folder the AssetDatabase knows.
+        private bool GoUp()
+        {
+            if (_state.Kind != SideKind.Folder) return false;
+
+            int cut = _state.RootPath.LastIndexOf('/');
+            if (cut <= 0) return false;
+
+            var parent = _state.RootPath.Substring(0, cut);
+            if (!AssetDatabase.IsValidFolder(parent)) return false;
+
+            Activated?.Invoke();
+            _state.SetRoot(parent);
+            Focus();
+            return true;
         }
 
         private void SetupTree()
@@ -312,16 +680,18 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             AppendItemActions(evt.menu, item);
         }
 
+        private ICommanderItem ItemUnder(VisualElement target) => RowUnder(target)?.Item;
+
         // Rows are PickingMode.Ignore so the collection view keeps its own click handling, which
         // means the event target is the item container — the row is found by looking inside it.
-        private ICommanderItem ItemUnder(VisualElement target)
+        private CommanderItemRow RowUnder(VisualElement target)
         {
             for (var element = target; element != null; element = element.parent)
             {
                 if (element == _tree || element == _list) return null;
 
                 var row = element as CommanderItemRow ?? element.Q<CommanderItemRow>();
-                if (row?.Item != null) return row.Item;
+                if (row?.Item != null) return row;
             }
 
             return null;
@@ -491,16 +861,27 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             foreach (var mode in CommanderModes.All)
             {
                 var chip = _modeButtons[mode.Id];
+                bool supported = mode.Supports(_state.Kind);
+
                 chip.EnableInClassList("ac-chip--selected", mode.Id == _state.ModeId);
 
-                // Disabled rather than hidden: a chip that vanishes when a side changes kind
-                // makes the row jump, and the user loses track of what the modes even are.
-                chip.SetEnabled(mode.Supports(_state.Kind));
+                // Dimmed rather than hidden: a chip that vanishes when a side changes kind makes
+                // the row jump, and the user loses track of what the modes even are. Dimmed
+                // rather than disabled: a disabled element is dropped from the pointer pick, so
+                // its tooltip never appears — and an unavailable mode is exactly when the reason
+                // is worth reading.
+                chip.EnableInClassList("ac-chip--unavailable", !supported);
+                chip.tooltip = ModeTooltip(mode, supported);
             }
 
-            bool crossSide = _state.ModeId == CommanderModes.CrossSideId;
-            _reverseChip.EnableInClassList(HiddenClass, !crossSide);
-            _reverseChip.SetEnabled(CrossSideReferencesMode.SupportsReverse(_state.Kind));
+            // Shown only where it can be acted on — Cross-Side selected, and a side kind that can
+            // answer the reversed question. A dimmed toggle would be a control asking to be
+            // clicked; the mode chips carry that treatment because they are how a side changes
+            // mode, and this one is not.
+            bool showReverse = _state.ModeId == CommanderModes.CrossSideId
+                               && CrossSideReferencesMode.SupportsReverse(_state.Kind);
+
+            _reverseChip.EnableInClassList(HiddenClass, !showReverse);
             _reverseChip.EnableInClassList("ac-chip--selected", _state.CrossSideReverse);
 
             foreach (var pair in _viewButtons)
@@ -624,7 +1005,6 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             {
                 _flat = new List<ICommanderItem>();
                 _list.itemsSource = _flat;
-                _placeholderText.text = PlaceholderText();
                 ShowActiveView();
                 UpdateStatus();
                 return;
@@ -662,23 +1042,53 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             return _state.Kind == SideKind.Folder || (_state.Kind == SideKind.Scene && _sceneSlot.IsValid);
         }
 
+        // Why this panel is blank, in the panel's own terms. An empty folder, a mode that found
+        // nothing and a filter that matched nothing are three different facts, and answering all
+        // three with one grey rectangle is what makes a browser feel broken.
         private string PlaceholderText()
         {
-            if (_state.Kind != SideKind.Scene) return "Drop a folder or a scene here.";
+            if (_state.Kind == SideKind.Scene && !_sceneSlot.IsValid)
+                return EditorApplication.isPlayingOrWillChangePlaymode
+                    ? $"{_sceneSlot.SceneName}\nScene sides are unavailable in Play Mode."
+                    : $"{_sceneSlot.SceneName}\nCould not load this scene.";
 
-            return EditorApplication.isPlayingOrWillChangePlaymode
-                ? $"{_sceneSlot.SceneName}\nScene sides are unavailable in Play Mode."
-                : $"{_sceneSlot.SceneName}\nCould not load this scene.";
+            if (_state.Kind == SideKind.None) return "Drop a folder or a scene here.";
+
+            bool filtered = !string.IsNullOrEmpty(_state.Filter);
+
+            if (_modeResult != null)
+            {
+                var mode = CommanderModes.Get(_state.ModeId).DisplayName;
+
+                // The filter narrows a result set without re-running the mode, so "the mode found
+                // nothing" and "the mode found things, none of them matching" are separate.
+                return filtered
+                    ? $"{mode} found {_modeSource.TotalCount:N0}, none matching '{_state.Filter}'."
+                    : $"{mode} found nothing here.";
+            }
+
+            if (filtered) return $"Nothing here matches '{_state.Filter}'.";
+
+            return _state.Kind == SideKind.Scene
+                ? $"{_sceneSlot.SceneName} is empty."
+                : $"{_state.RootPath} is empty.";
         }
 
         private void ShowActiveView()
         {
-            bool content = HasContent();
+            // A side that has nothing to show and a side that cannot show anything both end up
+            // at the placeholder, because to the user they are the same blank rectangle — the
+            // difference is the sentence written in it.
+            bool content = HasContent() && _flat.Count > 0;
             bool tree = _state.ViewMode == SideViewMode.Tree;
 
             _tree.EnableInClassList(HiddenClass, !content || !tree);
             _list.EnableInClassList(HiddenClass, !content || tree);
             _placeholder.EnableInClassList(HiddenClass, content);
+
+            // Written here rather than at refresh time because this is the one place that knows
+            // the panel is about to show the placeholder at all.
+            if (!content) _placeholderText.text = PlaceholderText();
 
             bool preview = _state.Kind == SideKind.Scene && _sceneSlot.IsPreview;
             _sceneNotice.EnableInClassList(HiddenClass, !preview);

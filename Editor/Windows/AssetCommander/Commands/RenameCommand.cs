@@ -12,15 +12,11 @@ namespace DataKeeper.Editor.Windows.AssetCommander
     // the dialog previews every resulting name before a single file is touched.
     public sealed class RenameCommand : ICommanderCommand
     {
-        private static readonly CommandShortcut[] Keys = { new CommandShortcut(KeyCode.F2) };
-
         public string Id => "rename";
         public string DisplayName => "Rename";
 
         public string Tooltip =>
-            "F2 — rename the selection. Use {name}, {n} and {n:000} to build a batch pattern.";
-
-        public IReadOnlyList<CommandShortcut> Shortcuts => Keys;
+            "Rename the selection. Use {name}, {n} and {n:000} to build a batch pattern.";
 
         public bool CanExecute(CommanderContext context)
         {

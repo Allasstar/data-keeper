@@ -66,6 +66,10 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             EnableInClassList("ac-row--dim", item.Kind == CommanderItemKind.Placeholder);
         }
 
+        // Rows are recycled, so the drop highlight has to come off with the item it was about —
+        // otherwise a scroll during a drag leaves the marker on whatever row inherits the element.
+        public void SetDropTarget(bool on) => EnableInClassList("ac-row--drop", on);
+
         public void Unbind()
         {
             Item = null;
@@ -74,6 +78,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _badge.text = "";
             _badge.AddToClassList("ac-hidden");
             if (_sub != null) _sub.text = "";
+
+            SetDropTarget(false);
         }
     }
 }

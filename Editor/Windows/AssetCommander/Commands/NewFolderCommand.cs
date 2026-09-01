@@ -6,20 +6,16 @@ using UnityEngine;
 
 namespace DataKeeper.Editor.Windows.AssetCommander
 {
-    // F7 is the one command-bar key that creates rather than moves. It runs through the same plan
-    // dialog as everything else so the name is typed and previewed in one place, and so the
-    // command bar has no special case in it.
+    // The one command that creates rather than moves. It runs through the same plan dialog as
+    // everything else so the name is typed and previewed in one place, and so the command bar
+    // has no special case in it.
     public sealed class NewFolderCommand : ICommanderCommand
     {
         private const string DefaultName = "New Folder";
 
-        private static readonly CommandShortcut[] Keys = { new CommandShortcut(KeyCode.F7) };
-
         public string Id => "new-folder";
         public string DisplayName => "New Folder";
-        public string Tooltip => "F7 — create a folder inside the active side's root.";
-
-        public IReadOnlyList<CommandShortcut> Shortcuts => Keys;
+        public string Tooltip => "Create a folder inside the active side's root.";
 
         public bool CanExecute(CommanderContext context) => context.Active.IsFolder;
 

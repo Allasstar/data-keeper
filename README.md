@@ -209,6 +209,21 @@ Edit the tag tree on a `GameTagRegistry` asset (`Create > DataKeeper > GameTagRe
 
 
 
+## [Asset Commander](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/AssetCommander.md)
+
+`Tools > Windows > Asset Commander` — a two-panel, Total-Commander-style browser for the project.
+Each side holds a **folder** or a **scene** (open or not — a closed one is loaded into a read-only
+preview scene, so browsing never disturbs your open-scene setup), renders it as a tree or a
+sortable list, and filters it through an **analysis mode**: Search, Broken References, Missing
+Scripts, Cross-Side References, Unused/Orphan Assets, Duplicates. Every mode is a lookup against a
+persistent, incrementally maintained project index rather than a fresh disk scan.
+
+**Commands** — rename (single or batch pattern), copy, move, new folder, delete, duplicate, GUID
+swap, and prefab-ify/instantiate — apply to the selection on either side or across the two, by
+button, context menu, or drag and drop. Each one resolves its destinations and name collisions up
+front and shows the whole list in a confirm dialog before touching anything. No command is bound
+to a keyboard shortcut, by design; the keys are navigation only.
+
 # DataKeeper Namespace Documentation
 
 The `DataKeeper` namespace provides a suite of tools and utilities designed to enhance Unity development, offering solutions for reactive programming, data management, service location, object pooling, and event signaling.

@@ -9,15 +9,11 @@ namespace DataKeeper.Editor.Windows.AssetCommander
     // moved asset survives — that is the whole reason a move is not a copy-then-delete.
     public sealed class MoveCommand : ICommanderCommand
     {
-        private static readonly CommandShortcut[] Keys = { new CommandShortcut(KeyCode.F6) };
-
         public string Id => "move";
         public string DisplayName => "Move";
 
         public string Tooltip =>
-            "F6 — move the selection to the other side. Assets keep their GUID, so references survive.";
-
-        public IReadOnlyList<CommandShortcut> Shortcuts => Keys;
+            "Move the selection to the other side. Assets keep their GUID, so references survive.";
 
         public bool CanExecute(CommanderContext context)
         {

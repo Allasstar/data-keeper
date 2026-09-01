@@ -4,6 +4,8 @@
             <ui:Label name="index-status" class="ac-index-status" text="Index not built" />
             <ui:ProgressBar name="index-progress" class="ac-index-progress" low-value="0" high-value="100" />
             <ui:VisualElement class="ac-flex-spacer" />
+            <uie:ToolbarToggle name="sync-sides" text="Sync" />
+            <uie:ToolbarButton name="swap-sides" text="Swap Sides" />
             <uie:ToolbarButton name="rebuild-index" text="Rebuild Index" />
         </uie:Toolbar>
         <ui:VisualElement name="notice" class="ac-notice" />

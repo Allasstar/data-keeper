@@ -13,6 +13,22 @@
 - `Optional<T>` — implements `IEquatable<Optional<T>>` with matching `Equals` / `GetHashCode`. `EqualityComparer<Optional<T>>.Default` previously fell back to reflection-based `ValueType.Equals`, which boxes both operands on every comparison.
 
 ### Added
+- **Asset Commander** (`Tools > Windows > Asset Commander`) — a two-panel, Total-Commander-style
+  project browser. Each side holds a folder or a scene (a closed scene is loaded into a read-only
+  preview scene, so browsing never disturbs the open-scene setup) and renders it as a tree or a
+  sortable list. Six analysis modes — Search, Broken References, Missing Scripts, Cross-Side
+  References, Unused/Orphan Assets, Duplicates — all answered as lookups against a persistent,
+  incrementally maintained index of `Assets/` plus local and embedded packages, built on worker
+  threads and cached under `Library/`. Eight commands — Rename (single or batch pattern), Copy,
+  Move, New Folder, Delete, Duplicate, GUID Swap, Prefab-ify/Instantiate — each resolving every
+  destination and name collision up front and confirming the whole list in a dialog before
+  touching anything. Commands run from the command bar, the row context menu, or a drag between
+  the panels; a drop onto a folder row targets that folder, onto a GameObject row parents there,
+  and Ctrl turns a move into a copy. `Sync` mirrors side A's folder into side B while navigating,
+  `Swap Sides` exchanges the two. **No command is bound to a keyboard shortcut** — the keys the
+  window claims are navigation only (arrows, Enter, Backspace, `Ctrl+A`, `Ctrl+F`, `Esc`), so
+  nothing here can collide with the editor's own global shortcuts. See
+  [Asset Commander](Documentation~/AssetCommander.md).
 - `ClampLayoutElement` — per-axis minimum and maximum size in one component, the maximum being the one `LayoutElement` never had. Reports a clamped size at `layoutPriority` 2, which is the only way to make a resolved layout size *smaller* (`LayoutUtility` takes the largest value among equal priorities), so both `ContentSizeFitter` and every layout group honour it unchanged. Each bound is an `Optional<float>` in pixels; a bound left off reports `-1` and stays transparent. Where a minimum and a maximum contradict the minimum wins. An optional `Size Source` measures another rect instead of this object, which is what lets a scroll view hug its content between two bounds - the content stays anchored and free to overflow, where a layout group on the view would squash it back down to the capped height. The inspector flags the setups where a cap cannot apply — nothing on the object reporting a size, or a parent group with Child Control Size off / Child Force Expand on for that axis.
 - `AutoGridLayoutGroup` — inspector warns when a `ContentSizeFitter` constrains an axis the cell size is derived from, the setup that leaves the grid stuck at its current (possibly zero) size.
 

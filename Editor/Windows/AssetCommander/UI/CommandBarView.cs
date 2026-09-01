@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DataKeeper.Editor.Windows.AssetCommander
 {
-    // Buttons, keys and context-menu entries are all the same list of commands asked the same
-    // question — CanExecute against the current context — so a command that is wrong for the
-    // current selection is visibly dead rather than failing when pressed.
+    // Buttons and context-menu entries are the same list of commands asked the same question —
+    // CanExecute against the current context — so a command that is wrong for the current
+    // selection is visibly dead rather than failing when pressed. No command is bound to a key:
+    // the function keys and Ctrl+D this bar used to claim collide with the editor's own global
+    // shortcuts, and a destructive command reached by a stray keystroke is the one mistake this
+    // window must not make.
     public sealed class CommandBarView
     {
         private readonly Func<CommanderContext> _context;
@@ -25,7 +27,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 var captured = command;
                 var button = new Button(() => Run(captured))
                 {
-                    text = Label(command),
+                    text = command.DisplayName,
                     tooltip = command.Tooltip,
                 };
 
@@ -49,17 +51,6 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             Sync();
         }
 
-        // Returns whether the key was claimed, so the window only swallows a keystroke a command
-        // actually took.
-        public bool HandleKey(KeyCode key, EventModifiers modifiers)
-        {
-            var command = CommanderCommands.ForShortcut(key, modifiers);
-            if (command == null || !command.CanExecute(_context())) return false;
-
-            Run(command);
-            return true;
-        }
-
         public void PopulateMenu(DropdownMenu menu)
         {
             var context = _context();
@@ -71,19 +62,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                     ? DropdownMenuAction.Status.Normal
                     : DropdownMenuAction.Status.Disabled;
 
-                menu.AppendAction(Label(command), _ => Run(captured), status);
+                menu.AppendAction(command.DisplayName, _ => Run(captured), status);
             }
-        }
-
-        private static string Label(ICommanderCommand command)
-        {
-            var shortcuts = command.Shortcuts;
-            if (shortcuts.Count == 0) return command.DisplayName;
-
-            var keys = shortcuts[0].Label;
-            for (int i = 1; i < shortcuts.Count; i++) keys += "/" + shortcuts[i].Label;
-
-            return command.DisplayName + " (" + keys + ")";
         }
     }
 }

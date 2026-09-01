@@ -11,20 +11,12 @@ namespace DataKeeper.Editor.Windows.AssetCommander
     // row — the question "is anything still using this" is the whole reason the index exists.
     public sealed class DeleteCommand : ICommanderCommand
     {
-        private static readonly CommandShortcut[] Keys =
-        {
-            new CommandShortcut(KeyCode.Delete),
-            new CommandShortcut(KeyCode.F8),
-        };
-
         public string Id => "delete";
         public string DisplayName => "Delete";
 
         public string Tooltip =>
-            "Del / F8 — send the selected assets to the OS trash, or destroy the selected scene "
-            + "objects. Rows are annotated with how many assets still reference them.";
-
-        public IReadOnlyList<CommandShortcut> Shortcuts => Keys;
+            "Send the selected assets to the OS trash, or destroy the selected scene objects. "
+            + "Rows are annotated with how many assets still reference them.";
 
         public bool CanExecute(CommanderContext context)
         {

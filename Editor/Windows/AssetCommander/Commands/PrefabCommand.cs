@@ -26,8 +26,6 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             "Scene objects → folder side: save them as prefabs and connect the originals. "
             + "Prefabs → scene side: instantiate them.";
 
-        public IReadOnlyList<CommandShortcut> Shortcuts => Array.Empty<CommandShortcut>();
-
         public bool CanExecute(CommanderContext context) => Resolve(context) != Direction.None;
 
         public OperationPlan Plan(CommanderContext context)

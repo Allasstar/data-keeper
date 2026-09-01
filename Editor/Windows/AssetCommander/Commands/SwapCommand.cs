@@ -16,8 +16,6 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             "Exchange the GUIDs of exactly two assets, redirecting every reference from one to "
             + "the other. Requires Force Text serialization.";
 
-        public IReadOnlyList<CommandShortcut> Shortcuts => System.Array.Empty<CommandShortcut>();
-
         public bool CanExecute(CommanderContext context) => TryGetPair(context, out _, out _);
 
         public OperationPlan Plan(CommanderContext context)

@@ -9,6 +9,9 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         public static readonly ReactiveEditorPref<float> SplitPosition =
             new ReactiveEditorPref<float>(0f, Prefix + "SplitPosition");
 
+        public static readonly ReactiveEditorPref<bool> SyncSides =
+            new ReactiveEditorPref<bool>(false, Prefix + "SyncSides");
+
         public static readonly ReactiveEditorPref<string> RootA =
             new ReactiveEditorPref<string>(SidePanelState.RootFolderPath, Prefix + "RootA");
 

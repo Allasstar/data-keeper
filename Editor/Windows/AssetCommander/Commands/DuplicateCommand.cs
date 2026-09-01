@@ -11,19 +11,12 @@ namespace DataKeeper.Editor.Windows.AssetCommander
     // here is indistinguishable from one made in the Project window.
     public sealed class DuplicateCommand : ICommanderCommand
     {
-        private static readonly CommandShortcut[] Keys =
-        {
-            new CommandShortcut(KeyCode.D, EventModifiers.Control),
-        };
-
         public string Id => "duplicate";
         public string DisplayName => "Duplicate";
 
         public string Tooltip =>
-            "Ctrl+D — duplicate the selection in place. Asset duplicates get new GUIDs; scene "
+            "Duplicate the selection in place. Asset duplicates get new GUIDs; scene "
             + "duplicates land under the same parent.";
-
-        public IReadOnlyList<CommandShortcut> Shortcuts => Keys;
 
         public bool CanExecute(CommanderContext context)
         {
