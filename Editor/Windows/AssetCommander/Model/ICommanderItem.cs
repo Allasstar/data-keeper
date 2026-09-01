@@ -54,14 +54,12 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
         public static int ForPlaceholder(string parentPath) => For("p:" + parentPath);
 
-        // Scene objects are keyed by instance id rather than by GlobalObjectId: the id only has
+        // Scene objects are keyed by entity id rather than by GlobalObjectId: the id only has
         // to survive a hierarchy rebuild (same live objects, freshly walked), and
         // GetGlobalObjectIdSlow earns its name — one editor call per row would be paid on every
         // level build. The GlobalObjectId is still available per item, computed on demand.
-        public static int ForSceneObject(int instanceId) =>
-            For("s:" + instanceId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        public static int ForSceneObject(EntityId entityId) => For("s:" + entityId.ToString());
 
-        public static int ForScenePlaceholder(int instanceId) =>
-            For("sp:" + instanceId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        public static int ForScenePlaceholder(EntityId entityId) => For("sp:" + entityId.ToString());
     }
 }

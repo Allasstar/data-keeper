@@ -75,7 +75,11 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 {
                     if (property.propertyType != SerializedPropertyType.ObjectReference) continue;
                     if (property.objectReferenceValue != null) continue;
+#if UNITY_6000_5_OR_NEWER
+                    if (property.objectReferenceEntityIdValue == EntityId.None) continue;
+#else
                     if (property.objectReferenceInstanceIDValue == 0) continue;
+#endif
 
                     total++;
                     if (named.Count < MaxNamedFields) named.Add(type + "." + property.displayName);

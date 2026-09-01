@@ -24,7 +24,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _gameObject = gameObject;
             _componentCount = gameObject.GetComponentCount();
 
-            Id = CommanderItemIds.ForSceneObject(gameObject.GetInstanceID());
+            Id = CommanderItemIds.ForSceneObject(gameObject.GetEntityId());
             Name = gameObject.name;
             ChildCount = gameObject.transform.childCount;
             HasChildren = ChildCount > 0 || (showComponents && _componentCount > 0);
@@ -118,7 +118,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         // its own MonoScript asset, so counting it would add a constant nobody can act on.
         private int CountAssetReferences()
         {
-            var seen = new HashSet<int>();
+            var seen = new HashSet<EntityId>();
 
             for (int i = 0; i < _componentCount; i++)
             {
@@ -136,7 +136,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                     var reference = property.objectReferenceValue;
                     if (reference == null || !EditorUtility.IsPersistent(reference)) continue;
 
-                    seen.Add(reference.GetInstanceID());
+                    seen.Add(reference.GetEntityId());
                 }
             }
 
@@ -158,9 +158,9 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             // A missing script has no component to key on, so its row is identified by the slot
             // it occupies on its owner.
             Id = component == null
-                ? CommanderItemIds.For("c:" + owner.GetInstanceID().ToString(CultureInfo.InvariantCulture)
+                ? CommanderItemIds.For("c:" + owner.GetEntityId().ToString()
                                        + ":" + index.ToString(CultureInfo.InvariantCulture))
-                : CommanderItemIds.ForSceneObject(component.GetInstanceID());
+                : CommanderItemIds.ForSceneObject(component.GetEntityId());
 
             if (component == null)
             {

@@ -176,7 +176,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
     {
         public ScenePlaceholderItem(GameObject owner)
         {
-            Id = CommanderItemIds.ForScenePlaceholder(owner.GetInstanceID());
+            Id = CommanderItemIds.ForScenePlaceholder(owner.GetEntityId());
         }
 
         public int Id { get; }
