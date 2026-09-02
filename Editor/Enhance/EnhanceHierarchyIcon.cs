@@ -360,7 +360,7 @@ namespace DataKeeper.Editor.Enhance
         }
 
         // Gets icon for a component (with caching)
-        private static Texture GetComponentIcon(Component component)
+        internal static Texture GetComponentIcon(Component component)
         {
             System.Type componentType = component.GetType();
 
