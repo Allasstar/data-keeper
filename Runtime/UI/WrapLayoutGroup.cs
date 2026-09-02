@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -44,7 +44,7 @@ namespace DataKeeper.UI
                 // Where the lines break is only known once the width is final, so the reported width is
                 // the unwrapped single line one - what the layout would need to not wrap at all.
                 GetChildExtremes(0, out float largest, out float total);
-                SetLayoutInputForAxis(largest + padding.horizontal, total + padding.horizontal, -1, 0);
+                SetLayoutInput(largest + padding.horizontal, total + padding.horizontal, -1, 0);
             }
             else
             {
@@ -52,7 +52,7 @@ namespace DataKeeper.UI
                 // width reported here follows the previous height and settles on the next rebuild.
                 FlowMain();
                 FlowCross();
-                SetLayoutInputForAxis(m_ContentCross + padding.horizontal, m_ContentCross + padding.horizontal, -1, 0);
+                SetLayoutInput(m_ContentCross + padding.horizontal, m_ContentCross + padding.horizontal, -1, 0);
             }
         }
 
@@ -71,12 +71,12 @@ namespace DataKeeper.UI
                 // Children finished their own vertical calculation against the width set above, so this
                 // is the first phase where their heights are worth measuring.
                 FlowCross();
-                SetLayoutInputForAxis(m_ContentCross + padding.vertical, m_ContentCross + padding.vertical, -1, 1);
+                SetLayoutInput(m_ContentCross + padding.vertical, m_ContentCross + padding.vertical, -1, 1);
             }
             else
             {
                 GetChildExtremes(1, out float largest, out float total);
-                SetLayoutInputForAxis(largest + padding.vertical, total + padding.vertical, -1, 1);
+                SetLayoutInput(largest + padding.vertical, total + padding.vertical, -1, 1);
             }
         }
 
@@ -263,5 +263,17 @@ namespace DataKeeper.UI
                 SetChildAlongAxis(rectChildren[i], axis, m_Positions[i][axis] + crossOffset);
             }
         }
+
+        // SetLayoutInputForAxis gained a maximum between min and preferred in Unity 6.6. This group has no
+        // upper bound of its own, so it reports the unbounded default there.
+        private void SetLayoutInput(float min, float preferred, float flexible, int axis)
+        {
+#if UNITY_6000_6_OR_NEWER
+            SetLayoutInputForAxis(min, LayoutUtility.DefaultMaxSize, preferred, flexible, axis);
+#else
+            SetLayoutInputForAxis(min, preferred, flexible, axis);
+#endif
+        }
+
     }
 }

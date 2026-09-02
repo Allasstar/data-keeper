@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using DataKeeper.Signals;
@@ -18,7 +18,12 @@ namespace DataKeeper.Generic
     [Serializable]
     public class ReactiveDictionary<TKey, TValue> : IDictionary<TKey, TValue>
     {
+        // UAC1016 judges an open generic definition, where TKey and TValue can carry no attribute at all.
+        // Unity decides serializability at the concrete instantiation, the same way it already does for
+        // ReactiveList's List<T>, so a closed type with serializable arguments still serializes.
+#pragma warning disable UAC1016
         [SerializeField, JsonIgnore] private Dictionary<TKey, TValue> m_Dictionary;
+#pragma warning restore UAC1016
 
         /// <summary>
         /// On Dictionary Changed event.

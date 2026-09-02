@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using DataKeeper.UIToolkit;
@@ -283,22 +283,22 @@ namespace DataKeeper.Editor.Windows
             if (contrast >= AAA_NORMAL)
             {
                 _banner.SetBackgroundColor(PassColor);
-                _bannerLabel.SetText($"Excellent Contrast — passes WCAG AAA ({contrast:F2}:1)");
+                _bannerLabel.SetTextValue($"Excellent Contrast — passes WCAG AAA ({contrast:F2}:1)");
             }
             else if (contrast >= AA_NORMAL)
             {
                 _banner.SetBackgroundColor(PassColor);
-                _bannerLabel.SetText($"Accessible Contrast — passes WCAG AA ({contrast:F2}:1)");
+                _bannerLabel.SetTextValue($"Accessible Contrast — passes WCAG AA ({contrast:F2}:1)");
             }
             else if (contrast >= AA_LARGE)
             {
                 _banner.SetBackgroundColor(WarnColor);
-                _bannerLabel.SetText($"Large Text Only — passes AA Large ({contrast:F2}:1)");
+                _bannerLabel.SetTextValue($"Large Text Only — passes AA Large ({contrast:F2}:1)");
             }
             else
             {
                 _banner.SetBackgroundColor(FailColor);
-                _bannerLabel.SetText($"Low Contrast ({contrast:F2}:1)");
+                _bannerLabel.SetTextValue($"Low Contrast ({contrast:F2}:1)");
             }
 
             Color previewBg = _previewMode switch
@@ -313,12 +313,12 @@ namespace DataKeeper.Editor.Windows
             _sampleBig.SetTextColor(_fgColor);
             _sampleSmall.SetTextColor(_fgColor);
 
-            _ratioLabel.SetText($"{contrast:F2} : 1");
+            _ratioLabel.SetTextValue($"{contrast:F2} : 1");
 
             foreach (var (badge, threshold) in _wcagBadges)
             {
                 bool pass = contrast >= threshold;
-                badge.SetText(pass ? "PASS" : "FAIL");
+                badge.SetTextValue(pass ? "PASS" : "FAIL");
                 badge.SetBackgroundColor(pass ? PassColor : FailColor);
             }
 
@@ -449,7 +449,7 @@ namespace DataKeeper.Editor.Windows
 
         private void RefreshPalette()
         {
-            _schemeDescription.SetText(Schemes[_paletteScheme].description);
+            _schemeDescription.SetTextValue(Schemes[_paletteScheme].description);
             _paletteContent.Clear();
 
             var palette = GeneratePalette();

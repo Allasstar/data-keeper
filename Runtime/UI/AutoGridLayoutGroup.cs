@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 namespace DataKeeper.UI
@@ -83,13 +83,13 @@ namespace DataKeeper.UI
             UpdateCellSize();
 
             float width = padding.horizontal + m_CellSize.x * m_Columns + m_Spacing.x * (m_Columns - 1);
-            SetLayoutInputForAxis(isWidthDriven ? 0f : width, width, -1, 0);
+            SetLayoutInput(isWidthDriven ? 0f : width, width, -1, 0);
         }
 
         public override void CalculateLayoutInputVertical()
         {
             float height = padding.vertical + m_CellSize.y * m_Rows + m_Spacing.y * (m_Rows - 1);
-            SetLayoutInputForAxis(isHeightDriven ? 0f : height, height, -1, 1);
+            SetLayoutInput(isHeightDriven ? 0f : height, height, -1, 1);
         }
 
         public override void SetLayoutHorizontal()
@@ -193,5 +193,17 @@ namespace DataKeeper.UI
                 SetChildAlongAxis(child, 1, startY + (m_CellSize.y + m_Spacing.y) * rowIndex, m_CellSize.y);
             }
         }
+
+        // SetLayoutInputForAxis gained a maximum between min and preferred in Unity 6.6. This group has no
+        // upper bound of its own, so it reports the unbounded default there.
+        private void SetLayoutInput(float min, float preferred, float flexible, int axis)
+        {
+#if UNITY_6000_6_OR_NEWER
+            SetLayoutInputForAxis(min, LayoutUtility.DefaultMaxSize, preferred, flexible, axis);
+#else
+            SetLayoutInputForAxis(min, preferred, flexible, axis);
+#endif
+        }
+
     }
 }

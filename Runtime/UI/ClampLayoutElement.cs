@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using DataKeeper.Generic;
 using UnityEngine;
@@ -64,6 +64,13 @@ namespace DataKeeper.UI
         float ILayoutElement.minHeight => Report(1, MinHeightOf);
         float ILayoutElement.preferredWidth => Report(0, PreferredWidthOf);
         float ILayoutElement.preferredHeight => Report(1, PreferredHeightOf);
+
+#if UNITY_6000_6_OR_NEWER
+        // uGUI reads a maximum of its own since Unity 6.6. Reporting the authored bound here lets a layout
+        // group and a ContentSizeFitter honour it directly, on top of the sizes already clamped above.
+        float ILayoutElement.maxWidth => GetMaxSize(0);
+        float ILayoutElement.maxHeight => GetMaxSize(1);
+#endif
 
         // A layout group adds flexible space on top of the preferred size on its main axis, and treats a
         // flexible child as having no upper bound on its cross axis. Either way an upper bound needs it

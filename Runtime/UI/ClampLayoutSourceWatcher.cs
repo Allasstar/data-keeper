@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -58,9 +58,15 @@ namespace DataKeeper.UI
         // Inert to LayoutUtility: every size is -1, so it is skipped before its priority is ever considered.
         // ILayoutElement is implemented only to be called back when the source recalculates.
         public float minWidth => -1f;
+#if UNITY_6000_6_OR_NEWER
+        public float maxWidth => -1f;
+#endif
         public float preferredWidth => -1f;
         public float flexibleWidth => -1f;
         public float minHeight => -1f;
+#if UNITY_6000_6_OR_NEWER
+        public float maxHeight => -1f;
+#endif
         public float preferredHeight => -1f;
         public float flexibleHeight => -1f;
         public int layoutPriority => int.MinValue;

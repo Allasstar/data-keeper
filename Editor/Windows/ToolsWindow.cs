@@ -181,7 +181,7 @@ namespace DataKeeper.Editor.Windows
 
                 // Load button
                 var loadBtn = new Button(() => LoadScene(scenePath))
-                    .SetText("Load")
+                    .SetTextValue("Load")
                     .SetFlexGrow(1)
                     .SetMarginRight(2)
                     .SetHeight(20)
@@ -189,7 +189,7 @@ namespace DataKeeper.Editor.Windows
 
                 // Add button
                 var addBtn = new Button(() => LoadSceneAdditive(scenePath))
-                    .SetText("Add")
+                    .SetTextValue("Add")
                     .SetFlexGrow(1)
                     .SetMarginRight(2)
                     .SetHeight(20)
@@ -197,7 +197,7 @@ namespace DataKeeper.Editor.Windows
 
                 // Unload button
                 var unloadBtn = new Button(() => UnloadScene(scenePath))
-                    .SetText("Unload")
+                    .SetTextValue("Unload")
                     .SetFlexGrow(1)
                     .SetMarginRight(2)
                     .SetHeight(20)
@@ -205,7 +205,7 @@ namespace DataKeeper.Editor.Windows
 
                 // Save button
                 var saveBtn = new Button(() => SaveScene(sceneObject))
-                    .SetText("Save")
+                    .SetTextValue("Save")
                     .SetFlexGrow(1)
                     .SetHeight(20)
                     .SetEnabledSelf(isLoaded && sceneObject.isDirty);
@@ -399,7 +399,7 @@ namespace DataKeeper.Editor.Windows
 
             // Apply button
             var applyBtn = new Button(() => { Time.timeScale = timeScale; })
-                .SetText("Apply")
+                .SetTextValue("Apply")
                 .SetMarginRight(2)
                 .SetChildOf(buttonContainer);
 
@@ -410,7 +410,7 @@ namespace DataKeeper.Editor.Windows
                     Time.timeScale = 1f;
                     timeScaleSlider.value = timeScale;
                 })
-                .SetText("Reset")
+                .SetTextValue("Reset")
                 .SetMarginRight(2)
                 .SetChildOf(buttonContainer);
 
@@ -420,7 +420,7 @@ namespace DataKeeper.Editor.Windows
                     timeScale = Time.timeScale;
                     timeScaleSlider.value = timeScale;
                 })
-                .SetText("Refresh")
+                .SetTextValue("Refresh")
                 .SetChildOf(buttonContainer);
 
             // Add all elements to container
@@ -442,13 +442,13 @@ namespace DataKeeper.Editor.Windows
                 .SetChildOf(section);
 
             var worldBtn = new Button(() => SetBufferSpace(true))
-                .SetText("World")
+                .SetTextValue("World")
                 .SetHeight(20)
                 .SetFlexGrow(1)
                 .SetChildOf(spaceRow);
 
             var localBtn = new Button(() => SetBufferSpace(false))
-                .SetText("Local")
+                .SetTextValue("Local")
                 .SetHeight(20)
                 .SetFlexGrow(1)
                 .SetChildOf(spaceRow);
@@ -482,21 +482,21 @@ namespace DataKeeper.Editor.Windows
                 .SetMarginBottom(6);
 
             var copyBtn = new Button(CopyTransform)
-                .SetText("Copy")
+                .SetTextValue("Copy")
                 .SetFlexGrow(1)
                 .SetHeight(22)
                 .SetMarginRight(2);
             copyBtn.tooltip = "Copy transform of selected object into active slot";
 
             var pasteBtn = new Button(PasteTransform)
-                .SetText("Paste")
+                .SetTextValue("Paste")
                 .SetFlexGrow(1)
                 .SetHeight(22)
                 .SetMarginRight(2);
             pasteBtn.tooltip = "Paste active slot values onto selected objects";
 
             var pasteOffsetBtn = new Button(PasteTransformOffset)
-                .SetText("Paste Offset")
+                .SetTextValue("Paste Offset")
                 .SetFlexGrow(1)
                 .SetHeight(22);
             pasteOffsetBtn.tooltip = "Add active slot values as offset to selected objects";
@@ -578,7 +578,7 @@ namespace DataKeeper.Editor.Windows
                         RefreshBufferSlotsUI();
                         RefreshBufferLabel();
                     })
-                    .SetText("◀")
+                    .SetTextValue("◀")
                     .SetWidth(24)
                     .SetHeight(18);
                 activateBtn.tooltip = "Set as active slot";
@@ -590,7 +590,7 @@ namespace DataKeeper.Editor.Windows
                         if (activeSlotIndex == idx) RefreshBufferLabel();
                         RefreshBufferSlotsUI();
                     })
-                    .SetText("✕")
+                    .SetTextValue("✕")
                     .SetWidth(24)
                     .SetHeight(18);
                 clearBtn.tooltip = "Clear this slot";
@@ -876,14 +876,14 @@ namespace DataKeeper.Editor.Windows
             Button sceneBtn = null;
 
             gameBtn = new Button(() => SetScreenshotSource(ScreenshotSource.Game, gameBtn, sceneBtn))
-                .SetText("Game View")
+                .SetTextValue("Game View")
                 .SetHeight(20)
                 .SetFlexGrow(1)
                 .SetMarginRight(4)
                 .SetChildOf(sourceRow);
 
             sceneBtn = new Button(() => SetScreenshotSource(ScreenshotSource.Scene, gameBtn, sceneBtn))
-                .SetText("Scene View")
+                .SetTextValue("Scene View")
                 .SetHeight(20)
                 .SetFlexGrow(1)
                 .SetChildOf(sourceRow);
@@ -897,7 +897,7 @@ namespace DataKeeper.Editor.Windows
                 .SetChildOf(section);
 
             screenshotWithUIBtn = new Button(() => SetScreenshotMode(ScreenshotMode.WithUI))
-                .SetText("With UI")
+                .SetTextValue("With UI")
                 .SetHeight(20)
                 .SetFlexGrow(1)
                 .SetMarginRight(4)
@@ -906,7 +906,7 @@ namespace DataKeeper.Editor.Windows
                 "Grab the Game View backbuffer so Screen-Space Overlay canvases are included. Forces integer scale and an opaque background.";
 
             screenshotNoUIBtn = new Button(() => SetScreenshotMode(ScreenshotMode.NoUI))
-                .SetText("No UI")
+                .SetTextValue("No UI")
                 .SetHeight(20)
                 .SetFlexGrow(1)
                 .SetMarginRight(4)
@@ -914,7 +914,7 @@ namespace DataKeeper.Editor.Windows
             screenshotNoUIBtn.tooltip = "Render the camera straight to a texture. Overlay UI cannot be in the shot.";
 
             screenshotTransparentBtn = new Button(() => SetScreenshotMode(ScreenshotMode.Transparent))
-                .SetText("Transparent")
+                .SetTextValue("Transparent")
                 .SetHeight(20)
                 .SetFlexGrow(1)
                 .SetChildOf(modeRow);
@@ -1496,7 +1496,7 @@ namespace DataKeeper.Editor.Windows
         {
             var button = new Button(onClick)
                 .SetFontSize(12)
-                .SetText(text)
+                .SetTextValue(text)
                 .SetHeight(25)
                 .SetMarginBottom(5)
                 .SetFlexDirection(FlexDirection.Row)

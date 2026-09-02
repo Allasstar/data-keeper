@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.TextCore.Text;
 using UnityEngine.UIElements;
 using TextElement = UnityEngine.UIElements.TextElement;
@@ -122,11 +122,21 @@ namespace DataKeeper.UIToolkit
 
         #region Text Content Extensions (for TextElement derived classes)
 
+        public static T SetTextValue<T>(this T textElement, string text) where T : TextElement
+        {
+            textElement.text = text;
+            return textElement;
+        }
+
+#if !UNITY_6000_6_OR_NEWER
+        // Unity 6.6 added TextElement.SetText overloads a string binds to, and an instance method wins over
+        // an extension, so from there on this one can never be called - SetTextValue replaces it.
         public static T SetText<T>(this T textElement, string text) where T : TextElement
         {
             textElement.text = text;
             return textElement;
         }
+#endif
 
         public static T SetTextFormat<T>(this T textElement, string format, params object[] args) where T : TextElement
         {

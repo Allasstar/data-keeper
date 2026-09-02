@@ -1,4 +1,4 @@
-using Unity.Properties;
+﻿using Unity.Properties;
 using UnityEngine.UIElements;
 
 namespace DataKeeper.UIToolkit.Elements
@@ -30,7 +30,7 @@ namespace DataKeeper.UIToolkit.Elements
             set
             {
                 _labelText = value;
-                _text.SetText(value);
+                _text.text = value;
             }
         }
 
@@ -42,7 +42,7 @@ namespace DataKeeper.UIToolkit.Elements
 
             _text = new Label()
                 .SetMarginRight(10)
-                .SetText(labelText)
+                .SetTextValue(labelText)
                 .SetChildOf(this);
 
             this.SetFlexDirection(FlexDirection.Row)
