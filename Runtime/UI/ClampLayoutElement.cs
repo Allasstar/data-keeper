@@ -42,9 +42,13 @@ namespace DataKeeper.UI
         }
         public int layoutPriority { get => m_LayoutPriority; set => SetProperty(ref m_LayoutPriority, value); }
 
+        private static readonly List<Component> s_Groups = new List<Component>();
+        private static readonly List<RectTransform> s_Measuring = new List<RectTransform>();
+
         private readonly List<Component> m_Elements = new List<Component>();
 
         private RectTransform m_WatchedSource;
+        private int m_MeasuredFrame = -1;
 
         protected ClampLayoutElement()
         {
@@ -88,7 +92,8 @@ namespace DataKeeper.UI
 
         // Everything resolves lazily in the getters rather than in CalculateLayoutInput*, because components
         // on one GameObject calculate in component order - a sibling text may not have measured itself yet.
-        // A parent only reads these properties once every component on this object is done.
+        // A parent only reads these properties once every component on this object is done. Laziness settles
+        // this object; a size source needs MeasureSource on top, being outside the pass that reaches here.
         private float Report(int axis, Func<ILayoutElement, float> property)
         {
             float min = GetMinSize(axis);
@@ -122,7 +127,11 @@ namespace DataKeeper.UI
         private float Resolve(Func<ILayoutElement, float> property)
         {
             RectTransform source = GetSizeSource();
-            if (source != null) return Mathf.Max(0f, LayoutUtility.GetLayoutProperty(source, property, 0f));
+            if (source != null)
+            {
+                MeasureSource(source);
+                return Mathf.Max(0f, LayoutUtility.GetLayoutProperty(source, property, 0f));
+            }
 
             GetComponents(typeof(ILayoutElement), m_Elements);
 
@@ -154,6 +163,60 @@ namespace DataKeeper.UI
             return result;
         }
 
+        // A source is measured by a layout pass this object is not part of, and CanvasUpdateRegistry orders that
+        // queue by hierarchy depth alone - so a source below this object is still holding the previous pass'
+        // numbers by the time the getters above read it, and the watcher only ever repairs that a pass late.
+        // Settling the source's own layout root first takes the read off that ordering; a source that is itself
+        // a clamp settles its own source on the way in, so a chain of them resolves depth-first.
+        //
+        // The frame gate keeps the four getters of one pass to a single rebuild. The static list cuts a cycle of
+        // sources, where the value from before the cycle closed is the only answer that terminates.
+        private void MeasureSource(RectTransform source)
+        {
+            if (m_MeasuredFrame == Time.frameCount) return;
+            m_MeasuredFrame = Time.frameCount;
+
+            RectTransform root = LayoutRootOf(source);
+            if (s_Measuring.Contains(root)) return;
+
+            s_Measuring.Add(root);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(root);
+            s_Measuring.RemoveAt(s_Measuring.Count - 1);
+
+            // Rebuilding the source routes back through the watcher and reopens the gate. What it reported is
+            // what was just measured, so close it again rather than rebuild the same thing twice this pass.
+            m_MeasuredFrame = Time.frameCount;
+        }
+
+        // The walk LayoutRebuilder.MarkLayoutForRebuild does: the topmost ancestor still driven by an enabled
+        // layout group is the rect uGUI would have queued, and rebuilding below it only gets overwritten.
+        private static RectTransform LayoutRootOf(RectTransform rect)
+        {
+            RectTransform root = rect;
+
+            for (RectTransform parent = rect.parent as RectTransform; parent != null; parent = parent.parent as RectTransform)
+            {
+                parent.GetComponents(typeof(ILayoutGroup), s_Groups);
+
+                bool controlled = false;
+                for (int i = 0; i < s_Groups.Count; i++)
+                {
+                    if (s_Groups[i] is Behaviour behaviour && behaviour.isActiveAndEnabled)
+                    {
+                        controlled = true;
+                        break;
+                    }
+                }
+
+                s_Groups.Clear();
+                if (!controlled) break;
+
+                root = parent;
+            }
+
+            return root;
+        }
+
         private bool SetProperty<T>(ref T field, T value)
         {
             if (EqualityComparer<T>.Default.Equals(field, value)) return false;
@@ -165,6 +228,8 @@ namespace DataKeeper.UI
 
         public void SetDirty()
         {
+            m_MeasuredFrame = -1;
+
             if (!IsActive()) return;
 
             LayoutRebuilder.MarkLayoutForRebuild(transform as RectTransform);
