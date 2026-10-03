@@ -33,6 +33,13 @@ namespace DataKeeper.Editor.Generic
         
         public void Load()
         {
+            // String-encoded types (vectors, colors, rects) fall back to zero instead of DefaultValue when the key is missing.
+            if (!EditorPrefs.HasKey(Key))
+            {
+                value = DefaultValue;
+                return;
+            }
+
             switch (DefaultValue)
             {
                 case int i:

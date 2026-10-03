@@ -1,5 +1,6 @@
 using DataKeeper.Editor.Enhance;
 using DataKeeper.Editor.Generic;
+using UnityEngine;
 
 namespace DataKeeper.Editor.Settings
 {
@@ -13,5 +14,11 @@ namespace DataKeeper.Editor.Settings
         
         public static ReactiveEditorPref<HierarchyIconType> EnhanceHierarchy_IconType =
             new ReactiveEditorPref<HierarchyIconType>(HierarchyIconType.All, "Editor_EnhanceHierarchy_IconType");
+
+        public static ReactiveEditorPref<Color> MeshTools_SourceEdgeColor =
+            new ReactiveEditorPref<Color>(new Color(0.6f, 0.6f, 0.6f, 0.35f), "Editor_MeshTools_SourceEdgeColor");
+
+        public static ReactiveEditorPref<Color> MeshTools_PreviewEdgeColor =
+            new ReactiveEditorPref<Color>(new Color(0.3f, 0.85f, 1f, 0.9f), "Editor_MeshTools_PreviewEdgeColor");
     }
 }
