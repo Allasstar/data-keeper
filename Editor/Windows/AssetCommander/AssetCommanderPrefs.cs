@@ -12,6 +12,11 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         public static readonly ReactiveEditorPref<bool> SyncSides =
             new ReactiveEditorPref<bool>(false, Prefix + "SyncSides");
 
+        // Remembered across plans so a drag-and-drop transfer takes dependencies along if the
+        // last Move or Copy did — a drop has no dialog of its own to ask in first.
+        public static readonly ReactiveEditorPref<bool> IncludeDependencies =
+            new ReactiveEditorPref<bool>(false, Prefix + "IncludeDependencies");
+
         public static readonly ReactiveEditorPref<string> RootA =
             new ReactiveEditorPref<string>(SidePanelState.RootFolderPath, Prefix + "RootA");
 

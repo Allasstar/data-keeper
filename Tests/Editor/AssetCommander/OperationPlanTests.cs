@@ -129,6 +129,67 @@ namespace DataKeeper.Tests.Editor.AssetCommander
             Assert.That(plan.Operations, Is.Empty);
         }
 
+        // ── Dependencies ────────────────────────────────────────────────────────────────
+
+        [Test]
+        public void Dependencies_FollowTheSelectionAndAreMarked()
+        {
+            var plan = BuildWithDependencies(new[] { "Assets/A/Hero.prefab" }, SideA,
+                new[] { "Assets/A/Hero.mat" }, FolderStructure.Flatten);
+
+            Assert.That(Destinations(plan), Is.EqualTo(new[] { "Assets/B/Hero.prefab", "Assets/B/Hero.mat" }));
+            Assert.That(plan.Operations[0].IsDependency, Is.False);
+            Assert.That(plan.Operations[1].IsDependency, Is.True);
+            Assert.That(plan.Operations[1].Note, Does.StartWith("dependency"));
+        }
+
+        // The side root alone would flatten every dependency living outside it.
+        [Test]
+        public void KeepStructure_WithDependencies_KeepsTheTreeBelowTheCommonFolder()
+        {
+            var plan = BuildWithDependencies(new[] { "Assets/Art/Prefabs/Hero.prefab" }, "Assets/Art/Prefabs",
+                new[] { "Assets/Art/Textures/Hero.png" }, FolderStructure.KeepStructure);
+
+            Assert.That(Destinations(plan),
+                Is.EqualTo(new[] { "Assets/B/Prefabs/Hero.prefab", "Assets/B/Textures/Hero.png" }));
+        }
+
+        [Test]
+        public void ADependencyAlreadyUnderTheTargetIsLeftWhereItIs()
+        {
+            var plan = BuildWithDependencies(new[] { "Assets/A/Hero.prefab" }, SideA,
+                new[] { "Assets/B/Shared/Hero.mat" }, FolderStructure.Flatten);
+
+            Assert.That(Destinations(plan), Is.EqualTo(new[] { "Assets/B/Hero.prefab" }));
+            Assert.That(plan.Summary, Does.Contain("1 dependencies already there"));
+        }
+
+        [Test]
+        public void ANameAlreadyElsewhereUnderTheTargetIsFlagged()
+        {
+            var items = Items("Assets/A/Hero.mat");
+
+            var plan = new TransferPlanner(path => false).Build(items, SideA, SideB,
+                new PlanOptions(ConflictResolution.AutoRename, FolderStructure.Flatten), "Copy", "Copy", false,
+                sameNameInTarget: name => name == "Hero.mat" ? "Assets/B/Deep/Hero.mat" : null);
+
+            Assert.That(plan.Operations[0].Alert, Is.True);
+            Assert.That(plan.Operations[0].Note, Does.Contain("Assets/B/Deep/Hero.mat"));
+        }
+
+        [Test]
+        public void CommonFolder_WalksUpUntilEveryPathFits()
+        {
+            Assert.That(OperationPaths.CommonFolder("Assets/Art/Prefabs",
+                new[] { "Assets/Art/Prefabs/A.prefab", "Assets/Art/Textures/A.png" }), Is.EqualTo("Assets/Art"));
+
+            Assert.That(OperationPaths.CommonFolder("Assets/Art",
+                new[] { "Assets/Art/A.prefab", "Assets/Art/Sub/B.mat" }), Is.EqualTo("Assets/Art"));
+
+            Assert.That(OperationPaths.CommonFolder(null,
+                new[] { "Assets/X/A.prefab", "Assets/Y/B.mat" }), Is.EqualTo("Assets"));
+        }
+
         // ── Rename patterns ─────────────────────────────────────────────────────────────
 
         [Test]
@@ -163,12 +224,21 @@ namespace DataKeeper.Tests.Editor.AssetCommander
             PlanOptions options, bool rejectSameFolder, params string[] existing)
         {
             var onDisk = new HashSet<string>(existing ?? new string[0]);
-            var items = sources.Select(path => (ICommanderItem)new AssetItem(path, false, false, 0, 0))
-                .ToList();
 
             return new TransferPlanner(onDisk.Contains)
-                .Build(items, sourceRoot, targetRoot, options, "Transfer", "Transfer", rejectSameFolder);
+                .Build(Items(sources), sourceRoot, targetRoot, options, "Transfer", "Transfer", rejectSameFolder);
         }
+
+        private static OperationPlan BuildWithDependencies(string[] sources, string sourceRoot,
+            string[] dependencies, FolderStructure structure)
+        {
+            return new TransferPlanner(path => false).Build(Items(sources), sourceRoot, SideB,
+                new PlanOptions(ConflictResolution.AutoRename, structure, includeDependencies: true),
+                "Move", "Move", true, dependencies);
+        }
+
+        private static List<ICommanderItem> Items(params string[] paths) =>
+            paths.Select(path => (ICommanderItem)new AssetItem(path, false, false, 0, 0)).ToList();
 
         private static string[] Destinations(OperationPlan plan) =>
             plan.Operations.Select(operation => operation.Destination).ToArray();

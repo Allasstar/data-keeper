@@ -14,8 +14,9 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         public string DisplayName => "Copy";
 
         public string Tooltip =>
-            "Copy the selection to the other side. The copies get new GUIDs; existing "
-            + "references keep pointing at the originals.";
+            "Copy the selection to the other side. The copies get new GUIDs; references between "
+            + "copied assets follow the copies, everything else keeps pointing at the originals. "
+            + "Tick 'With dependencies' in the dialog to copy everything the selection uses.";
 
         public bool CanExecute(CommanderContext context)
         {
@@ -30,31 +31,14 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         }
 
         public OperationPlan Plan(CommanderContext context) =>
-            context.Active.IsScene ? PlanSceneCopy(context) : PlanAssetCopy(context, DefaultOptions);
+            context.Active.IsScene
+                ? PlanSceneCopy(context)
+                : AssetTransfer.Plan(context, AssetTransfer.DefaultOptions, false);
 
         public void Execute(OperationPlan plan)
         {
             if (plan.Context.Active.IsScene) ExecuteSceneCopy(plan);
             else ExecuteAssetCopy(plan);
-        }
-
-        private static PlanOptions DefaultOptions =>
-            new PlanOptions(ConflictResolution.AutoRename, FolderStructure.KeepStructure);
-
-        private static OperationPlan PlanAssetCopy(CommanderContext context, PlanOptions options)
-        {
-            var planner = new TransferPlanner(AssetOperations.Exists);
-
-            // Copying into the source's own folder is legal — it is what Duplicate does — so the
-            // same-folder rejection Move needs is off here.
-            var plan = planner.Build(context.Active.SelectedAssetItems(), context.Active.RootPath,
-                context.Other.FolderRoot, options, "Copy", "Copy", false);
-
-            plan.Context = context;
-            plan.Caveat = "Copies get new GUIDs. References to the originals are not redirected.";
-            plan.Rebuild = rebuilt => PlanAssetCopy(context, rebuilt);
-
-            return plan;
         }
 
         private static OperationPlan PlanSceneCopy(CommanderContext context)
@@ -83,6 +67,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         private static void ExecuteAssetCopy(OperationPlan plan)
         {
             var failures = new List<string>();
+            var copies = new List<KeyValuePair<string, string>>(plan.Operations.Count);
 
             AssetOperations.Run(() =>
             {
@@ -96,10 +81,20 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
                     if (operation.Overwrites) AssetDatabase.DeleteAsset(operation.Destination);
 
-                    if (!AssetDatabase.CopyAsset(operation.Source, operation.Destination))
+                    if (AssetDatabase.CopyAsset(operation.Source, operation.Destination))
+                        copies.Add(new KeyValuePair<string, string>(operation.Source, operation.Destination));
+                    else
                         failures.Add(operation.Source + ": copy failed.");
                 }
             });
+
+            // Only after the batch is imported: a copy has no GUID to map to until then.
+            if (GuidRemapper.IsSupported && copies.Count > 0)
+            {
+                var copiedFiles = new List<string>();
+                var map = GuidRemapper.BuildMap(copies, copiedFiles);
+                GuidRemapper.Apply(copiedFiles, map);
+            }
 
             AssetOperations.ReportFailures("Copy failed", failures);
         }

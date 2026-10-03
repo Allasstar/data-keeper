@@ -122,6 +122,18 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 options.Add(conflict);
             }
 
+            if (_plan.ShowDependenciesOption)
+            {
+                var dependencies = new Toggle("With dependencies") { value = _plan.Options.IncludeDependencies };
+                dependencies.tooltip = "Also bring every asset the selection references — materials, "
+                                       + "textures, meshes, nested and base prefabs — transitively. "
+                                       + "Scripts, shaders and package assets stay shared.";
+                dependencies.AddToClassList("ac-plan-option");
+                dependencies.RegisterValueChangedCallback(evt =>
+                    Rebuild(_plan.Options.WithDependencies(evt.newValue)));
+                options.Add(dependencies);
+            }
+
             if (options.childCount > 0) rootVisualElement.Add(options);
         }
 
@@ -220,6 +232,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 _note.EnableInClassList("ac-hidden", !hasNote);
                 _note.text = hasNote ? operation.Note : "";
                 _note.EnableInClassList("ac-plan-note--alert", operation.Alert);
+
+                EnableInClassList("ac-plan-row--dependency", operation.IsDependency);
             }
         }
     }

@@ -13,7 +13,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         public string DisplayName => "Move";
 
         public string Tooltip =>
-            "Move the selection to the other side. Assets keep their GUID, so references survive.";
+            "Move the selection to the other side. Assets keep their GUID, so references survive. "
+            + "Tick 'With dependencies' in the dialog to bring everything the selection uses along.";
 
         public bool CanExecute(CommanderContext context)
         {
@@ -28,27 +29,14 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         }
 
         public OperationPlan Plan(CommanderContext context) =>
-            context.Active.IsScene ? PlanSceneMove(context) : PlanAssetMove(context, DefaultOptions);
+            context.Active.IsScene
+                ? PlanSceneMove(context)
+                : AssetTransfer.Plan(context, AssetTransfer.DefaultOptions, true);
 
         public void Execute(OperationPlan plan)
         {
             if (plan.Context.Active.IsScene) ExecuteSceneMove(plan);
             else ExecuteAssetMove(plan);
-        }
-
-        private static PlanOptions DefaultOptions =>
-            new PlanOptions(ConflictResolution.AutoRename, FolderStructure.KeepStructure);
-
-        private static OperationPlan PlanAssetMove(CommanderContext context, PlanOptions options)
-        {
-            var planner = new TransferPlanner(AssetOperations.Exists);
-            var plan = planner.Build(context.Active.SelectedAssetItems(), context.Active.RootPath,
-                context.Other.FolderRoot, options, "Move", "Move", true);
-
-            plan.Context = context;
-            plan.Rebuild = rebuilt => PlanAssetMove(context, rebuilt);
-
-            return plan;
         }
 
         private static OperationPlan PlanSceneMove(CommanderContext context)

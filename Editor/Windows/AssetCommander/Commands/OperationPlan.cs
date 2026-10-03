@@ -39,6 +39,11 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         // Overwrite has to delete the target before the operation runs, and only the planner
         // knows that the destination was occupied.
         public bool Overwrites { get; set; }
+
+        // Pulled in by the dependency walk rather than selected.
+        public bool IsDependency { get; set; }
+
+        public void AppendNote(string text) => Note = string.IsNullOrEmpty(Note) ? text : Note + " · " + text;
     }
 
     // Everything the confirm dialog lets the user change, in one value — so rebuilding a plan is
@@ -48,20 +53,27 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         public readonly ConflictResolution Conflict;
         public readonly FolderStructure Structure;
         public readonly string Pattern;
+        public readonly bool IncludeDependencies;
 
         public PlanOptions(ConflictResolution conflict, FolderStructure structure = FolderStructure.KeepStructure,
-            string pattern = null)
+            string pattern = null, bool includeDependencies = false)
         {
             Conflict = conflict;
             Structure = structure;
             Pattern = pattern;
+            IncludeDependencies = includeDependencies;
         }
 
-        public PlanOptions With(ConflictResolution conflict) => new PlanOptions(conflict, Structure, Pattern);
+        public PlanOptions With(ConflictResolution conflict) =>
+            new PlanOptions(conflict, Structure, Pattern, IncludeDependencies);
 
-        public PlanOptions With(FolderStructure structure) => new PlanOptions(Conflict, structure, Pattern);
+        public PlanOptions With(FolderStructure structure) =>
+            new PlanOptions(Conflict, structure, Pattern, IncludeDependencies);
 
-        public PlanOptions WithPattern(string pattern) => new PlanOptions(Conflict, Structure, pattern);
+        public PlanOptions WithPattern(string pattern) =>
+            new PlanOptions(Conflict, Structure, pattern, IncludeDependencies);
+
+        public PlanOptions WithDependencies(bool include) => new PlanOptions(Conflict, Structure, Pattern, include);
     }
 
     // A command's whole answer, produced before anything is written. The dialog renders it; the
@@ -95,6 +107,7 @@ namespace DataKeeper.Editor.Windows.AssetCommander
         // confirms are always the rows the current options produce.
         public bool ShowConflictOption { get; set; }
         public bool ShowStructureOption { get; set; }
+        public bool ShowDependenciesOption { get; set; }
         public string PatternLabel { get; set; }
         public PlanOptions Options { get; set; }
         public Func<PlanOptions, OperationPlan> Rebuild { get; set; }
@@ -167,8 +180,8 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             return Combine(targetRoot, FileName(sourcePath));
         }
 
-        // " 1", " 2", … appended to the name, matching what AssetTransferTool and Unity itself
-        // produce, so a project ends up with one naming convention rather than two.
+        // " 1", " 2", … appended to the name, matching what Unity itself produces, so a project
+        // ends up with one naming convention rather than two.
         public static string MakeUnique(string desiredPath, Func<string, bool> exists)
         {
             if (exists == null || !exists(desiredPath)) return desiredPath;
@@ -192,6 +205,28 @@ namespace DataKeeper.Editor.Windows.AssetCommander
 
             return path == folder || path.StartsWith(folder + "/", StringComparison.Ordinal);
         }
+
+        // The deepest folder holding every path. Dependencies live all over the project, so this
+        // is the root KeepStructure reproduces when they come along — the side's root alone would
+        // flatten every one of them.
+        public static string CommonFolder(string folder, IEnumerable<string> paths)
+        {
+            var common = folder;
+
+            foreach (var path in paths)
+            {
+                if (common == null)
+                {
+                    common = Directory(path);
+                    continue;
+                }
+
+                while (common.Length > 0 && !IsSelfOrDescendant(common, path))
+                    common = Directory(common);
+            }
+
+            return common ?? "";
+        }
     }
 
     // Builds the plan for Move and Copy: same destination arithmetic, same collisions, different
@@ -206,14 +241,19 @@ namespace DataKeeper.Editor.Windows.AssetCommander
             _exists = exists;
         }
 
+        // dependencies: what the selection needs, already closed over by DependencyCollector.
+        // sameNameInTarget: file name → an asset anywhere under the target carrying that name —
+        // the likely duplicate a check of the one destination path cannot see.
         public OperationPlan Build(IReadOnlyList<ICommanderItem> items, string sourceRoot,
-            string targetRoot, PlanOptions options, string title, string verb, bool rejectSameFolder)
+            string targetRoot, PlanOptions options, string title, string verb, bool rejectSameFolder,
+            IReadOnlyList<string> dependencies = null, Func<string, string> sameNameInTarget = null)
         {
             if (string.IsNullOrEmpty(targetRoot))
                 return OperationPlan.Rejected(title, "The other side is not a folder.");
 
             var conflict = options.Conflict;
             var structure = options.Structure;
+            dependencies = dependencies ?? Array.Empty<string>();
 
             var plan = new OperationPlan(title, verb)
             {
@@ -222,27 +262,35 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 Options = options,
             };
 
+            if (structure == FolderStructure.KeepStructure && dependencies.Count > 0)
+                sourceRoot = OperationPaths.CommonFolder(sourceRoot, AllSources(items, dependencies));
+
             // Earlier rows of the same plan are not on disk yet, so their destinations have to
             // count as taken — two sources with one name would otherwise resolve to one path.
             var claimed = new HashSet<string>(StringComparer.Ordinal);
 
             bool Taken(string path) => claimed.Contains(path) || (_exists != null && _exists(path));
 
-            int skipped = 0;
-            int sameFolder = 0;
-            int intoSelf = 0;
+            var counts = new Counts();
 
-            foreach (var item in items)
+            void Resolve(ICommanderItem item, bool dependency)
             {
                 var source = item?.AssetPath;
-                if (string.IsNullOrEmpty(source)) continue;
+                if (string.IsNullOrEmpty(source)) return;
+
+                // A dependency already somewhere under the target is reachable from there as is.
+                if (dependency && OperationPaths.IsSelfOrDescendant(targetRoot, source))
+                {
+                    counts.AlreadyInTarget++;
+                    return;
+                }
 
                 // Moving something into the folder it already lives in is a no-op the user did
                 // not ask for; copying into it is Duplicate's job, which names the result.
                 if (rejectSameFolder && OperationPaths.Directory(source) == targetRoot)
                 {
-                    sameFolder++;
-                    continue;
+                    counts.SameFolder++;
+                    return;
                 }
 
                 // A folder cannot be moved inside itself — the AssetDatabase would leave the
@@ -250,66 +298,104 @@ namespace DataKeeper.Editor.Windows.AssetCommander
                 if (item.Kind == CommanderItemKind.Folder &&
                     OperationPaths.IsSelfOrDescendant(source, targetRoot))
                 {
-                    intoSelf++;
-                    continue;
+                    counts.IntoSelf++;
+                    return;
                 }
 
                 var destination = OperationPaths.Destination(source, sourceRoot, targetRoot, structure);
+                PlannedOperation row;
 
-                if (Taken(destination))
+                if (!Taken(destination))
                 {
-                    if (conflict == ConflictResolution.Skip)
-                    {
-                        skipped++;
-                        continue;
-                    }
+                    row = plan.Add(item, source, destination);
+                    claimed.Add(destination);
 
-                    if (conflict == ConflictResolution.Overwrite)
-                    {
-                        var overwrite = plan.Add(item, source, destination);
-                        overwrite.Note = "overwrites";
-                        overwrite.Alert = true;
-                        overwrite.Overwrites = true;
-                        claimed.Add(destination);
-                        continue;
-                    }
+                    var sameName = item.Kind == CommanderItemKind.Folder
+                        ? null
+                        : sameNameInTarget?.Invoke(OperationPaths.FileName(source));
 
+                    if (!string.IsNullOrEmpty(sameName) && sameName != destination && sameName != source)
+                    {
+                        row.AppendNote("same name at " + sameName);
+                        row.Alert = true;
+                    }
+                }
+                else if (conflict == ConflictResolution.Skip)
+                {
+                    counts.Skipped++;
+                    return;
+                }
+                else if (conflict == ConflictResolution.Overwrite)
+                {
+                    row = plan.Add(item, source, destination);
+                    row.AppendNote("overwrites");
+                    row.Alert = true;
+                    row.Overwrites = true;
+                    claimed.Add(destination);
+                }
+                else
+                {
                     var unique = OperationPaths.MakeUnique(destination, Taken);
-                    var renamed = plan.Add(item, source, unique);
-                    renamed.Note = "renamed to " + OperationPaths.FileName(unique);
+                    row = plan.Add(item, source, unique);
+                    row.AppendNote("renamed to " + OperationPaths.FileName(unique));
                     claimed.Add(unique);
-                    continue;
                 }
 
-                plan.Add(item, source, destination);
-                claimed.Add(destination);
+                if (!dependency) return;
+
+                counts.Dependencies++;
+                row.IsDependency = true;
+                row.Note = string.IsNullOrEmpty(row.Note) ? "dependency" : "dependency · " + row.Note;
             }
 
-            plan.Summary = Describe(plan.Operations.Count, skipped, sameFolder, intoSelf, targetRoot);
+            foreach (var item in items) Resolve(item, false);
+            foreach (var path in dependencies) Resolve(new AssetItem(path, false, false, 0, 0), true);
+
+            plan.Summary = Describe(plan.Operations.Count, counts, targetRoot);
 
             if (plan.Operations.Count == 0) plan.Blocked = plan.Summary;
 
             return plan;
         }
 
-        private static string Describe(int planned, int skipped, int sameFolder, int intoSelf,
-            string targetRoot)
+        private static IEnumerable<string> AllSources(IReadOnlyList<ICommanderItem> items,
+            IReadOnlyList<string> dependencies)
         {
-            if (planned == 0 && intoSelf > 0) return "A folder cannot be moved inside itself.";
+            foreach (var item in items)
+                if (!string.IsNullOrEmpty(item?.AssetPath))
+                    yield return item.AssetPath;
 
-            if (planned == 0 && sameFolder > 0 && skipped == 0)
-                return sameFolder == 1
+            foreach (var path in dependencies) yield return path;
+        }
+
+        private static string Describe(int planned, Counts counts, string targetRoot)
+        {
+            if (planned == 0 && counts.IntoSelf > 0) return "A folder cannot be moved inside itself.";
+
+            if (planned == 0 && counts.SameFolder > 0 && counts.Skipped == 0)
+                return counts.SameFolder == 1
                     ? "That asset is already in " + targetRoot + "."
-                    : "Those " + sameFolder + " assets are already in " + targetRoot + ".";
+                    : "Those " + counts.SameFolder + " assets are already in " + targetRoot + ".";
 
             if (planned == 0) return "Nothing left to do — every row was skipped.";
 
             var text = planned + (planned == 1 ? " item → " : " items → ") + targetRoot;
-            if (skipped > 0) text += " · " + skipped + " skipped";
-            if (sameFolder > 0) text += " · " + sameFolder + " already there";
-            if (intoSelf > 0) text += " · " + intoSelf + " would nest in itself";
+            if (counts.Dependencies > 0) text += " · " + counts.Dependencies + " of them dependencies";
+            if (counts.AlreadyInTarget > 0) text += " · " + counts.AlreadyInTarget + " dependencies already there";
+            if (counts.Skipped > 0) text += " · " + counts.Skipped + " skipped";
+            if (counts.SameFolder > 0) text += " · " + counts.SameFolder + " already there";
+            if (counts.IntoSelf > 0) text += " · " + counts.IntoSelf + " would nest in itself";
 
             return text;
+        }
+
+        private sealed class Counts
+        {
+            public int Skipped;
+            public int SameFolder;
+            public int IntoSelf;
+            public int Dependencies;
+            public int AlreadyInTarget;
         }
     }
 }

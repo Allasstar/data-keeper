@@ -32,7 +32,20 @@
 - `ClampLayoutElement` — per-axis minimum and maximum size in one component, the maximum being the one `LayoutElement` never had. Reports a clamped size at `layoutPriority` 2, which is the only way to make a resolved layout size *smaller* (`LayoutUtility` takes the largest value among equal priorities), so both `ContentSizeFitter` and every layout group honour it unchanged. Each bound is an `Optional<float>` in pixels; a bound left off reports `-1` and stays transparent. Where a minimum and a maximum contradict the minimum wins. An optional `Size Source` measures another rect instead of this object, which is what lets a scroll view hug its content between two bounds - the content stays anchored and free to overflow, where a layout group on the view would squash it back down to the capped height. The inspector flags the setups where a cap cannot apply — nothing on the object reporting a size, or a parent group with Child Control Size off / Child Force Expand on for that axis.
 - `AutoGridLayoutGroup` — inspector warns when a `ContentSizeFitter` constrains an axis the cell size is derived from, the setup that leaves the grid stuck at its current (possibly zero) size.
 
+- Asset Commander — Move and Copy take a **With dependencies** option that pulls in everything
+  the selection needs to work. That covers materials, textures, meshes, controllers, nested prefabs
+  and a variant's base prefab, followed transitively through the index. Scripts, shaders and
+  package assets stay shared. With `KeepStructure`, the tree below the rows' common folder is
+  kept. A moved dependency that other assets still use is flagged, and a row whose file name
+  already exists anywhere under the target is flagged as a likely duplicate.
+- Asset Commander — Copy now redirects references between the copied assets to the copies,
+  in the asset files and their `.meta` files. Before this, a copied prefab still used the
+  original material. Needs Force Text serialization.
+
 ### Removed
+- `Tools > Windows > Asset Transfer` — replaced by Asset Commander's Move and Copy with
+  **With dependencies** ticked. Those cover what it did and also give a plan dialog, conflict
+  handling, Copy and folder selections.
 - **Breaking**: `AspectRatioGridLayoutGroup` — merged into `AutoGridLayoutGroup`. Replace the component and map `LayoutType.FixedRows` → `Constraint.FixedRowCount`, `LayoutType.FixedColumns` → `Constraint.FixedColumnCount`, `fixedCount` → `constraintCount`; `aspectRatio` and `spacing` keep their meaning.
 
 ## [0.90.0] - 2026-07-02

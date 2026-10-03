@@ -15,7 +15,6 @@ Editor windows and menu items shipped with the package. Most live under the **To
 | [Asset Commander](AssetCommander.md) | Two-panel project browser — folders and scenes side by side, analysis modes over an incremental index, and plan-then-confirm commands across both sides |
 | Asset Reference Finder | Find where an asset is referenced across the project (also `Assets > Find References in Project`) |
 | GUID Swapper | Swap asset GUID references (e.g. replace one sprite/material with another everywhere) |
-| Asset Transfer | Move assets between projects/folders with their dependencies |
 | Android Publisher Settings | Keystore/build settings helper for Android publishing |
 | Color Tools | WCAG contrast checker, color-theory palette generator, and luminance-preserving (OKLCH) hue shifter |
 | Image Manipulator | Batch image operations (resize, crop, format) on textures |

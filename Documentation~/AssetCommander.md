@@ -53,13 +53,36 @@ dialog showed.
 | Command | Notes |
 | --- | --- |
 | Rename | One name or a batch pattern — `{name}`, `{n}`, `{n:000}` |
-| Copy | New GUIDs; existing references keep pointing at the originals |
+| Copy | New GUIDs. References *between* the copied assets are redirected to the copies; everything else keeps pointing at the originals |
 | Move | Keeps the GUID, so references survive |
 | New Folder | Created inside the active side's root |
 | Delete | Assets go to the OS trash; rows carry an inbound-reference count |
 | Duplicate | In place, named by Unity's own `GenerateUniqueAssetPath` |
 | Swap | Exchanges two assets' GUIDs, redirecting every reference. Requires Force Text serialization, and is **not** covered by Undo — the way back is to swap again |
 | Prefab | Scene objects → folder side saves prefabs and connects the originals; prefabs → scene side instantiates them |
+
+### Moving or copying with dependencies
+
+The Move and Copy dialogs have a **With dependencies** toggle. Ticked, the plan grows to
+everything the selection needs to work: materials, textures, meshes, animator controllers,
+nested prefabs and a variant's base prefab, followed transitively. A selected folder brings the
+outside dependencies of everything inside it. Dependency rows are indented and marked.
+
+- **Left shared:** scripts and shaders (a copy would be a second class or shader with the same
+  name) and anything outside `Assets/`. The caveat line counts them.
+- **Already under the target:** skipped. A copy keeps using the one that is already there.
+- **Structure:** `KeepStructure` rebuilds the tree below the deepest folder all the rows share,
+  so a prefab in `Art/Prefabs` and its texture in `Art/Textures` land in `<target>/Prefabs` and
+  `<target>/Textures`. `Flatten` drops everything directly into the target.
+- **Move:** a dependency other assets still use is tagged `also used by N`. Those assets keep
+  working, because the GUID is kept, but the file changes folder.
+- **Copy:** the copies are rewired to each other, so the copied prefab uses the copied material,
+  which uses the copied texture. This happens in the asset files and their `.meta` files and needs
+  Force Text serialization; without it the copies still point at the originals.
+- **Same name:** a row whose file name already exists somewhere under the target is flagged
+  `same name at …`. It is probably a duplicate.
+
+The toggle's state is remembered, so a drag between the panels uses it too.
 
 ### Drag and drop
 

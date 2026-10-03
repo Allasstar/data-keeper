@@ -447,6 +447,11 @@
     text-overflow: ellipsis;
 }
 
+.ac-plan-row--dependency > .ac-plan-source {
+    color: var(--dk-text-dim);
+    padding-left: 12px;
+}
+
 .ac-plan-arrow {
     font-size: 11px;
     color: var(--dk-text-dim);
