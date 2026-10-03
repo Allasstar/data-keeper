@@ -1,5 +1,6 @@
 ﻿using System;
 using DataKeeper.Editor.MenuItems;
+using DataKeeper.Editor.Shortcuts;
 using DataKeeper.Extensions;
 using UnityEngine;
 using UnityEditor;
@@ -741,14 +742,14 @@ namespace DataKeeper.Editor.Windows
             var saveProjectBtn = CreateIconButton(
                 "Save Project",
                 "d_SaveAs",
-                SaveProject);
+                MainToolbarShortcuts.SaveProject);
             saveProjectBtn.tooltip = "Save all modified assets and dirty scenes";
             section.Add(saveProjectBtn);
 
             var reloadDomainBtn = CreateIconButton(
                 "Reload Domain",
                 "d_RotateTool",
-                ReloadDomain);
+                MainToolbarShortcuts.ReloadDomain);
             reloadDomainBtn.tooltip = "Force a script domain reload";
             section.Add(reloadDomainBtn);
 
@@ -758,19 +759,6 @@ namespace DataKeeper.Editor.Windows
                 RecompileScripts);
             recompileBtn.tooltip = "Request a full script recompilation";
             section.Add(recompileBtn);
-        }
-
-        private static void SaveProject()
-        {
-            EditorSceneManager.SaveOpenScenes();
-            AssetDatabase.SaveAssets();
-            Debug.Log("Project saved.");
-        }
-
-        private static void ReloadDomain()
-        {
-            EditorUtility.RequestScriptReload();
-            Debug.Log("Domain reload requested.");
         }
 
         private static void RecompileScripts()

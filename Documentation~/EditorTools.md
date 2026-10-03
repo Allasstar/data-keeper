@@ -34,6 +34,10 @@ Editor windows and menu items shipped with the package. Most live under the **To
 | `Tools > Find Missing Scripts in Scene` | Locate GameObjects with missing script references |
 | `Tools > Materials GPU Instancing > Enable/Disable` | Toggle GPU instancing on selected materials |
 
+## Main toolbar buttons
+
+**Save Project** (saves dirty scenes and assets) and **Reload Domain** buttons dock on the left side of the main toolbar. Show, hide, or move them via the toolbar's right-click menu under `Data Keeper`. The same actions are in the Tools window's Shortcuts section.
+
 ## Hierarchy & inspector enhancements
 
 - **Enhanced hierarchy icons** — shows component icons for common Unity and DataKeeper components in the Hierarchy window. Toggle and configure under `Edit > Preferences > Data Keeper`.
