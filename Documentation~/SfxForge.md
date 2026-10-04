@@ -17,7 +17,8 @@ platform.
 | Right | Macros, LFO and modulation routes, randomizer settings, FX chain |
 
 Hotkeys: `Space` play/stop, `R` randomize, `M` mutate. Right-click a knob or dropdown to lock it
-against the randomizer.
+against the randomizer. Each panel has a `?` button that explains the panel and every control in
+it; click outside the card or press `Esc` to close it.
 
 ## Layers and sources
 

@@ -94,6 +94,7 @@ namespace DataKeeper.Editor.Forge
         private Button _addLayer;
         private VisualElement _tracker;
         private Label _status;
+        private HelpOverlay _help;
         private IVisualElementScheduledItem _playheadUpdater;
         private IVisualElementScheduledItem _autoplayer;
         private bool _autoplay;
@@ -188,6 +189,9 @@ namespace DataKeeper.Editor.Forge
             _status.AddToClassList("forge-status");
             root.Add(_status);
 
+            _help = new HelpOverlay();
+            root.Add(_help);
+
             _playheadUpdater = root.schedule.Execute(UpdatePlayhead).Every(PlayheadIntervalMs);
             _playheadUpdater.Pause();
             _autoplayer = root.schedule.Execute(Autoplay);
@@ -228,6 +232,7 @@ namespace DataKeeper.Editor.Forge
             bar.Add(BuildAutoplayToggle());
             bar.Add(MakeButton("Play", Play, "forge-primary"));
             bar.Add(MakeButton("Stop", Stop));
+            bar.Add(HelpButton(ForgeHelp.TopBar));
             return bar;
         }
 
@@ -275,7 +280,7 @@ namespace DataKeeper.Editor.Forge
             column.AddToClassList("forge-left__scroll");
             outer.Add(column);
 
-            column.Add(SectionTitle("Category"));
+            column.Add(SectionHeader("Category", ForgeHelp.Category));
             var categories = new VisualElement();
             categories.AddToClassList("forge-category-list");
             foreach (SfxCategory category in Enum.GetValues(typeof(SfxCategory)))
@@ -288,7 +293,7 @@ namespace DataKeeper.Editor.Forge
             }
             column.Add(categories);
 
-            column.Add(SectionTitle("Variations"));
+            column.Add(SectionHeader("Variations", ForgeHelp.Variations));
             var grid = new VisualElement();
             grid.AddToClassList("forge-variation-grid");
             for (var i = 0; i < VariationCount; i++)
@@ -320,6 +325,8 @@ namespace DataKeeper.Editor.Forge
             _length.AddToClassList("forge-knob--inline");
             _length.LockToggled += locked => SetRecipeBool("Randomizer.LockLength", locked);
             globals.Add(_length);
+            globals.Add(Spacer());
+            globals.Add(HelpButton(ForgeHelp.Waveform));
             column.Add(globals);
 
             var wavePanel = new VisualElement();
@@ -331,6 +338,10 @@ namespace DataKeeper.Editor.Forge
             wavePanel.Add(BuildReadout());
             column.Add(wavePanel);
             column.Add(BuildCurvePanel());
+
+            var layersHeader = SectionHeader("Layers", ForgeHelp.Layers);
+            layersHeader.AddToClassList("forge-layers-header");
+            column.Add(layersHeader);
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("forge-layers");
@@ -367,6 +378,7 @@ namespace DataKeeper.Editor.Forge
             _curveLockToggle = CurveToggle("Lock", false, SetCurveLocked);
             bar.Add(_curveLockToggle);
             bar.Add(MakeButton("Reset", ResetCurve));
+            bar.Add(HelpButton(ForgeHelp.Curves));
             panel.Add(bar);
 
             _curveEditor = new CurveEditorElement();
@@ -411,7 +423,7 @@ namespace DataKeeper.Editor.Forge
             var column = new ScrollView(ScrollViewMode.Vertical);
             column.AddToClassList("forge-right__scroll");
             outer.Add(column);
-            column.Add(SectionTitle("Macros"));
+            column.Add(SectionHeader("Macros", ForgeHelp.Modulation));
             var macros = new VisualElement();
             macros.AddToClassList("forge-macros");
             for (var i = 0; i < _macroKnobs.Length; i++)
@@ -422,7 +434,7 @@ namespace DataKeeper.Editor.Forge
             column.Add(macros);
             column.Add(BuildModulationPanel());
 
-            column.Add(SectionTitle("Randomizer"));
+            column.Add(SectionHeader("Randomizer", ForgeHelp.Randomizer));
 
             column.Add(SubTitle("Harmony"));
             var pills = new VisualElement();
@@ -502,6 +514,7 @@ namespace DataKeeper.Editor.Forge
             header.Add(_fxTitle);
             header.Add(Spacer());
             header.Add(BindFx(FxToggle("Lock"), "Randomizer.LockFx"));
+            header.Add(HelpButton(ForgeHelp.Fx));
             panel.Add(header);
 
             var transient = FxSection(panel, "Transient", "Fx.Transient");
@@ -649,6 +662,11 @@ namespace DataKeeper.Editor.Forge
             _exportButton = MakeButton("Export WAV", Export, "forge-primary");
             _exportButton.AddToClassList("forge-export__button");
             panel.Add(_exportButton);
+
+            // Beside the toggle rather than inside it, so clicking it doesn't fold the panel.
+            var help = HelpButton(ForgeHelp.Export);
+            help.AddToClassList("forge-help-button--corner");
+            panel.hierarchy.Add(help);
 
             UpdateNormalizeFields(_export.Normalize);
             UpdateExportButton(_export.Count);
@@ -1328,6 +1346,10 @@ namespace DataKeeper.Editor.Forge
                 case KeyCode.M:
                     GenerateVariations(true);
                     break;
+                case KeyCode.Escape:
+                    if (!_help.IsOpen) return;
+                    _help.Hide();
+                    break;
                 default:
                     return;
             }
@@ -1372,6 +1394,23 @@ namespace DataKeeper.Editor.Forge
             var label = new Label(text);
             label.AddToClassList("forge-section-title");
             return label;
+        }
+
+        private VisualElement SectionHeader(string title, HelpTopic topic)
+        {
+            var header = new VisualElement();
+            header.AddToClassList("forge-section-header");
+            header.Add(SectionTitle(title));
+            header.Add(Spacer());
+            header.Add(HelpButton(topic));
+            return header;
+        }
+
+        private Button HelpButton(HelpTopic topic)
+        {
+            var button = MakeButton("?", null, "forge-help-button");
+            button.clicked += () => _help.Show(topic, button);
+            return button;
         }
 
         private static Label SubTitle(string text)
