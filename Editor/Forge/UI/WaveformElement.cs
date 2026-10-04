@@ -47,6 +47,8 @@ namespace DataKeeper.Editor.Forge
 
         public bool ShowTrim { get; set; } = true;
 
+        public bool Normalize { get; set; }
+
         public float TrimStart => _trimStart;
         public float TrimEnd => _trimEnd;
 
@@ -80,15 +82,27 @@ namespace DataKeeper.Editor.Forge
             MarkDirtyRepaint();
         }
 
-        public void SetSamples(NativeArray<float> interleaved, int channels)
+        public void SetSamples(NativeArray<float> interleaved, int channels) =>
+            SetSamples(interleaved, channels, 0, interleaved.Length / channels);
+
+        // Frames outside [firstFrame, lastFrame) are drawn as silence without being read.
+        public void SetSamples(NativeArray<float> interleaved, int channels, int firstFrame, int lastFrame)
         {
             var frames = interleaved.Length / channels;
             _bucketCount = Mathf.Min(BucketCapacity, frames);
+            var peak = 0f;
 
             for (var bucket = 0; bucket < _bucketCount; bucket++)
             {
-                var first = (int)((long)bucket * frames / _bucketCount);
-                var last = (int)((long)(bucket + 1) * frames / _bucketCount);
+                var first = Mathf.Max(firstFrame, (int)((long)bucket * frames / _bucketCount));
+                var last = Mathf.Min(lastFrame, (int)((long)(bucket + 1) * frames / _bucketCount));
+                if (first >= last)
+                {
+                    _min[bucket] = 0f;
+                    _max[bucket] = 0f;
+                    continue;
+                }
+
                 var lo = float.MaxValue;
                 var hi = float.MinValue;
 
@@ -104,6 +118,17 @@ namespace DataKeeper.Editor.Forge
 
                 _min[bucket] = lo;
                 _max[bucket] = hi;
+                peak = Mathf.Max(peak, Mathf.Max(hi, -lo));
+            }
+
+            if (Normalize && peak > 0f)
+            {
+                var gain = 1f / peak;
+                for (var bucket = 0; bucket < _bucketCount; bucket++)
+                {
+                    _min[bucket] *= gain;
+                    _max[bucket] *= gain;
+                }
             }
 
             MarkDirtyRepaint();

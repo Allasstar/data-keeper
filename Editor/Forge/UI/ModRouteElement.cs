@@ -1,24 +1,25 @@
 using System;
-using System.Collections.Generic;
 using DataKeeper.Forge;
 using UnityEditor;
 using UnityEditor.UIElements;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DataKeeper.Editor.Forge
 {
+    // One matrix row: swatch, light, source → target, layer, amount, remove.
     [UxmlElement]
     public partial class ModRouteElement : VisualElement
     {
         public const string UssClassName = "forge-route";
 
-        private static readonly List<string> LayerChoices = BuildLayerChoices();
-
+        private readonly VisualElement _swatch;
         private readonly Toggle _enabled;
-        private readonly EnumField _source;
-        private readonly EnumField _target;
-        private readonly DropdownField _layer;
-        private readonly KnobElement _amount;
+        private readonly StepperElement _source;
+        private readonly StepperElement _target;
+        private readonly VisualElement _layerStepper;
+        private readonly Button _layer;
+        private readonly ModAmountElement _amount;
 
         private SerializedProperty _route;
         private int _index;
@@ -29,35 +30,43 @@ namespace DataKeeper.Editor.Forge
         {
             AddToClassList(UssClassName);
 
-            var top = new VisualElement();
-            top.AddToClassList(UssClassName + "__row");
+            _swatch = new VisualElement();
+            _swatch.AddToClassList(UssClassName + "__swatch");
+            Add(_swatch);
+
             _enabled = new Toggle { focusable = false };
-            _enabled.AddToClassList(UssClassName + "__enabled");
-            _source = new EnumField(ModSource.Size);
+            _enabled.AddToClassList("forge-power");
+            Add(_enabled);
+
+            _source = new StepperElement(ModSource.Size);
             _source.AddToClassList(UssClassName + "__source");
+            Add(_source);
+
             var arrow = new Label("→");
             arrow.AddToClassList(UssClassName + "__arrow");
-            _target = new EnumField(ModTarget.Pitch);
-            _target.AddToClassList(UssClassName + "__target");
-            top.Add(_enabled);
-            top.Add(_source);
-            top.Add(arrow);
-            top.Add(_target);
-            Add(top);
+            Add(arrow);
 
-            var bottom = new VisualElement();
-            bottom.AddToClassList(UssClassName + "__row");
-            _layer = new DropdownField(LayerChoices, 0);
-            _layer.AddToClassList(UssClassName + "__layer");
-            _layer.RegisterValueChangedCallback(e => SetLayer(LayerChoices.IndexOf(e.newValue) - 1));
-            _amount = new KnobElement(null, -1f, 1f, 0f, bipolar: true);
+            _target = new StepperElement(ModTarget.Pitch);
+            _target.AddToClassList(UssClassName + "__target");
+            Add(_target);
+
+            _layerStepper = new VisualElement();
+            _layerStepper.AddToClassList(StepperElement.UssClassName);
+            _layerStepper.AddToClassList(UssClassName + "__layer");
+            _layerStepper.Add(Arrow("<", -1));
+            _layer = new Button(ShowLayerMenu) { focusable = false };
+            _layer.AddToClassList(UssClassName + "__layer-name");
+            _layerStepper.Add(_layer);
+            _layerStepper.Add(Arrow(">", 1));
+            Add(_layerStepper);
+
+            _amount = new ModAmountElement();
             _amount.AddToClassList(UssClassName + "__amount");
+            Add(_amount);
+
             var remove = new Button(() => RemoveRequested?.Invoke(_index)) { text = "×", focusable = false };
             remove.AddToClassList(UssClassName + "__remove");
-            bottom.Add(_layer);
-            bottom.Add(_amount);
-            bottom.Add(remove);
-            Add(bottom);
+            Add(remove);
         }
 
         public void Bind(SerializedProperty route, int index)
@@ -81,20 +90,49 @@ namespace DataKeeper.Editor.Forge
 
             var source = (ModSource)Relative(nameof(ModRoute.Source)).intValue;
             var target = (ModTarget)Relative(nameof(ModRoute.Target)).intValue;
-            var max = ModTargets.MaxAmount(target);
-            _amount.Min = -max;
-            _amount.Max = max;
-            _amount.Format = Format(target);
+            var color = ForgeModulation.SourceColor(source);
+            _swatch.style.backgroundColor = color;
+            _amount.Color = color;
+            _amount.Max = ModTargets.MaxAmount(target);
+            _amount.Format = ForgeModulation.Format(target);
 
             var perLayer = ModTargets.IsPerLayer(target);
-            _layer.SetEnabled(perLayer);
-            var choice = Relative(nameof(ModRoute.Layer)).intValue + 1;
-            _layer.SetValueWithoutNotify(LayerChoices[choice >= 0 && choice < LayerChoices.Count ? choice : 0]);
+            _layerStepper.SetEnabled(perLayer);
+            _layer.text = perLayer ? LayerName(Relative(nameof(ModRoute.Layer)).intValue) : "Global";
 
-            // The LFO and envelope only reach targets evaluated at control rate.
-            var unsupported = ModTargets.IsContinuous(source) && !ModTargets.IsContinuous(target);
-            EnableInClassList(UssClassName + "--unsupported", unsupported);
-            tooltip = unsupported ? $"{source} only modulates Pitch, Cutoff, Level and Pan." : string.Empty;
+            var enabled = Relative(nameof(ModRoute.Enabled)).boolValue;
+            var supported = ForgeModulation.IsSupported(source, target);
+            EnableInClassList(UssClassName + "--off", !enabled);
+            EnableInClassList(UssClassName + "--unsupported", !supported);
+            tooltip = supported ? string.Empty : $"{ForgeModulation.SourceName(source)} only modulates Pitch, Cutoff, Level and Pan.";
+        }
+
+        private Button Arrow(string text, int direction)
+        {
+            var button = new Button(() => StepLayer(direction)) { text = text, focusable = false };
+            button.AddToClassList(StepperElement.UssClassName + "__arrow");
+            return button;
+        }
+
+        // Wraps through All layers, then Layer 1..MaxLayers.
+        private void StepLayer(int direction)
+        {
+            var count = SfxRecipe.MaxLayers + 1;
+            var index = Relative(nameof(ModRoute.Layer)).intValue + 1;
+            SetLayer((index + direction + count) % count - 1);
+        }
+
+        private void ShowLayerMenu()
+        {
+            var current = Relative(nameof(ModRoute.Layer)).intValue;
+            var menu = new GenericMenu();
+            for (var layer = ModRoute.AllLayers; layer < SfxRecipe.MaxLayers; layer++)
+            {
+                var choice = layer;
+                menu.AddItem(new GUIContent(LayerName(layer)), layer == current, () => SetLayer(choice));
+            }
+
+            menu.DropDown(_layer.worldBound);
         }
 
         private void SetLayer(int layer)
@@ -103,21 +141,6 @@ namespace DataKeeper.Editor.Forge
             _route.serializedObject.ApplyModifiedProperties();
         }
 
-        private static KnobFormat Format(ModTarget target) => target switch
-        {
-            ModTarget.Pitch => KnobFormat.Semitones,
-            ModTarget.Level or ModTarget.Drive => KnobFormat.Decibels,
-            ModTarget.Pan => KnobFormat.Pan,
-            ModTarget.Resonance or ModTarget.ReverbMix or ModTarget.DelayMix or ModTarget.TransientAttack
-                or ModTarget.LfoDepth => KnobFormat.Percent,
-            _ => KnobFormat.Octaves,
-        };
-
-        private static List<string> BuildLayerChoices()
-        {
-            var choices = new List<string> { "All layers" };
-            for (var i = 1; i <= SfxRecipe.MaxLayers; i++) choices.Add($"Layer {i}");
-            return choices;
-        }
+        private static string LayerName(int layer) => layer < 0 ? "All layers" : $"Layer {layer + 1}";
     }
 }

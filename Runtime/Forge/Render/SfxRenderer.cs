@@ -29,8 +29,26 @@ namespace DataKeeper.Forge.Render
 
         public int FrameCount { get; private set; }
         public int SampleRate { get; private set; }
+        public int LayerCount { get; private set; }
 
         public NativeArray<float> Output => _output.GetSubArray(0, FrameCount * Channels);
+
+        // Per-layer audio before mixing and FX. Only the frames inside LayerFrameRange were
+        // written by the last render; the rest holds stale data from earlier renders.
+        public NativeArray<float> LayerOutput(int layer) =>
+            _layerBuffer.GetSubArray(layer * FrameCount * Channels, FrameCount * Channels);
+
+        public bool IsLayerAudible(int layer)
+        {
+            var p = _layers[layer];
+            return p.Gain > 0f && p.EndFrame > p.StartFrame;
+        }
+
+        public void LayerFrameRange(int layer, out int startFrame, out int endFrame)
+        {
+            startFrame = _layers[layer].StartFrame;
+            endFrame = _layers[layer].EndFrame;
+        }
 
         public SfxRenderer()
         {
@@ -47,6 +65,7 @@ namespace DataKeeper.Forge.Render
         {
             SampleRate = recipe.SampleRate;
             var layerCount = math.min(recipe.Layers.Count, SfxRecipe.MaxLayers);
+            LayerCount = layerCount;
             var global = ModMatrix.Evaluate(recipe, seed, _modulation, layerCount);
             FrameCount = FramesFor(recipe.LengthMs * math.exp2(global.LengthOctaves), SampleRate);
 

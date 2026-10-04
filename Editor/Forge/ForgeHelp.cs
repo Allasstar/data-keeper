@@ -12,40 +12,34 @@ namespace DataKeeper.Editor.Forge
             Summary = summary;
             Items = items;
         }
+
+        public string TextOf(string name)
+        {
+            foreach (var (itemName, text) in Items)
+                if (itemName == name) return text;
+            return null;
+        }
     }
 
     public static class ForgeHelp
     {
         public static readonly HelpTopic TopBar = new("Toolbar",
-            "Pick the recipe to edit, browse presets, generate new sounds and listen. Every edit re-renders the sound instantly.",
+            "Pick the recipe to edit, browse presets, generate new sounds and listen. Every edit re-renders the sound instantly. Hover any control to see what it does in the status bar at the bottom.",
             ("Recipe", "The SFX Recipe asset being edited. Edits are saved into it and can be undone."),
             ("New", "Creates a new recipe asset and opens it."),
-            ("◀  ▶", "Load the previous or next preset in the preset folder."),
-            ("Preset name", "Lists the presets in the preset folder. Pick one to load it into the current recipe (undoable), or choose another preset folder."),
+            ("Category", "The kind of sound: Impact, Whoosh, Magic, UI Click, Pickup, Laser, Explosion or Footstep. Changing it randomizes new sounds from that category's template."),
+            ("Preset", "The arrows load the previous or next preset in the preset folder. Click the name to list them, load one (undoable) or choose another preset folder."),
             ("Save Preset", "Saves the current recipe as a JSON preset in the preset folder."),
-            ("Randomize  (R)", "Builds new sounds from the category template and fills the Variations grid with the best 8."),
-            ("Mutate  (M)", "Like Randomize, but nudges the current sound by the Variation amount instead of starting over."),
             ("Undo / Redo", "Step through recipe edits, same as Ctrl+Z / Ctrl+Y."),
-            ("Meter", "Preview output level, left and right. The light on the right turns red when the sound clips; click the meter to reset it."),
-            ("Vol", "Preview volume only. It does not change the sound, the meter or exported files."),
+            ("Play / Stop  (Space)", "Plays the trimmed part of the sound, or stops it."),
             ("Auto", "Plays the sound automatically shortly after each edit."),
-            ("Play / Stop  (Space)", "Plays the trimmed part of the sound."));
-
-        public static readonly HelpTopic Category = new("Category",
-            "The kind of sound to make. Clicking a category sets it on the recipe and immediately randomizes new sounds from that category's template: its layers, pitch ranges, curves and FX.",
-            ("Impact", "Hits, thuds and punches."),
-            ("Whoosh", "Swings, swishes and fly-bys."),
-            ("Magic", "Spells, shimmers and sparkles."),
-            ("UI Click", "Short interface clicks and ticks."),
-            ("Pickup", "Coins, items and power-ups."),
-            ("Laser", "Zaps, beams and shots."),
-            ("Explosion", "Blasts with a long tail."),
-            ("Footstep", "Steps on different surfaces."));
+            ("Meter", "Output level, left and right; the light on the right turns red on clipping, click to clear it. Drag sideways to set the preview volume (the thin middle line), Shift for fine, double-click to reset. Volume only affects what you hear, not the sound, the meter or exported files."));
 
         public static readonly HelpTopic Variations = new("Variations",
-            "The best 8 results of the last Randomize or Mutate. Each batch renders more candidates than it keeps (Candidates in the Randomizer panel), analyses them, throws away silent, clipping or broken ones and keeps the 8 best.",
+            "The best 8 results of the last Randomize or Mutate. Each batch renders more candidates than it keeps (Candidates, above), analyses them, throws away silent, clipping or broken ones and keeps the 8 best.",
             ("Thumbnail", "Click to load that variation into the recipe and play it (undoable). Hover to see its loudness, brightness and length."),
-            ("Seed", "The render seed. It drives noise, grain scatter and Random modulation routes, so another seed gives a slightly different take on the same recipe."));
+            ("Seed", "The render seed. It drives noise, grain scatter and Random modulation routes, so another seed gives a slightly different take on the same recipe."),
+            ("«  »", "Hides or shows the Randomizer and Variations panel, for more room on the pages."));
 
         public static readonly HelpTopic Export = new("Export",
             "Writes the current sound as WAV files into the project. File 1 is the recipe as designed; with Count above 1 the others are filtered mutations seeded from the recipe seed, so exporting again writes the same files. The waveform trim is applied.",
@@ -87,11 +81,14 @@ namespace DataKeeper.Editor.Forge
             ("Mouse", "Double-click adds a point, drag moves it, right-click or Delete removes it, Alt-drag bends a segment."));
 
         public static readonly HelpTopic Layers = new("Layers",
-            "A sound is up to 6 layers playing together, each with its own source, filter and envelope. Click a layer to edit its curves above. Right-click a knob or dropdown to lock it against the randomizer; right-click a layer header to lock the whole layer or its curves.",
-            ("Toggle, name", "Turns the layer on or off; the name is just a label."),
-            ("Band", "The frequency range the layer covers: Sub (lows), Body (mids), Click (2-6 kHz attack) or Air (highs). The randomizer keeps the layer's pitch and filter inside it."),
-            ("L  M  S", "Lock (the randomizer keeps the whole layer), Mute, Solo."),
-            ("Dup  ×", "Duplicate or remove the layer."),
+            "A sound is up to 6 layers playing together, each with its own source, filter and envelope. Click a layer to edit its curves above. Right-click a knob or stepper to lock it against the randomizer.",
+            ("Side tab", "The light turns the layer on or off. The coloured edge shows the band; the tab turns red when the whole layer is locked. Right-click it for the layer menu."),
+            ("Name, band", "The name is just a label. Band is the frequency range the layer covers: Sub (lows), Body (mids), Click (2-6 kHz attack) or Air (highs). The randomizer keeps the layer's pitch and filter inside it."),
+            ("M  S", "Mute, Solo."),
+            ("…", "Duplicate, Remove, Lock Layer (the randomizer keeps the whole layer), Lock Curves, Clear Parameter Locks. Right-clicking the header opens the same menu."),
+            ("<  >", "Steppers: the arrows step through the values and wrap around; click the name for the full list."),
+            ("Pictures", "Left: two cycles of the wave at the layer's loudest point. Right: the whole layer over time, scaled to its own peak. Flat means the layer is silent: off, muted, soloed out or missing its clip."),
+            ("Compact", "Hides the knob boxes on every layer so more layers fit."),
             ("Source", "Oscillator (Wave: sine, saw, square, triangle), Noise (Color: white, pink, brown), Wavetable, FM, Sample or Granular."),
             ("Filter", "Off, LowPass, HighPass, BandPass or Notch. Cutoff sets its frequency, Reso its resonance."),
             ("FM", "Ratio: modulator frequency relative to the tone. Index: brightness and metallic bite. Index Env: how much the index follows the Amp curve."),
@@ -110,25 +107,29 @@ namespace DataKeeper.Editor.Forge
             ("Tone", "By default: brighter or darker."),
             ("Motion", "By default: deeper LFO wobble and more delay."),
             ("LFO", "A repeating wobble with a shape and Rate. It only does something when a route uses it."),
-            ("Routes", "Each route is Source → Target × Amount, with the amount in the target's unit (semitones, octaves, dB...). The layer dropdown picks all layers or one."),
-            ("Sources", "The four macros, LFO, Envelope (the layer's Amp curve) and Random (changes with the seed)."),
+            ("Source bar", "Drag a source onto any highlighted knob to add a route. On a layer knob it moves that layer only; hold Alt while dropping to move every layer."),
+            ("Chips", "Each route on a knob shows a chip and a coloured arc for its range, with a dot at the + end. Drag a chip up or down to set the amount (Shift for fine), double-click to zero it, right-click to switch it off, change its layers or remove it. A hollow chip is a route for all layers."),
+            ("Routes", "Each row is Source → Target × Amount, with the amount in the target's unit (semitones, octaves, dB...). Drag the bar to set the amount; the layer stepper picks all layers or one."),
+            ("Sources", "The four macros, LFO, Env (the layer's Amp curve) and Rnd (changes with the seed). Each has its own colour on chips, arcs and rows."),
             ("+ Route / Defaults", "Add a route, or restore the default routes."),
             ("Greyed out", "LFO and Envelope can only move Pitch, Cutoff, Level and Pan; other combinations have no effect."));
 
         public static readonly HelpTopic Randomizer = new("Randomizer",
-            "Controls how Randomize and Mutate make new sounds. Anything locked (right-click) is kept as it is.",
+            "Makes new sounds and controls how. Anything locked (right-click) is kept as it is.",
+            ("Randomize  (R)", "Builds new sounds from the category template and fills the Variations grid with the best 8."),
+            ("Mutate  (M)", "Like Randomize, but nudges the current sound by the Variation amount instead of starting over."),
             ("Harmony", "Pitch relationship between layers: Unison, Fifths, Major, Minor or Dissonant."),
             ("Variation", "How far Mutate moves away from the current sound."),
             ("Physics", "How strictly parameters follow one shared physical character. High keeps sounds believable (bigger means lower and longer); low lets every parameter vary on its own for wilder results."),
             ("Candidates", "How many sounds each batch renders before the best 8 are kept. More gives better picks but takes longer."));
 
         public static readonly HelpTopic Fx = new("FX",
-            "Effects on the mix of all layers, applied from top to bottom. Click an effect's name to turn it on or off.",
+            "Effects on the mix of all layers, run from top to bottom in a fixed order. The light in a title turns the effect on or off (so does clicking its name); an effect that is off folds down to its title. Each graph shows what the effect does to a test signal with the current settings.",
             ("Lock", "The randomizer keeps the FX settings as they are."),
-            ("Transient", "Attack boosts or softens the start of the sound, Sustain the body after it."),
-            ("Distortion", "Tanh is smooth saturation, Foldback is harsher. Drive sets the amount, Mix blends it with the clean sound."),
-            ("Delay", "Echoes. Time between echoes, Feedback for how many repeats, Mix for their level; Ping-Pong bounces them left and right."),
-            ("Reverb", "Room ambience. Size of the space, Damping darkens the tail, Mix sets its level."),
-            ("Limiter", "Keeps peaks under the Ceiling. Release sets how quickly it lets go."));
+            ("Transient", "Attack boosts or softens the start of the sound, Sustain the body after it. The graph shows a test hit before (grey) and after (orange)."),
+            ("Distortion", "Tanh is smooth saturation, Foldback is harsher. Drive sets the amount, Mix blends it with the clean sound. The graph is the shaping curve, input across and output up."),
+            ("Delay", "Echoes. Time between echoes, Feedback for how many repeats, Mix for their level; Ping-Pong bounces them left and right. The graph shows a click and its echoes over the length of the sound."),
+            ("Reverb", "Room ambience. Size of the space, Damping darkens the tail, Mix sets its level. The graph shows the tail fading over the length of the sound; a slower fall is a longer tail."),
+            ("Limiter", "Keeps peaks under the Ceiling (the red line). Release sets how quickly it lets go, seen as the dip after the loud burst in the graph."));
     }
 }

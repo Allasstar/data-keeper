@@ -25,13 +25,23 @@ namespace DataKeeper.Editor.Forge
         private const string AutoplayKey = "DataKeeper.Forge.Autoplay";
         private const long AutoplayDelayMs = 300;
         private const float DefaultPreviewVolume = 0.8f;
+        private const string IdleStatus = "Hover a control to see what it does. Right-click a knob or stepper to lock it. " +
+                                          "R randomizes, M mutates, Space plays.";
+
+        private enum Page
+        {
+            Sound,
+            Fx,
+            Mod,
+            Export,
+        }
 
         [SerializeField] private SfxRecipe _recipe;
         [SerializeField] private ExportSettings _export = new();
         [SerializeField] private string _presetFolder = ForgePresets.DefaultFolder;
         [SerializeField] private string _presetPath;
-        [SerializeField] private bool _routesExpanded;
-        [SerializeField] private bool _exportExpanded = true;
+        [SerializeField] private Page _page;
+        [SerializeField] private bool _leftCollapsed;
         [SerializeField] private float _trimStart;
         [SerializeField] private float _trimEnd = 1f;
         [SerializeField] private List<string> _variations = new();
@@ -42,13 +52,16 @@ namespace DataKeeper.Editor.Forge
         [SerializeField] private bool _drawMode;
         [SerializeField] private bool _gridSnap;
         [SerializeField] private bool _harmonySnap = true;
+        [SerializeField] private bool _compactStrips;
 
         private readonly List<LayerStripElement> _strips = new();
-        private readonly Dictionary<SfxCategory, Button> _categoryButtons = new();
+        private readonly Dictionary<Page, Button> _pageTabs = new();
+        private readonly Dictionary<Page, VisualElement> _pages = new();
         private readonly Dictionary<HarmonyMode, Button> _harmonyButtons = new();
         private readonly VariationThumbElement[] _thumbs = new VariationThumbElement[VariationCount];
         private readonly Dictionary<CurveTarget, Button> _curveTabs = new();
         private readonly List<(BindableElement Element, string Path)> _fxBindings = new();
+        private readonly List<(ParamBoxElement Box, Func<FxChain, bool> IsOn)> _fxModules = new();
         private readonly List<string> _presetPaths = new();
         private readonly List<ModRouteElement> _routeElements = new();
         private readonly KnobElement[] _macroKnobs = new KnobElement[4];
@@ -59,13 +72,19 @@ namespace DataKeeper.Editor.Forge
         private SfxAnalyzer _analyzer;
         private VariationGenerator _generator;
         private BatchExporter _batchExporter;
+        private FxGraphBuilder _fxGraphBuilder;
+        private ForgeModulation _modulation;
+        private ModSourceBarElement _modBar;
         private SfxRecipe _scratch;
         private PreviewPlayer _player;
         private SerializedObject _serializedRecipe;
         private SerializedObject _serializedWindow;
 
         private ObjectField _recipeField;
+        private StepperElement _category;
         private VisualElement _main;
+        private VisualElement _leftColumn;
+        private Button _leftToggle;
         private Label _placeholder;
         private UnsignedIntegerField _seed;
         private KnobElement _length;
@@ -84,16 +103,18 @@ namespace DataKeeper.Editor.Forge
         private Button _exportButton;
         private Button _presetName;
         private MeterElement _meter;
-        private EnumField _lfoShape;
+        private StepperElement _lfoShape;
         private KnobElement _lfoRate;
-        private Foldout _routesFoldout;
+        private Label _routesTitle;
         private VisualElement _routeContainer;
         private VisualElement _peakTarget;
         private VisualElement _loudnessTarget;
         private VisualElement _stripContainer;
         private Button _addLayer;
         private VisualElement _tracker;
-        private Label _status;
+        private Label _statusName;
+        private Label _statusText;
+        private string _statusMessage = IdleStatus;
         private HelpOverlay _help;
         private IVisualElementScheduledItem _playheadUpdater;
         private IVisualElementScheduledItem _autoplayer;
@@ -105,6 +126,12 @@ namespace DataKeeper.Editor.Forge
         private ToolbarToggle _curveLockToggle;
         private int _curveUndoGroup;
         private Label _fxTitle;
+        private StepperElement _distortionMode;
+        private FxGraphElement _transientGraph;
+        private FxGraphElement _distortionGraph;
+        private FxGraphElement _delayGraph;
+        private FxGraphElement _reverbGraph;
+        private FxGraphElement _limiterGraph;
 
         private double _lastRenderTime = double.MinValue;
         private bool _renderPending;
@@ -128,6 +155,7 @@ namespace DataKeeper.Editor.Forge
             _analyzer = new SfxAnalyzer();
             _generator = new VariationGenerator();
             _batchExporter = new BatchExporter(_generator);
+            _fxGraphBuilder = new FxGraphBuilder();
             _player = new PreviewPlayer();
             _scratch = CreateInstance<SfxRecipe>();
             _scratch.hideFlags = HideFlags.HideAndDontSave;
@@ -146,6 +174,7 @@ namespace DataKeeper.Editor.Forge
             _analyzer?.Dispose();
             _generator?.Dispose();
             _batchExporter?.Dispose();
+            _fxGraphBuilder?.Dispose();
             if (_scratch != null) DestroyImmediate(_scratch);
             _player = null;
             _renderer = null;
@@ -153,6 +182,7 @@ namespace DataKeeper.Editor.Forge
             _analyzer = null;
             _generator = null;
             _batchExporter = null;
+            _fxGraphBuilder = null;
         }
 
         private void CreateGUI()
@@ -171,7 +201,10 @@ namespace DataKeeper.Editor.Forge
             {
                 if (root.focusController?.focusedElement == null) root.Focus();
             }, TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerOverEvent>(OnPointerOver);
+            root.RegisterCallback<PointerLeaveEvent>(_ => ShowStatus());
 
+            _modulation = new ForgeModulation(root, SetStatus, OnRoutesChanged);
             root.Add(BuildTopBar());
 
             _placeholder = new Label("Pick a recipe or click New to start.");
@@ -182,15 +215,13 @@ namespace DataKeeper.Editor.Forge
             _main.AddToClassList("forge-main");
             _main.Add(BuildLeftColumn());
             _main.Add(BuildCenterColumn());
-            _main.Add(BuildRightColumn());
             root.Add(_main);
 
-            _status = new Label();
-            _status.AddToClassList("forge-status");
-            root.Add(_status);
+            root.Add(BuildStatusBar());
 
             _help = new HelpOverlay();
             root.Add(_help);
+            root.Add(_modBar.Ghost);
 
             _playheadUpdater = root.schedule.Execute(UpdatePlayhead).Every(PlayheadIntervalMs);
             _playheadUpdater.Pause();
@@ -204,66 +235,75 @@ namespace DataKeeper.Editor.Forge
         private VisualElement BuildTopBar()
         {
             var bar = Bar("forge-top-bar");
+            var topic = ForgeHelp.TopBar;
 
             _recipeField = new ObjectField { objectType = typeof(SfxRecipe), allowSceneObjects = false };
             _recipeField.AddToClassList("forge-recipe-field");
             _recipeField.RegisterValueChangedCallback(e => SetRecipe(e.newValue as SfxRecipe, true));
-            bar.Add(_recipeField);
-            bar.Add(MakeButton("New", CreateRecipe));
-
-            bar.Add(Separator());
-            bar.Add(MakeButton("◀", () => StepPreset(-1), "forge-button--icon"));
-            _presetName = MakeButton(ForgePresets.DisplayName(_presetPath), ShowPresetMenu);
-            _presetName.AddToClassList("forge-preset-name");
-            bar.Add(_presetName);
-            bar.Add(MakeButton("▶", () => StepPreset(1), "forge-button--icon"));
-            bar.Add(MakeButton("Save Preset", SavePreset));
-
-            bar.Add(Separator());
-            bar.Add(MakeButton("Randomize", () => GenerateVariations(false), "forge-primary"));
-            bar.Add(MakeButton("Mutate", () => GenerateVariations(true)));
-            bar.Add(MakeButton("Undo", Undo.PerformUndo));
-            bar.Add(MakeButton("Redo", Undo.PerformRedo));
-
+            bar.Add(Hint(_recipeField, topic, "Recipe"));
+            bar.Add(Hint(MakeButton("New", CreateRecipe), topic, "New"));
             bar.Add(Spacer());
-            _meter = new MeterElement();
-            bar.Add(_meter);
-            bar.Add(BuildVolumeSlider());
-            bar.Add(BuildAutoplayToggle());
-            bar.Add(MakeButton("Play", Play, "forge-primary"));
-            bar.Add(MakeButton("Stop", Stop));
-            bar.Add(HelpButton(ForgeHelp.TopBar));
+
+            _category = new StepperElement(SfxCategory.Impact);
+            _category.AddToClassList("forge-category");
+            _category.Changed += value => SelectCategory((SfxCategory)value);
+            bar.Add(Hint(_category, topic, "Category"));
+
+            var preset = new VisualElement();
+            preset.AddToClassList(StepperElement.UssClassName);
+            preset.AddToClassList("forge-preset");
+            preset.Add(StepperArrow("<", () => StepPreset(-1)));
+            _presetName = new Button(ShowPresetMenu) { text = ForgePresets.DisplayName(_presetPath), focusable = false };
+            _presetName.AddToClassList("forge-preset__name");
+            preset.Add(_presetName);
+            preset.Add(StepperArrow(">", () => StepPreset(1)));
+            bar.Add(Hint(preset, topic, "Preset"));
+            bar.Add(Hint(IconButton(ForgeIcon.Save, SavePreset), topic, "Save Preset"));
+            bar.Add(Spacer());
+
+            bar.Add(Hint(IconButton(ForgeIcon.Undo, Undo.PerformUndo), topic, "Undo / Redo"));
+            bar.Add(Hint(IconButton(ForgeIcon.Redo, Undo.PerformRedo), topic, "Undo / Redo"));
+            bar.Add(Separator());
+            bar.Add(Hint(IconButton(ForgeIcon.Play, Play, "forge-primary"), topic, "Play / Stop  (Space)"));
+            bar.Add(Hint(IconButton(ForgeIcon.Stop, Stop), topic, "Play / Stop  (Space)"));
+            bar.Add(Hint(BuildAutoplayToggle(), topic, "Auto"));
+            bar.Add(Hint(BuildMeter(), topic, "Meter"));
+            bar.Add(HelpButton(topic));
             return bar;
         }
 
-        // Monitoring only: the render, meter and exports stay at full level.
-        private Slider BuildVolumeSlider()
+        // The meter is also the preview volume fader. Monitoring only: the render, the meter
+        // reading and exports stay at full level.
+        private MeterElement BuildMeter()
         {
-            var slider = new Slider("Vol", 0f, 1f) { focusable = false };
-            slider.AddToClassList("forge-volume");
-            slider.RegisterValueChangedCallback(e => SetPreviewVolume(slider, e.newValue));
-            var volume = EditorPrefs.GetFloat(PreviewVolumeKey, DefaultPreviewVolume);
-            slider.SetValueWithoutNotify(volume);
-            SetPreviewVolume(slider, volume);
-            return slider;
+            _meter = new MeterElement
+            {
+                DefaultVolume = DefaultPreviewVolume,
+                Volume = EditorPrefs.GetFloat(PreviewVolumeKey, DefaultPreviewVolume),
+            };
+            _player.Volume = PreviewGain(_meter.Volume);
+            _meter.VolumeChanged += SetPreviewVolume;
+            return _meter;
         }
 
-        private void SetPreviewVolume(Slider slider, float position)
+        private void SetPreviewVolume(float position)
         {
             EditorPrefs.SetFloat(PreviewVolumeKey, position);
-
-            // Squared so the slider travel feels even to the ear instead of crowding at the top.
-            var gain = position * position;
+            var gain = PreviewGain(position);
             _player.Volume = gain;
-            slider.tooltip = gain > 0f ? $"Preview volume {AudioMath.LinearToDb(gain):0.0} dB" : "Preview muted";
+            SetStatus(gain > 0f ? $"Preview volume {AudioMath.LinearToDb(gain):0.0} dB" : "Preview muted");
         }
+
+        // Squared so the fader travel feels even to the ear instead of crowding at the top.
+        private static float PreviewGain(float position) => position * position;
 
         private ToolbarToggle BuildAutoplayToggle()
         {
             _autoplay = EditorPrefs.GetBool(AutoplayKey, true);
-            var toggle = new ToolbarToggle { text = "Auto", value = _autoplay, focusable = false };
+            var toggle = new ToolbarToggle { value = _autoplay, focusable = false };
             toggle.AddToClassList("forge-curve-toggle");
-            toggle.tooltip = "Play automatically after each edit";
+            toggle.AddToClassList("forge-icon-toggle");
+            toggle.Add(new IconElement(ForgeIcon.Autoplay));
             toggle.RegisterValueChangedCallback(e =>
             {
                 _autoplay = e.newValue;
@@ -276,24 +316,44 @@ namespace DataKeeper.Editor.Forge
         private VisualElement BuildLeftColumn()
         {
             var outer = Column("forge-left");
+            _leftColumn = outer;
             var column = new ScrollView(ScrollViewMode.Vertical);
             column.AddToClassList("forge-left__scroll");
             outer.Add(column);
 
-            column.Add(SectionHeader("Category", ForgeHelp.Category));
-            var categories = new VisualElement();
-            categories.AddToClassList("forge-category-list");
-            foreach (SfxCategory category in Enum.GetValues(typeof(SfxCategory)))
+            var randomizer = ForgeHelp.Randomizer;
+            column.Add(SectionHeader("Randomizer", randomizer));
+            var generate = new VisualElement();
+            generate.AddToClassList("forge-generate");
+            generate.Add(Hint(MakeButton("Randomize", () => GenerateVariations(false), "forge-primary"), randomizer, "Randomize  (R)"));
+            generate.Add(Hint(MakeButton("Mutate", () => GenerateVariations(true)), randomizer, "Mutate  (M)"));
+            column.Add(generate);
+            column.Add(SubTitle("Harmony"));
+            var pills = new VisualElement();
+            pills.AddToClassList("forge-pills");
+            foreach (HarmonyMode mode in Enum.GetValues(typeof(HarmonyMode)))
             {
-                var button = MakeButton(ObjectNames.NicifyVariableName(category.ToString()),
-                    () => SelectCategory(category));
-                button.AddToClassList("forge-category");
-                _categoryButtons[category] = button;
-                categories.Add(button);
+                var pill = MakeButton(mode.ToString(), () => SetRecipeInt("Randomizer.Harmony", (int)mode));
+                pill.AddToClassList("forge-pill");
+                _harmonyButtons[mode] = pill;
+                pills.Add(pill);
             }
-            column.Add(categories);
+            column.Add(Hint(pills, randomizer, "Harmony"));
 
-            column.Add(SectionHeader("Variations", ForgeHelp.Variations));
+            var knobs = new VisualElement();
+            knobs.AddToClassList("forge-randomizer-knobs");
+            _variationAmount = new KnobElement("Variation", 0f, 1f, 0.3f, KnobFormat.Percent);
+            _coupling = new KnobElement("Physics", 0f, 1f, 0.7f, KnobFormat.Percent);
+            knobs.Add(Hint(_variationAmount, randomizer, "Variation"));
+            knobs.Add(Hint(_coupling, randomizer, "Physics"));
+            column.Add(knobs);
+
+            _candidates = new IntegerField("Candidates");
+            _candidates.AddToClassList("forge-candidates");
+            column.Add(Hint(_candidates, randomizer, "Candidates"));
+
+            var variations = ForgeHelp.Variations;
+            column.Add(SectionHeader("Variations", variations));
             var grid = new VisualElement();
             grid.AddToClassList("forge-variation-grid");
             for (var i = 0; i < VariationCount; i++)
@@ -303,15 +363,13 @@ namespace DataKeeper.Editor.Forge
                 thumb.ClearSamples();
                 thumb.Clicked += OnThumbClicked;
                 _thumbs[i] = thumb;
-                grid.Add(thumb);
+                grid.Add(Hint(thumb, variations, "Thumbnail"));
             }
             column.Add(grid);
 
             _seed = new UnsignedIntegerField("Seed");
             _seed.AddToClassList("forge-seed");
-            column.Add(_seed);
-
-            column.Add(BuildExportPanel());
+            column.Add(Hint(_seed, variations, "Seed"));
             return outer;
         }
 
@@ -319,29 +377,82 @@ namespace DataKeeper.Editor.Forge
         {
             var column = Column("forge-center");
 
+            var tabs = Bar("forge-page-bar");
+            column.Add(tabs);
+            _leftToggle = MakeButton(string.Empty, () => SetLeftCollapsed(!_leftCollapsed), "forge-left-toggle");
+            tabs.Add(Hint(_leftToggle, ForgeHelp.Variations, "«  »"));
+            SetLeftCollapsed(_leftCollapsed);
+            _modBar = new ModSourceBarElement(_modulation, SetStatus);
+            column.Add(_modBar);
+            AddPage(column, tabs, Page.Sound, "Sound", BuildSoundPage());
+            AddPage(column, tabs, Page.Fx, "FX", BuildFxPage());
+            AddPage(column, tabs, Page.Mod, "Mod", BuildModPage());
+            AddPage(column, tabs, Page.Export, "Export", BuildExportPage());
+            ShowPage(_page);
+            return column;
+        }
+
+        private void AddPage(VisualElement column, VisualElement tabs, Page page, string title, VisualElement content)
+        {
+            var tab = MakeButton(title, () => ShowPage(page), "forge-page-tab");
+            _pageTabs[page] = tab;
+            tabs.Add(tab);
+
+            content.AddToClassList("forge-page");
+            _pages[page] = content;
+            column.Add(content);
+        }
+
+        private void SetLeftCollapsed(bool collapsed)
+        {
+            _leftCollapsed = collapsed;
+            _leftColumn.style.display = collapsed ? DisplayStyle.None : DisplayStyle.Flex;
+            _leftToggle.text = collapsed ? "»" : "«";
+        }
+
+        private void ShowPage(Page page)
+        {
+            _page = page;
+            foreach (var pair in _pages) pair.Value.style.display = pair.Key == page ? DisplayStyle.Flex : DisplayStyle.None;
+            foreach (var pair in _pageTabs) pair.Value.EnableInClassList("forge-page-tab--selected", pair.Key == page);
+            if (page == Page.Fx) RefreshFxGraphs();
+        }
+
+        private static ScrollView ScrollPage()
+        {
+            var page = new ScrollView(ScrollViewMode.Vertical);
+            page.AddToClassList("forge-page--scroll");
+            return page;
+        }
+
+        private VisualElement BuildSoundPage()
+        {
+            var page = new VisualElement();
+
             var globals = Bar("forge-globals");
             _length = new KnobElement("Length", SfxRecipe.MinLengthMs, SfxRecipe.MaxLengthMs, 500f,
-                KnobFormat.Milliseconds, KnobScale.Log) { Lockable = true };
+                KnobFormat.Milliseconds, KnobScale.Log) { Lockable = true, ModTarget = ModTarget.Length };
             _length.AddToClassList("forge-knob--inline");
             _length.LockToggled += locked => SetRecipeBool("Randomizer.LockLength", locked);
-            globals.Add(_length);
+            globals.Add(Hint(_length, ForgeHelp.Waveform, "Length knob"));
             globals.Add(Spacer());
             globals.Add(HelpButton(ForgeHelp.Waveform));
-            column.Add(globals);
+            page.Add(globals);
 
             var wavePanel = new VisualElement();
             wavePanel.AddToClassList("forge-wave-panel");
             _waveform = new WaveformElement();
             _waveform.SetTrim(_trimStart, _trimEnd);
             _waveform.TrimChanged += OnTrimChanged;
-            wavePanel.Add(_waveform);
+            wavePanel.Add(Hint(_waveform, ForgeHelp.Waveform, "Waveform"));
             wavePanel.Add(BuildReadout());
-            column.Add(wavePanel);
-            column.Add(BuildCurvePanel());
+            page.Add(wavePanel);
+            page.Add(BuildCurvePanel());
 
             var layersHeader = SectionHeader("Layers", ForgeHelp.Layers);
             layersHeader.AddToClassList("forge-layers-header");
-            column.Add(layersHeader);
+            layersHeader.Insert(layersHeader.childCount - 1, BuildCompactToggle());
+            page.Add(layersHeader);
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("forge-layers");
@@ -350,8 +461,20 @@ namespace DataKeeper.Editor.Forge
             _addLayer = MakeButton("+ Add Layer", AddLayer);
             _addLayer.AddToClassList("forge-add-layer");
             scroll.Add(_addLayer);
-            column.Add(scroll);
-            return column;
+            page.Add(scroll);
+            return page;
+        }
+
+        private ToolbarToggle BuildCompactToggle()
+        {
+            var toggle = new ToolbarToggle { text = "Compact", value = _compactStrips, focusable = false };
+            toggle.AddToClassList("forge-curve-toggle");
+            toggle.RegisterValueChangedCallback(e =>
+            {
+                _compactStrips = e.newValue;
+                foreach (var strip in _strips) strip.Compact = _compactStrips;
+            });
+            return Hint(toggle, ForgeHelp.Layers, "Compact");
         }
 
         private VisualElement BuildCurvePanel()
@@ -377,7 +500,7 @@ namespace DataKeeper.Editor.Forge
             bar.Add(_harmonyToggle);
             _curveLockToggle = CurveToggle("Lock", false, SetCurveLocked);
             bar.Add(_curveLockToggle);
-            bar.Add(MakeButton("Reset", ResetCurve));
+            bar.Add(Hint(MakeButton("Reset", ResetCurve), ForgeHelp.Curves, "Reset"));
             bar.Add(HelpButton(ForgeHelp.Curves));
             panel.Add(bar);
 
@@ -385,11 +508,7 @@ namespace DataKeeper.Editor.Forge
             _curveEditor.EditStarted += OnCurveEditStarted;
             _curveEditor.Changed += OnCurveChanged;
             _curveEditor.EditFinished += OnCurveEditFinished;
-            panel.Add(_curveEditor);
-
-            var hint = new Label("Double-click adds a point, right-click or Delete removes it, Alt-drag bends a segment.");
-            hint.AddToClassList("forge-curve-hint");
-            panel.Add(hint);
+            panel.Add(Hint(_curveEditor, ForgeHelp.Curves, "Mouse"));
             return panel;
         }
 
@@ -402,7 +521,7 @@ namespace DataKeeper.Editor.Forge
             });
             tab.AddToClassList("forge-tab");
             _curveTabs[target] = tab;
-            bar.Add(tab);
+            bar.Add(Hint(tab, ForgeHelp.Curves, label));
         }
 
         private ToolbarToggle CurveToggle(string text, bool initial, Action<bool> onChanged)
@@ -414,156 +533,134 @@ namespace DataKeeper.Editor.Forge
                 onChanged(e.newValue);
                 RefreshCurveEditor();
             });
-            return toggle;
+            return Hint(toggle, ForgeHelp.Curves, text);
         }
 
-        private VisualElement BuildRightColumn()
+        private VisualElement BuildModPage()
         {
-            var outer = Column("forge-right");
-            var column = new ScrollView(ScrollViewMode.Vertical);
-            column.AddToClassList("forge-right__scroll");
-            outer.Add(column);
-            column.Add(SectionHeader("Macros", ForgeHelp.Modulation));
-            var macros = new VisualElement();
-            macros.AddToClassList("forge-macros");
+            var page = ScrollPage();
+            var topic = ForgeHelp.Modulation;
+            page.Add(SectionHeader("Macros and LFO", topic));
+
+            var row = new VisualElement();
+            row.AddToClassList("forge-mod-row");
+            var macros = new ParamBoxElement("MACROS");
             for (var i = 0; i < _macroKnobs.Length; i++)
             {
                 _macroKnobs[i] = new KnobElement(MacroNames[i], 0f, 1f, 0.5f, KnobFormat.Percent);
-                macros.Add(_macroKnobs[i]);
+                macros.Add(Hint(_macroKnobs[i], topic, MacroNames[i]));
             }
-            column.Add(macros);
-            column.Add(BuildModulationPanel());
+            row.Add(macros);
 
-            column.Add(SectionHeader("Randomizer", ForgeHelp.Randomizer));
-
-            column.Add(SubTitle("Harmony"));
-            var pills = new VisualElement();
-            pills.AddToClassList("forge-pills");
-            foreach (HarmonyMode mode in Enum.GetValues(typeof(HarmonyMode)))
-            {
-                var pill = MakeButton(mode.ToString(), () => SetRecipeInt("Randomizer.Harmony", (int)mode));
-                pill.AddToClassList("forge-pill");
-                _harmonyButtons[mode] = pill;
-                pills.Add(pill);
-            }
-            column.Add(pills);
-
-            var knobs = new VisualElement();
-            knobs.AddToClassList("forge-randomizer-knobs");
-            _variationAmount = new KnobElement("Variation", 0f, 1f, 0.3f, KnobFormat.Percent);
-            _coupling = new KnobElement("Physics", 0f, 1f, 0.7f, KnobFormat.Percent);
-            knobs.Add(_variationAmount);
-            knobs.Add(_coupling);
-            column.Add(knobs);
-
-            _candidates = new IntegerField("Candidates");
-            _candidates.AddToClassList("forge-candidates");
-            column.Add(_candidates);
-
-            column.Add(BuildFxPanel());
-
-            var hint = new Label("Right-click a knob or dropdown to lock it. R randomizes, M mutates, Space plays.");
-            hint.AddToClassList("forge-hint");
-            column.Add(hint);
-            return outer;
-        }
-
-        private VisualElement BuildModulationPanel()
-        {
-            var panel = new VisualElement();
-            panel.AddToClassList("forge-mod-panel");
-
-            var lfo = new VisualElement();
-            lfo.AddToClassList("forge-lfo");
-            lfo.Add(SubTitle("LFO"));
-            _lfoShape = new EnumField(Waveform.Sine);
+            var lfo = new ParamBoxElement("LFO");
+            lfo.AddToClassList(ParamBoxElement.UssClassName + "--stacked");
+            _lfoShape = new StepperElement(Waveform.Sine);
             _lfoShape.AddToClassList("forge-lfo__shape");
             lfo.Add(_lfoShape);
-            _lfoRate = new KnobElement("Rate", LfoSettings.MinRateHz, LfoSettings.MaxRateHz, 4f, KnobFormat.Hertz, KnobScale.Log);
-            _lfoRate.AddToClassList("forge-knob--small");
-            lfo.Add(_lfoRate);
-            panel.Add(lfo);
-
-            _routesFoldout = new Foldout { text = "Routes", value = _routesExpanded };
-            _routesFoldout.AddToClassList("forge-routes");
-            // Child toggles raise bool change events that bubble up to the foldout.
-            _routesFoldout.RegisterValueChangedCallback(e =>
+            _lfoRate = new KnobElement("Rate", LfoSettings.MinRateHz, LfoSettings.MaxRateHz, 4f, KnobFormat.Hertz, KnobScale.Log)
             {
-                if (e.target == _routesFoldout) _routesExpanded = e.newValue;
-            });
-            _routeContainer = new VisualElement();
-            _routesFoldout.Add(_routeContainer);
+                ModTarget = ModTarget.LfoRate,
+            };
+            lfo.Add(_lfoRate);
+            row.Add(Hint(lfo, topic, "LFO"));
+            page.Add(row);
 
-            var buttons = new VisualElement();
-            buttons.AddToClassList("forge-routes__buttons");
-            buttons.Add(MakeButton("+ Route", AddRoute));
-            buttons.Add(MakeButton("Defaults", ResetRoutes));
-            _routesFoldout.Add(buttons);
-            panel.Add(_routesFoldout);
-            return panel;
+            var routesHeader = new VisualElement();
+            routesHeader.AddToClassList("forge-section-header");
+            routesHeader.AddToClassList("forge-routes-header");
+            _routesTitle = SectionTitle("Routes");
+            routesHeader.Add(_routesTitle);
+            routesHeader.Add(Spacer());
+            routesHeader.Add(Hint(MakeButton("+ Route", AddRoute), topic, "+ Route / Defaults"));
+            routesHeader.Add(Hint(MakeButton("Defaults", ResetRoutes), topic, "+ Route / Defaults"));
+            page.Add(routesHeader);
+
+            _routeContainer = new VisualElement();
+            _routeContainer.AddToClassList("forge-routes");
+            page.Add(Hint(_routeContainer, topic, "Routes"));
+            return page;
         }
 
-        private VisualElement BuildFxPanel()
+        private VisualElement BuildFxPage()
         {
-            var panel = new VisualElement();
-            panel.AddToClassList("forge-fx-panel");
+            var page = ScrollPage();
+            var topic = ForgeHelp.Fx;
 
             var header = new VisualElement();
-            header.AddToClassList("forge-fx-header");
+            header.AddToClassList("forge-section-header");
             _fxTitle = SectionTitle("FX");
             header.Add(_fxTitle);
             header.Add(Spacer());
-            header.Add(BindFx(FxToggle("Lock"), "Randomizer.LockFx"));
-            header.Add(HelpButton(ForgeHelp.Fx));
-            panel.Add(header);
+            header.Add(Hint(BindFx(FxToggle("Lock"), "Randomizer.LockFx"), topic, "Lock"));
+            header.Add(HelpButton(topic));
+            page.Add(header);
 
-            var transient = FxSection(panel, "Transient", "Fx.Transient");
-            transient.Add(FxKnob(new KnobElement("Attack", -1f, 1f, 0f, KnobFormat.Percent, bipolar: true), "Fx.Transient.Attack"));
+            // Stacked in the order the chain runs, so the page itself shows the order (FUI-O1).
+            var transient = FxModule(page, "TRANSIENT", "Transient", "Fx.Transient", fx => fx.Transient.Enabled, out _transientGraph);
+            transient.Add(FxKnob(new KnobElement("Attack", -1f, 1f, 0f, KnobFormat.Percent, bipolar: true)
+                { ModTarget = ModTarget.TransientAttack }, "Fx.Transient.Attack"));
             transient.Add(FxKnob(new KnobElement("Sustain", -1f, 1f, 0f, KnobFormat.Percent, bipolar: true), "Fx.Transient.Sustain"));
 
-            var distortion = FxSection(panel, "Distortion", "Fx.Distortion");
-            var mode = new EnumField(DistortionMode.Tanh);
-            mode.AddToClassList("forge-fx__mode");
-            distortion.Add(BindFx(mode, "Fx.Distortion.Mode"));
-            distortion.Add(FxKnob(new KnobElement("Drive", 0f, DistortionSettings.MaxDriveDb, 6f, KnobFormat.Decibels), "Fx.Distortion.DriveDb"));
+            var distortion = FxModule(page, "DISTORTION", "Distortion", "Fx.Distortion", fx => fx.Distortion.Enabled, out _distortionGraph);
+            _distortionMode = new StepperElement(DistortionMode.Tanh);
+            _distortionMode.AddToClassList("forge-fx__mode");
+            distortion.Add(_distortionMode);
+            distortion.Add(FxKnob(new KnobElement("Drive", 0f, DistortionSettings.MaxDriveDb, 6f, KnobFormat.Decibels)
+                { ModTarget = ModTarget.Drive }, "Fx.Distortion.DriveDb"));
             distortion.Add(FxKnob(new KnobElement("Mix", 0f, 1f, 1f, KnobFormat.Percent), "Fx.Distortion.Mix"));
 
-            var delay = FxSection(panel, "Delay", "Fx.Delay");
+            var delay = FxModule(page, "DELAY", "Delay", "Fx.Delay", fx => fx.Delay.Enabled, out _delayGraph);
             delay.Add(FxKnob(new KnobElement("Time", DelaySettings.MinTimeMs, DelaySettings.MaxTimeMs, 180f,
                 KnobFormat.Milliseconds, KnobScale.Log), "Fx.Delay.TimeMs"));
             delay.Add(FxKnob(new KnobElement("Feedback", 0f, DelaySettings.MaxFeedback, 0.35f, KnobFormat.Percent), "Fx.Delay.Feedback"));
-            delay.Add(FxKnob(new KnobElement("Mix", 0f, 1f, 0.25f, KnobFormat.Percent), "Fx.Delay.Mix"));
+            delay.Add(FxKnob(new KnobElement("Mix", 0f, 1f, 0.25f, KnobFormat.Percent)
+                { ModTarget = ModTarget.DelayMix }, "Fx.Delay.Mix"));
             delay.Add(BindFx(FxToggle("Ping-Pong"), "Fx.Delay.PingPong"));
 
-            var reverb = FxSection(panel, "Reverb", "Fx.Reverb");
+            var reverb = FxModule(page, "REVERB", "Reverb", "Fx.Reverb", fx => fx.Reverb.Enabled, out _reverbGraph);
             reverb.Add(FxKnob(new KnobElement("Size", 0f, 1f, 0.5f, KnobFormat.Percent), "Fx.Reverb.Size"));
             reverb.Add(FxKnob(new KnobElement("Damping", 0f, 1f, 0.5f, KnobFormat.Percent), "Fx.Reverb.Damping"));
-            reverb.Add(FxKnob(new KnobElement("Mix", 0f, 1f, 0.2f, KnobFormat.Percent), "Fx.Reverb.Mix"));
+            reverb.Add(FxKnob(new KnobElement("Mix", 0f, 1f, 0.2f, KnobFormat.Percent)
+                { ModTarget = ModTarget.ReverbMix }, "Fx.Reverb.Mix"));
 
-            var limiter = FxSection(panel, "Limiter", "Fx.Limiter");
+            var limiter = FxModule(page, "LIMITER", "Limiter", "Fx.Limiter", fx => fx.Limiter.Enabled, out _limiterGraph);
             limiter.Add(FxKnob(new KnobElement("Ceiling", LimiterSettings.MinCeilingDb, 0f, -1f, KnobFormat.Decibels), "Fx.Limiter.CeilingDb"));
             limiter.Add(FxKnob(new KnobElement("Release", LimiterSettings.MinReleaseMs, LimiterSettings.MaxReleaseMs, 60f,
                 KnobFormat.Milliseconds, KnobScale.Log), "Fx.Limiter.ReleaseMs"));
 
-            return panel;
+            return page;
         }
 
-        // Returns the row that holds the effect's controls; the header carries the enable toggle.
-        private VisualElement FxSection(VisualElement panel, string title, string path)
+        // Returns the row that holds the effect's controls, to the right of its graph.
+        private VisualElement FxModule(VisualElement page, string title, string hint, string path,
+            Func<FxChain, bool> isOn, out FxGraphElement graph)
         {
-            var section = new VisualElement();
-            section.AddToClassList("forge-fx");
+            var box = new ParamBoxElement(title);
+            box.AddToClassList("forge-fx");
+            BindFx(box.AddPower(), path + ".Enabled");
 
-            var toggle = FxToggle(title);
-            toggle.AddToClassList("forge-fx__enable");
-            section.Add(BindFx(toggle, path + ".Enabled"));
+            graph = new FxGraphElement();
+            box.Add(graph);
 
             var controls = new VisualElement();
             controls.AddToClassList("forge-fx__controls");
-            section.Add(controls);
+            box.Add(controls);
 
-            panel.Add(section);
+            page.Add(Hint(box, ForgeHelp.Fx, hint));
+            _fxModules.Add((box, isOn));
             return controls;
+        }
+
+        private void RefreshFxModules()
+        {
+            foreach (var (box, isOn) in _fxModules) box.EnableInClassList("forge-fx--off", !isOn(_recipe.Fx));
+        }
+
+        private void RefreshFxGraphs()
+        {
+            if (_recipe == null || _fxGraphBuilder == null) return;
+            _fxGraphBuilder.Fill(_recipe.Fx, _recipe.LengthMs,
+                _transientGraph, _distortionGraph, _delayGraph, _reverbGraph, _limiterGraph);
         }
 
         private static ToolbarToggle FxToggle(string text)
@@ -607,7 +704,7 @@ namespace DataKeeper.Editor.Forge
             _readoutRender = ReadoutItem("Render");
             _readoutWarnings = new Label();
             _readoutWarnings.AddToClassList("forge-readout__warning");
-            _readout.Add(_readoutWarnings);
+            _readout.Add(Hint(_readoutWarnings, ForgeHelp.Waveform, "Warnings"));
             return _readout;
         }
 
@@ -621,19 +718,18 @@ namespace DataKeeper.Editor.Forge
             var value = new Label();
             value.AddToClassList("forge-readout__value");
             item.Add(value);
-            _readout.Add(item);
+            _readout.Add(Hint(item, ForgeHelp.Waveform, name));
             return value;
         }
 
-        private VisualElement BuildExportPanel()
+        private VisualElement BuildExportPage()
         {
-            var panel = new Foldout { text = "Export", value = _exportExpanded };
-            panel.AddToClassList("forge-export");
-            // Child toggles raise bool change events that bubble up to the foldout.
-            panel.RegisterValueChangedCallback(e =>
-            {
-                if (e.target == panel) _exportExpanded = e.newValue;
-            });
+            var page = ScrollPage();
+            page.Add(SectionHeader("Export", ForgeHelp.Export));
+
+            var form = new VisualElement();
+            form.AddToClassList("forge-export");
+            page.Add(form);
 
             var folderRow = new VisualElement();
             folderRow.AddToClassList("forge-export__row");
@@ -641,43 +737,38 @@ namespace DataKeeper.Editor.Forge
             folder.AddToClassList("forge-export__folder");
             folderRow.Add(folder);
             folderRow.Add(MakeButton("…", PickExportFolder, "forge-button--icon"));
-            panel.Add(folderRow);
+            form.Add(Hint(folderRow, ForgeHelp.Export, "Folder  …"));
 
-            panel.Add(ExportField(new TextField("Name"), nameof(ExportSettings.NameTemplate)));
-            var count = ExportField(new IntegerField("Count"), nameof(ExportSettings.Count));
+            form.Add(ExportField(new TextField("Name"), nameof(ExportSettings.NameTemplate), "Name"));
+            var count = ExportField(new IntegerField("Count"), nameof(ExportSettings.Count), "Count");
             count.RegisterValueChangedCallback(e => UpdateExportButton(e.newValue));
-            panel.Add(count);
-            panel.Add(ExportField(new EnumField("Format", WavFormat.Pcm16), nameof(ExportSettings.Format)));
-            panel.Add(ExportField(new EnumField("Channels", ExportChannels.Auto), nameof(ExportSettings.Channels)));
-            var normalize = ExportField(new EnumField("Normalize", NormalizeMode.None), nameof(ExportSettings.Normalize));
+            form.Add(count);
+            form.Add(ExportField(new EnumField("Format", WavFormat.Pcm16), nameof(ExportSettings.Format), "Format"));
+            form.Add(ExportField(new EnumField("Channels", ExportChannels.Auto), nameof(ExportSettings.Channels), "Channels"));
+            var normalize = ExportField(new EnumField("Normalize", NormalizeMode.None), nameof(ExportSettings.Normalize), "Normalize");
             normalize.RegisterValueChangedCallback(e => UpdateNormalizeFields((NormalizeMode)e.newValue));
-            panel.Add(normalize);
-            _loudnessTarget = ExportField(new FloatField("LUFS"), nameof(ExportSettings.LoudnessTargetLufs));
-            panel.Add(_loudnessTarget);
-            _peakTarget = ExportField(new FloatField("dBTP"), nameof(ExportSettings.PeakTargetDb));
-            panel.Add(_peakTarget);
-            panel.Add(ExportField(new Toggle("Trim"), nameof(ExportSettings.TrimSilence)));
-            panel.Add(ExportField(new FloatField("Fade ms"), nameof(ExportSettings.FadeOutMs)));
+            form.Add(normalize);
+            _loudnessTarget = ExportField(new FloatField("LUFS"), nameof(ExportSettings.LoudnessTargetLufs), "LUFS / dBTP");
+            form.Add(_loudnessTarget);
+            _peakTarget = ExportField(new FloatField("dBTP"), nameof(ExportSettings.PeakTargetDb), "LUFS / dBTP");
+            form.Add(_peakTarget);
+            form.Add(ExportField(new Toggle("Trim"), nameof(ExportSettings.TrimSilence), "Trim"));
+            form.Add(ExportField(new FloatField("Fade ms"), nameof(ExportSettings.FadeOutMs), "Fade ms"));
 
             _exportButton = MakeButton("Export WAV", Export, "forge-primary");
             _exportButton.AddToClassList("forge-export__button");
-            panel.Add(_exportButton);
-
-            // Beside the toggle rather than inside it, so clicking it doesn't fold the panel.
-            var help = HelpButton(ForgeHelp.Export);
-            help.AddToClassList("forge-help-button--corner");
-            panel.hierarchy.Add(help);
+            form.Add(Hint(_exportButton, ForgeHelp.Export, "Export"));
 
             UpdateNormalizeFields(_export.Normalize);
             UpdateExportButton(_export.Count);
-            return panel;
+            return page;
         }
 
-        private T ExportField<T>(T field, string name) where T : BindableElement
+        private T ExportField<T>(T field, string name, string hint = null) where T : BindableElement
         {
             field.AddToClassList("forge-export__field");
             field.BindProperty(_serializedWindow.FindProperty($"{nameof(_export)}.{name}"));
-            return field;
+            return hint == null ? field : Hint(field, ForgeHelp.Export, hint);
         }
 
         private void UpdateNormalizeFields(NormalizeMode mode)
@@ -714,7 +805,7 @@ namespace DataKeeper.Editor.Forge
             var relative = picked.Length > projectRoot.Length ? picked.Substring(projectRoot.Length + 1) : string.Empty;
             if (picked.StartsWith(projectRoot + "/") && WavExporter.IsAssetsFolder(relative)) return relative;
 
-            _status.text = "Pick a folder inside this project's Assets folder.";
+            SetStatus("Pick a folder inside this project's Assets folder.");
             return null;
         }
 
@@ -727,7 +818,7 @@ namespace DataKeeper.Editor.Forge
             ForgePresets.Find(_presetFolder, _presetPaths);
             if (_presetPaths.Count == 0)
             {
-                _status.text = $"No presets in {_presetFolder}. Save one first.";
+                SetStatus($"No presets in {_presetFolder}. Save one first.");
                 return;
             }
 
@@ -743,7 +834,7 @@ namespace DataKeeper.Editor.Forge
 
             ForgePresets.Load(_recipe, path);
             SetPresetPath(path);
-            _status.text = $"Loaded preset {path}";
+            SetStatus($"Loaded preset {path}");
             OnRecipeReplaced();
             Play();
         }
@@ -760,7 +851,7 @@ namespace DataKeeper.Editor.Forge
             ForgePresets.Save(_recipe, path);
             _presetFolder = Path.GetDirectoryName(path)!.Replace('\\', '/');
             SetPresetPath(path);
-            _status.text = $"Saved preset {path}";
+            SetStatus($"Saved preset {path}");
         }
 
         private void ShowPresetMenu()
@@ -803,14 +894,13 @@ namespace DataKeeper.Editor.Forge
                 _routeElements.Add(element);
             }
 
-            _routesFoldout.text = $"Routes ({routes.arraySize})";
+            _routesTitle.text = $"Routes ({routes.arraySize})";
         }
 
         private void AddRoute()
         {
             Undo.RecordObject(_recipe, "Add Route");
             _recipe.Routes.Add(new ModRoute(ModSource.Lfo, ModTarget.Pitch, 0f));
-            _routesFoldout.value = true;
             CommitRouteChange();
         }
 
@@ -832,6 +922,12 @@ namespace DataKeeper.Editor.Forge
         {
             EditorUtility.SetDirty(_recipe);
             _serializedRecipe.Update();
+            OnRoutesChanged();
+            _modulation.Refresh();
+        }
+
+        private void OnRoutesChanged()
+        {
             RebuildRoutes();
             RequestRender();
         }
@@ -845,6 +941,7 @@ namespace DataKeeper.Editor.Forge
             _tracker?.RemoveFromHierarchy();
             _tracker = null;
             _serializedRecipe = recipe != null ? new SerializedObject(recipe) : null;
+            _modulation.Bind(recipe, _serializedRecipe);
 
             if (clearVariations)
             {
@@ -875,6 +972,7 @@ namespace DataKeeper.Editor.Forge
                 _macroKnobs[i].BindProperty(_serializedRecipe.FindProperty($"{nameof(SfxRecipe.Macros)}.{MacroNames[i]}"));
             _lfoShape.BindProperty(_serializedRecipe.FindProperty("Lfo.Shape"));
             _lfoRate.BindProperty(_serializedRecipe.FindProperty("Lfo.RateHz"));
+            _distortionMode.BindProperty(_serializedRecipe.FindProperty("Fx.Distortion.Mode"));
             foreach (var (element, path) in _fxBindings) element.BindProperty(_serializedRecipe.FindProperty(path));
             RebuildStrips();
             RebuildRoutes();
@@ -905,23 +1003,27 @@ namespace DataKeeper.Editor.Forge
                 strip.RemoveRequested += RemoveLayer;
                 strip.DuplicateRequested += DuplicateLayer;
                 strip.Selected += SelectCurveLayer;
+                strip.Compact = _compactStrips;
+                if (_renderer.FrameCount > 0) strip.ShowRender(_renderer);
                 _strips.Add(strip);
             }
 
             RefreshCurveEditor();
+            _modulation.Refresh();
 
             _addLayer.SetEnabled(layers.arraySize < SfxRecipe.MaxLayers);
         }
 
         private void RefreshSelectors()
         {
-            foreach (var pair in _categoryButtons)
-                pair.Value.EnableInClassList("forge-selected", pair.Key == _recipe.Category);
+            _category.SetValueWithoutNotify(_recipe.Category);
             foreach (var pair in _harmonyButtons)
                 pair.Value.EnableInClassList("forge-selected", pair.Key == _recipe.Randomizer.Harmony);
             _length.Locked = _recipe.Randomizer.LockLength;
             _fxTitle.EnableInClassList("forge-locked-title", _recipe.Randomizer.LockFx);
+            RefreshFxModules();
             RefreshCurveEditor();
+            _modulation.Refresh();
         }
 
         private void OnRecipeChanged()
@@ -1067,7 +1169,7 @@ namespace DataKeeper.Editor.Forge
                 template = ForgeTemplates.Get(_recipe.Category);
                 if (template == null)
                 {
-                    _status.text = $"No template for {_recipe.Category} in {ForgeAssets.TemplatesFolder}.";
+                    SetStatus($"No template for {_recipe.Category} in {ForgeAssets.TemplatesFolder}.");
                     return;
                 }
             }
@@ -1077,9 +1179,9 @@ namespace DataKeeper.Editor.Forge
             _generator.Generate(_recipe, template, baseSeed, _recipe.Randomizer.CandidateCount, VariationCount, _variations);
             stopwatch.Stop();
 
-            _status.text = $"{(mutate ? "Mutate" : "Randomize")}: kept {_variations.Count} of {_generator.CandidateCount} " +
-                           $"candidates, {_generator.Rejected} rejected as defective or outliers " +
-                           $"({stopwatch.Elapsed.TotalMilliseconds:0} ms).";
+            SetStatus($"{(mutate ? "Mutate" : "Randomize")}: kept {_variations.Count} of {_generator.CandidateCount} " +
+                      $"candidates, {_generator.Rejected} rejected as defective or outliers " +
+                      $"({stopwatch.Elapsed.TotalMilliseconds:0} ms).");
 
             RenderThumbnails();
             ApplyVariation(0, mutate ? "Mutate" : "Randomize");
@@ -1211,6 +1313,8 @@ namespace DataKeeper.Editor.Forge
 
             var output = _renderer.Output;
             _waveform.SetSamples(output, SfxRenderer.Channels);
+            foreach (var strip in _strips) strip.ShowRender(_renderer);
+            if (_page == Page.Fx) RefreshFxGraphs();
             LoadPreview();
             UpdateReadout(_analyzer.Analyze(output, SfxRenderer.Channels, _renderer.SampleRate), stopwatch.Elapsed.TotalMilliseconds);
         }
@@ -1272,7 +1376,7 @@ namespace DataKeeper.Editor.Forge
         private void Stop()
         {
             _player.Stop();
-            _waveform.Playhead = -1f;
+            SetPlayhead(-1f);
             _meter.ResetLevels(EditorApplication.timeSinceStartup);
             _playheadUpdater.Pause();
         }
@@ -1286,8 +1390,14 @@ namespace DataKeeper.Editor.Forge
             }
 
             var position = _trimFirstFrame + _player.TimeSamples;
-            _waveform.Playhead = position / (float)_renderer.FrameCount;
+            SetPlayhead(position / (float)_renderer.FrameCount);
             UpdateMeter(position);
+        }
+
+        private void SetPlayhead(float playhead)
+        {
+            _waveform.Playhead = playhead;
+            foreach (var strip in _strips) strip.Playhead = playhead;
         }
 
         // Peak of the rendered audio the player went through since the last tick.
@@ -1313,7 +1423,7 @@ namespace DataKeeper.Editor.Forge
         private void Export()
         {
             if (_recipe == null) return;
-            _status.text = _batchExporter.Export(_recipe, _export, _trimStart, _trimEnd);
+            SetStatus(_batchExporter.Export(_recipe, _export, _trimStart, _trimEnd));
         }
 
         private void CreateRecipe()
@@ -1326,6 +1436,49 @@ namespace DataKeeper.Editor.Forge
             AssetDatabase.CreateAsset(recipe, path);
             AssetDatabase.SaveAssets();
             SetRecipe(recipe, true);
+        }
+
+        // ── Status bar ──────────────────────────────────────────────────────────────
+
+        private VisualElement BuildStatusBar()
+        {
+            var bar = new VisualElement();
+            bar.AddToClassList("forge-status");
+            _statusName = new Label();
+            _statusName.AddToClassList("forge-status__name");
+            bar.Add(_statusName);
+            _statusText = new Label();
+            _statusText.AddToClassList("forge-status__text");
+            bar.Add(_statusText);
+            ShowStatus();
+            return bar;
+        }
+
+        // Shown straight away even under the cursor, so the result of the button just pressed is
+        // not hidden behind that button's hint; the next element hovered brings hints back.
+        private void SetStatus(string message)
+        {
+            _statusMessage = message;
+            ShowStatus();
+        }
+
+        private void ShowStatus()
+        {
+            _statusName.style.display = DisplayStyle.None;
+            _statusText.text = _statusMessage;
+        }
+
+        private void OnPointerOver(PointerOverEvent evt)
+        {
+            if (!ForgeHints.TryFind(evt.target as VisualElement, out var name, out var text))
+            {
+                ShowStatus();
+                return;
+            }
+
+            _statusName.text = name;
+            _statusName.style.display = DisplayStyle.Flex;
+            _statusText.text = text;
         }
 
         // ── Hotkeys ─────────────────────────────────────────────────────────────────
@@ -1442,5 +1595,23 @@ namespace DataKeeper.Editor.Forge
             if (extraClass != null) button.AddToClassList(extraClass);
             return button;
         }
+
+        private static Button IconButton(ForgeIcon icon, Action onClick, string extraClass = null)
+        {
+            var button = MakeButton(string.Empty, onClick, "forge-button--icon");
+            if (extraClass != null) button.AddToClassList(extraClass);
+            button.Add(new IconElement(icon));
+            return button;
+        }
+
+        private static Button StepperArrow(string text, Action onClick)
+        {
+            var button = new Button(onClick) { text = text, focusable = false };
+            button.AddToClassList(StepperElement.UssClassName + "__arrow");
+            return button;
+        }
+
+        private static T Hint<T>(T element, HelpTopic topic, string item) where T : VisualElement =>
+            ForgeHints.Set(element, topic, item);
     }
 }

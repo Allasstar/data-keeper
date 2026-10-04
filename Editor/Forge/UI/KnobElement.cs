@@ -1,4 +1,5 @@
 using System;
+using DataKeeper.Forge;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -32,6 +33,7 @@ namespace DataKeeper.Editor.Forge
         private const float SweepAngle = 270f;
         private const float DragSensitivity = 0.005f;
         private const float FineFactor = 0.1f;
+        private const int MaxModArcs = 8;
 
         private static readonly CustomStyleProperty<Color> TrackColorProperty = new("--knob-track-color");
         private static readonly CustomStyleProperty<Color> ValueColorProperty = new("--knob-value-color");
@@ -41,6 +43,7 @@ namespace DataKeeper.Editor.Forge
         private readonly Label _title;
         private readonly VisualElement _dial;
         private readonly Label _readout;
+        private readonly ModArc[] _modArcs = new ModArc[MaxModArcs];
 
         private float _value;
         private float _min;
@@ -49,6 +52,11 @@ namespace DataKeeper.Editor.Forge
         private bool _dragging;
         private bool _locked;
         private float _lastPointerY;
+        private ModTarget? _modTarget;
+        private VisualElement _modChips;
+        private int _modArcCount;
+        private int _modArcWrite;
+        private bool _modArcsDirty;
 
         private Color _trackColor = new(0.08f, 0.08f, 0.09f);
         private Color _valueColor = new(1f, 0.57f, 0.19f);
@@ -106,6 +114,25 @@ namespace DataKeeper.Editor.Forge
         }
 
         public event Action<bool> LockToggled;
+
+        public ModTarget? ModTarget
+        {
+            get => _modTarget;
+            set
+            {
+                _modTarget = value;
+                EnableInClassList(UssClassName + "--mod-target", value.HasValue);
+                if (!value.HasValue || _modChips != null) return;
+
+                _modChips = new VisualElement();
+                _modChips.AddToClassList(UssClassName + "__mods");
+                _dial.Add(_modChips);
+            }
+        }
+
+        public int ModLayer { get; set; } = ModRoute.AllLayers;
+
+        public VisualElement ModChips => _modChips;
 
         public float value
         {
@@ -176,6 +203,36 @@ namespace DataKeeper.Editor.Forge
             Refresh();
         }
 
+        public void SetDropState(bool hovered, bool accepted)
+        {
+            EnableInClassList(UssClassName + "--drop", hovered && accepted);
+            EnableInClassList(UssClassName + "--drop-refused", hovered && !accepted);
+        }
+
+        // Begin/Add/End compare against the previous set, so refreshing every knob on each
+        // recipe change only repaints the ones whose routes actually changed.
+        public void BeginModArcs()
+        {
+            _modArcWrite = 0;
+            _modArcsDirty = false;
+        }
+
+        public void AddModArc(float amount, Color color, bool unipolar)
+        {
+            if (_modArcWrite >= MaxModArcs) return;
+
+            var arc = new ModArc(amount, color, unipolar);
+            if (_modArcWrite >= _modArcCount || !_modArcs[_modArcWrite].Equals(arc)) _modArcsDirty = true;
+            _modArcs[_modArcWrite++] = arc;
+        }
+
+        public void EndModArcs()
+        {
+            if (_modArcWrite != _modArcCount) _modArcsDirty = true;
+            _modArcCount = _modArcWrite;
+            if (_modArcsDirty) _dial.MarkDirtyRepaint();
+        }
+
         private void PopulateContextMenu(ContextualMenuPopulateEvent evt)
         {
             if (Lockable) evt.menu.AppendAction(_locked ? "Unlock" : "Lock", _ => LockToggled?.Invoke(!_locked));
@@ -203,6 +260,10 @@ namespace DataKeeper.Editor.Forge
                 return _min * Mathf.Pow(_max / _min, normalized);
             return Mathf.Lerp(_min, _max, normalized);
         }
+
+        // Modulation amounts are octaves on log knobs and the knob's own unit otherwise.
+        private float Offset(float v, float amount) =>
+            Scale == KnobScale.Log && _min > 0f ? v * Mathf.Pow(2f, amount) : v + amount;
 
         private void Nudge(float normalizedDelta) => value = FromNormalized(ToNormalized(_value) + normalizedDelta);
 
@@ -286,6 +347,8 @@ namespace DataKeeper.Editor.Forge
                 painter.Stroke();
             }
 
+            DrawModArcs(painter, center, radius - 3.5f, normalized);
+
             var angle = (StartAngle + SweepAngle * normalized) * Mathf.Deg2Rad;
             var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
             painter.lineWidth = 2f;
@@ -296,7 +359,40 @@ namespace DataKeeper.Editor.Forge
             painter.Stroke();
         }
 
-        private string FormatValue(float v) => _format switch
+        private void DrawModArcs(Painter2D painter, Vector2 center, float radius, float normalized)
+        {
+            if (!enabledInHierarchy) return;
+
+            painter.lineWidth = 2f;
+            for (var i = 0; i < _modArcCount; i++)
+            {
+                var arc = _modArcs[i];
+                var high = ToNormalized(Offset(_value, arc.Amount));
+                var low = arc.Unipolar ? normalized : ToNormalized(Offset(_value, -arc.Amount));
+                var from = StartAngle + SweepAngle * Mathf.Min(low, high);
+                var to = StartAngle + SweepAngle * Mathf.Max(low, high);
+
+                painter.strokeColor = arc.Color;
+                painter.fillColor = arc.Color;
+                if (to - from > 0.5f)
+                {
+                    painter.BeginPath();
+                    painter.Arc(center, radius, Angle.Degrees(from), Angle.Degrees(to));
+                    painter.Stroke();
+                }
+
+                // Marks the +amount end, so a negative route reads as pushing the other way.
+                var angle = (StartAngle + SweepAngle * high) * Mathf.Deg2Rad;
+                painter.BeginPath();
+                painter.Arc(center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius, 2f,
+                    Angle.Degrees(0f), Angle.Degrees(360f));
+                painter.Fill();
+            }
+        }
+
+        private string FormatValue(float v) => FormatAs(_format, v);
+
+        public static string FormatAs(KnobFormat format, float v) => format switch
         {
             KnobFormat.Decibels => $"{v:0.0} dB",
             KnobFormat.Hertz => v >= 1000f ? $"{v / 1000f:0.00} kHz" : v < 10f ? $"{v:0.00} Hz" : $"{v:0} Hz",
@@ -308,5 +404,21 @@ namespace DataKeeper.Editor.Forge
             KnobFormat.Octaves => $"{v:+0.00;-0.00;0.00} oct",
             _ => $"{v:0.00}",
         };
+    }
+
+    internal readonly struct ModArc : IEquatable<ModArc>
+    {
+        public readonly float Amount;
+        public readonly Color Color;
+        public readonly bool Unipolar;
+
+        public ModArc(float amount, Color color, bool unipolar)
+        {
+            Amount = amount;
+            Color = color;
+            Unipolar = unipolar;
+        }
+
+        public bool Equals(ModArc other) => Amount == other.Amount && Color == other.Color && Unipolar == other.Unipolar;
     }
 }

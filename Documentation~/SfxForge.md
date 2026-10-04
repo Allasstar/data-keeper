@@ -11,19 +11,31 @@ platform.
 
 | Area | What it holds |
 |---|---|
-| Top bar | Recipe, New, preset browser (◀ name ▶, Save Preset), Randomize, Mutate, Undo/Redo, output meter, Play/Stop |
-| Left | Categories, the 8-variation grid (hover a thumbnail for its loudness, brightness and length), seed, Export foldout |
-| Center | Length, waveform with trim handles and analysis readouts, curve editor (Pitch/Filter/Amp/Pan), layer strips |
-| Right | Macros, LFO and modulation routes, randomizer settings, FX chain |
+| Top bar | Recipe, New, `< category >`, `< preset >` with save, Undo/Redo, Play/Stop/Autoplay, output meter (drag it sideways to set the preview volume, shown as the thin middle line; double-click resets) |
+| Left | Randomize and Mutate, randomizer settings (harmony, variation, physics, candidates), the 8-variation grid (hover a thumbnail for its loudness, brightness and length), seed. `«` at the left of the page tabs hides the panel, `»` brings it back |
+| Sound page | Length, waveform with trim handles and analysis readouts, curve editor (Pitch/Filter/Amp/Pan), layer strips |
+| FX page | The FX chain, one module per effect (see below) |
+| Mod page | Macros, LFO and modulation routes |
+| Export page | WAV export settings |
+| Status bar | The last message, or the name and a line of help for the control under the mouse |
 
-Hotkeys: `Space` play/stop, `R` randomize, `M` mutate. Right-click a knob or dropdown to lock it
-against the randomizer. Each panel has a `?` button that explains the panel and every control in
-it; click outside the card or press `Esc` to close it.
+The window remembers the last page. Hotkeys: `Space` play/stop, `R` randomize, `M` mutate.
+Right-click a knob or stepper to lock it against the randomizer. Each panel has a `?` button that
+explains the panel and every control in it; click outside the card or press `Esc` to close it.
 
 ## Layers and sources
 
 Up to 6 layers, each with a source, band, pitch, filter, level, pan, start offset and voice
 length (Decay), plus Pitch/Cutoff/Amp/Pan curves across the voice.
+
+Each layer strip has the same layout:
+
+- **Side tab:** on/off light, layer number, band colour. It turns red when the layer is locked.
+- **Header:** name, band, Mute, Solo, and `…` (Duplicate, Remove, Lock Layer, Lock Curves, Clear Parameter Locks; right-clicking the header or tab opens the same menu).
+- **Display:** `< >` steppers for the source type and its variant (wave, noise colour, wavetable bank, or the clip field), above two pictures of the layer's own render before mixing and FX. The left picture shows two cycles of the wave at its loudest point. The right one shows the whole layer over time, scaled to its own peak. A flat picture means the layer is silent.
+- **Boxes:** **VOICE** (Pitch, Offset, Decay), **AMP** (Level, Pan), **FILTER** (type, Cutoff, Reso), and **SOURCE** (the FM, Wavetable, Sample or Granular controls; hidden for Oscillator and Noise).
+
+`Compact` in the Layers header hides the boxes on every strip.
 
 | Source | Notes |
 |---|---|
@@ -37,9 +49,25 @@ length (Decay), plus Pitch/Cutoff/Amp/Pan curves across the voice.
 Sample and granular clips are read with `AudioClip.GetData`, which only returns data for
 uncompressed clips or clips set to Decompress On Load.
 
+## FX
+
+The FX page stacks the effects in the order they run on the mix of all layers: Transient,
+Distortion, Delay, Reverb, Limiter. The order is fixed. Each module has an on/off light in its
+title (clicking the name works too); an effect that is off folds down to its title. The graph
+on the left of each module shows what the effect does with its current settings, using a test
+signal rather than your sound:
+
+| Effect | Graph |
+|---|---|
+| Transient | A test hit before (grey) and after (orange) the shaper |
+| Distortion | The shaping curve: input across, output up. The grey diagonal is the clean signal |
+| Delay | A click and its echoes over the length of the sound |
+| Reverb | The tail of a click fading over the length of the sound, 60 dB top to bottom |
+| Limiter | A quiet signal with a loud burst, in dB. The red line is the ceiling; the dip after the burst is the release |
+
 ## Randomizer
 
-Randomize builds a new sound from the category template (`Runtime/Forge/Templates/*.json`):
+Changing the category in the top bar randomizes straight away. Randomize builds a new sound from the category template (`Runtime/Forge/Templates/*.json`):
 harmony-aware pitches, band separation, physics coupling and perturbed template curves. Mutate
 nudges the current sound by the Variation amount. Both render a batch of candidates (Candidates,
 default 24), analyse each, reject silent, clipping, DC-offset, cut-off and outlier results, and
@@ -63,13 +91,30 @@ follow the design rules: Size lowers pitch and lengthens the sound, Energy adds 
 brightness, Tone tilts brightness, Motion scales the LFO and adds delay. A route can target all
 layers or one.
 
+**Drag to modulate.** The source bar under the page tabs holds one coloured chip per source and
+is there on every page. Drag a chip onto a highlighted knob to add a route at a quarter of the
+target's range:
+
+- On a layer knob the route moves that layer only; hold Alt while dropping to move every layer.
+- LFO and Env are refused on targets they can't reach, and an existing source/target/layer
+  combination is refused as a duplicate. The status bar says why.
+
+Every route that reaches a knob draws an arc for its range in the source's colour, with a dot
+at the `+amount` end, and a small chip in the dial's bottom gap. Drag a chip vertically to set
+the amount (Shift for fine), double-click it to zero it, or right-click it to switch the route
+off, change its layers or remove it. A hollow chip is an all-layers route. LFO Depth has no
+knob, so it is routed from the matrix only.
+
+The **Routes** matrix on the Mod page shows one row per route: colour, light, source, target,
+layer and a bipolar amount bar (drag it; double-click zeroes it).
+
 ## Analysis and export
 
 Readouts under the waveform: effective length (to -60 dB below peak), true peak (dBTP), loudness
 (BS.1770 gated LUFS), spectral centroid, crest factor, and warnings for clipping, DC offset or a
 tail cut off by the length.
 
-The Export foldout writes `Count` WAV files into an `Assets` folder, named by a template
+The Export page writes `Count` WAV files into an `Assets` folder, named by a template
 (`sfx_{category}_{name}_{n}` by default; tokens `{category}`, `{name}`, `{n}`, `{seed}`). File 1
 is the recipe as designed, the rest are filtered mutations seeded from the recipe seed, so
 re-exporting writes identical files. Options: 16/24-bit PCM or 32-bit float; Auto/Mono/Stereo
@@ -79,8 +124,8 @@ Decompress On Load.
 
 ## Presets
 
-Save Preset writes the recipe as JSON into a preset folder (`Assets/Forge Presets` by default);
-◀ ▶ step through that folder and the name button lists it. Loading a preset is undoable. Clip
+The save icon writes the recipe as JSON into a preset folder (`Assets/Forge Presets` by default);
+`< >` step through that folder and clicking the name lists it. Loading a preset is undoable. Clip
 references are stored as asset GUIDs, so presets are editor-only; at runtime use the recipe asset.
 
 ## Runtime

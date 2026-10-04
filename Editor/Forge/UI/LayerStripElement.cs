@@ -1,5 +1,6 @@
 using System;
 using DataKeeper.Forge;
+using DataKeeper.Forge.Render;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -12,26 +13,35 @@ namespace DataKeeper.Editor.Forge
     {
         public const string UssClassName = "forge-strip";
 
+        private const string LockedFieldClass = UssClassName + "__field--locked";
+
+        private readonly VisualElement _tab;
         private readonly Label _index;
         private readonly Toggle _enabled;
         private readonly TextField _name;
         private readonly EnumField _band;
-        private readonly ToolbarToggle _lock;
         private readonly ToolbarToggle _mute;
         private readonly ToolbarToggle _solo;
-        private readonly EnumField _sourceType;
-        private readonly EnumField _waveform;
-        private readonly EnumField _noiseColor;
-        private readonly EnumField _filterType;
+        private readonly Button _menuButton;
+
+        private readonly StepperElement _sourceType;
+        private readonly StepperElement _waveform;
+        private readonly StepperElement _noiseColor;
+        private readonly StepperElement _wavetableBank;
+        private readonly ObjectField _sampleClip;
+        private readonly ScopeElement _scope;
+        private readonly WaveformElement _wave;
 
         private readonly KnobElement _pitch;
-        private readonly KnobElement _cutoff;
-        private readonly KnobElement _resonance;
+        private readonly KnobElement _offset;
         private readonly KnobElement _decay;
         private readonly KnobElement _level;
         private readonly KnobElement _pan;
-        private readonly KnobElement _offset;
+        private readonly StepperElement _filterType;
+        private readonly KnobElement _cutoff;
+        private readonly KnobElement _resonance;
 
+        private readonly ParamBoxElement _sourceBox;
         private readonly VisualElement _fmGroup;
         private readonly VisualElement _wavetableGroup;
         private readonly VisualElement _sampleGroup;
@@ -39,18 +49,17 @@ namespace DataKeeper.Editor.Forge
         private readonly KnobElement _fmRatio;
         private readonly KnobElement _fmIndex;
         private readonly KnobElement _fmEnvelope;
-        private readonly EnumField _wavetableBank;
         private readonly KnobElement _wavetablePosition;
-        private readonly ObjectField _sampleClip;
         private readonly KnobElement _sampleStart;
         private readonly ToolbarToggle _sampleReverse;
-        private readonly EnumField _sampleInterpolation;
+        private readonly StepperElement _sampleInterpolation;
         private readonly KnobElement _grainSize;
         private readonly KnobElement _grainDensity;
         private readonly KnobElement _grainSpray;
         private readonly KnobElement _grainPitchRandom;
 
         private readonly (KnobElement Knob, LayerParam Param)[] _lockableKnobs;
+        private readonly (KnobElement Knob, ModTarget Target)[] _modKnobs;
         private readonly (VisualElement Field, LayerParam Param)[] _lockableFields;
 
         private SerializedProperty _layer;
@@ -66,96 +75,117 @@ namespace DataKeeper.Editor.Forge
         {
             AddToClassList(UssClassName);
 
-            var header = Row("header");
-            _index = new Label();
-            _index.AddToClassList(UssClassName + "__index");
+            _tab = Part(this, "tab");
             _enabled = new Toggle { focusable = false };
             _enabled.AddToClassList(UssClassName + "__enabled");
+            _tab.Add(_enabled);
+            _index = new Label();
+            _index.AddToClassList(UssClassName + "__index");
+            _tab.Add(_index);
+
+            var body = Part(this, "body");
+
+            var head = Part(body, "head");
             _name = new TextField();
             _name.AddToClassList(UssClassName + "__name");
+            head.Add(_name);
             _band = new EnumField(Band.Body);
             _band.AddToClassList(UssClassName + "__band");
-            _lock = FlagToggle("L", "lock");
+            head.Add(_band);
             _mute = FlagToggle("M", "mute");
             _solo = FlagToggle("S", "solo");
+            head.Add(_mute);
+            head.Add(_solo);
+            _menuButton = new Button(() => ShowMenu(_menuButton.worldBound))
+            {
+                text = "…",
+                focusable = false,
+            };
+            _menuButton.AddToClassList(UssClassName + "__menu");
+            head.Add(_menuButton);
 
-            header.Add(_index);
-            header.Add(_enabled);
-            header.Add(_name);
-            header.Add(_band);
-            header.Add(_lock);
-            header.Add(_mute);
-            header.Add(_solo);
-            header.Add(ActionButton("Dup", () => DuplicateRequested?.Invoke(_layerIndex)));
-            header.Add(ActionButton("×", () => RemoveRequested?.Invoke(_layerIndex)));
+            var main = Part(body, "main");
 
-            var source = Row("source");
-            _sourceType = Dropdown(SourceType.Oscillator, "Source");
-            _waveform = Dropdown(Waveform.Sine, "Wave");
-            _noiseColor = Dropdown(NoiseColor.White, "Color");
-            _filterType = Dropdown(FilterType.Off, "Filter");
-            source.Add(_sourceType);
-            source.Add(_waveform);
-            source.Add(_noiseColor);
-            source.Add(_filterType);
-
-            var sourceParams = Row("source-params");
-            _fmGroup = Group(sourceParams);
-            _fmRatio = new KnobElement("Ratio", FmSettings.MinRatio, FmSettings.MaxRatio, 2f, KnobFormat.Ratio, KnobScale.Log);
-            _fmIndex = new KnobElement("Index", 0f, FmSettings.MaxIndex, 2f);
-            _fmEnvelope = new KnobElement("Index Env", 0f, 1f, 0.5f, KnobFormat.Percent);
-            _fmGroup.Add(_fmRatio);
-            _fmGroup.Add(_fmIndex);
-            _fmGroup.Add(_fmEnvelope);
-
-            _wavetableGroup = Group(sourceParams);
-            _wavetableBank = Dropdown(WavetableBank.Basic, "Bank");
-            _wavetablePosition = new KnobElement("Position", 0f, 1f, 0f, KnobFormat.Percent);
-            _wavetableGroup.Add(_wavetableBank);
-            _wavetableGroup.Add(_wavetablePosition);
-
-            _sampleGroup = Group(sourceParams);
-            _sampleClip = new ObjectField("Clip") { objectType = typeof(AudioClip), allowSceneObjects = false };
+            var display = Part(main, "display");
+            var sourceRow = Part(display, "source");
+            _sourceType = Stepper(sourceRow, SourceType.Oscillator, "source-type");
+            _waveform = Stepper(sourceRow, Waveform.Sine, "variant");
+            _noiseColor = Stepper(sourceRow, NoiseColor.White, "variant");
+            _wavetableBank = Stepper(sourceRow, WavetableBank.Basic, "variant");
+            _sampleClip = new ObjectField { objectType = typeof(AudioClip), allowSceneObjects = false };
             _sampleClip.AddToClassList(UssClassName + "__clip");
-            _sampleStart = new KnobElement("Start", 0f, SampleSettings.MaxStartMs, 0f, KnobFormat.Milliseconds);
+            sourceRow.Add(_sampleClip);
+
+            var views = Part(display, "views");
+            _scope = new ScopeElement { pickingMode = PickingMode.Ignore };
+            views.Add(_scope);
+            _wave = new WaveformElement { ShowTrim = false, Normalize = true, pickingMode = PickingMode.Ignore };
+            _wave.AddToClassList(UssClassName + "__wave");
+            views.Add(_wave);
+
+            // The boxes wrap as one group, so strips with the same controls always lay out the same.
+            var controls = Part(main, "controls");
+
+            var voice = Box(controls, "VOICE");
+            _pitch = Knob(voice, new KnobElement("Pitch", ParamRanges.PitchMin, ParamRanges.PitchMax, 0f,
+                KnobFormat.Semitones, bipolar: true));
+            _offset = Knob(voice, new KnobElement("Offset", 0f, ParamRanges.OffsetMaxMs, 0f, KnobFormat.Milliseconds));
+            _decay = Knob(voice, new KnobElement("Decay", ParamRanges.DecayMinMs, ParamRanges.DecayMaxMs, 500f,
+                KnobFormat.Milliseconds, KnobScale.Log));
+
+            var amp = Box(controls, "AMP");
+            _level = Knob(amp, new KnobElement("Level", ParamRanges.LevelMinDb, ParamRanges.LevelMaxDb, -6f,
+                KnobFormat.Decibels));
+            _pan = Knob(amp, new KnobElement("Pan", -1f, 1f, 0f, KnobFormat.Pan, bipolar: true));
+
+            // Stacked rows instead of a 100%-wide stepper in a wrapping row, which UI Toolkit
+            // measures too short and the strip then clips.
+            var filter = Box(controls, "FILTER");
+            filter.AddToClassList(ParamBoxElement.UssClassName + "--stacked");
+            _filterType = Stepper(filter, FilterType.Off, "filter");
+            var filterKnobs = Part(filter, "knob-row");
+            _cutoff = Knob(filterKnobs, new KnobElement("Cutoff", ParamRanges.CutoffMin, ParamRanges.CutoffMax, 2000f,
+                KnobFormat.Hertz, KnobScale.Log));
+            _resonance = Knob(filterKnobs, new KnobElement("Reso", 0f, 1f, 0.1f, KnobFormat.Percent));
+
+            _sourceBox = Box(controls, "SOURCE");
+            _fmGroup = Part(_sourceBox, "group");
+            _fmRatio = Knob(_fmGroup, new KnobElement("Ratio", FmSettings.MinRatio, FmSettings.MaxRatio, 2f,
+                KnobFormat.Ratio, KnobScale.Log));
+            _fmIndex = Knob(_fmGroup, new KnobElement("Index", 0f, FmSettings.MaxIndex, 2f));
+            _fmEnvelope = Knob(_fmGroup, new KnobElement("Index Env", 0f, 1f, 0.5f, KnobFormat.Percent));
+
+            _wavetableGroup = Part(_sourceBox, "group");
+            _wavetablePosition = Knob(_wavetableGroup, new KnobElement("Position", 0f, 1f, 0f, KnobFormat.Percent));
+
+            _sampleGroup = Part(_sourceBox, "group");
+            _sampleStart = Knob(_sampleGroup, new KnobElement("Start", 0f, SampleSettings.MaxStartMs, 0f,
+                KnobFormat.Milliseconds));
+            var sampleOptions = Part(_sampleGroup, "options");
             _sampleReverse = FlagToggle("Rev", "reverse");
-            _sampleInterpolation = Dropdown(SampleInterpolation.Cubic, "Interp");
-            _sampleGroup.Add(_sampleClip);
-            _sampleGroup.Add(_sampleStart);
-            _sampleGroup.Add(_sampleReverse);
-            _sampleGroup.Add(_sampleInterpolation);
+            sampleOptions.Add(_sampleReverse);
+            _sampleInterpolation = Stepper(sampleOptions, SampleInterpolation.Cubic, "interp");
 
-            _granularGroup = Group(sourceParams);
-            _grainSize = new KnobElement("Grain", GranularSettings.MinGrainMs, GranularSettings.MaxGrainMs, 60f,
-                KnobFormat.Milliseconds, KnobScale.Log);
-            _grainDensity = new KnobElement("Density", GranularSettings.MinDensity, GranularSettings.MaxDensity, 30f,
-                KnobFormat.Number, KnobScale.Log);
-            _grainSpray = new KnobElement("Spray", 0f, GranularSettings.MaxSprayMs, 20f, KnobFormat.Milliseconds);
-            _grainPitchRandom = new KnobElement("Pitch Rnd", 0f, GranularSettings.MaxPitchRandom, 0f, KnobFormat.Semitones);
-            _granularGroup.Add(_grainSize);
-            _granularGroup.Add(_grainDensity);
-            _granularGroup.Add(_grainSpray);
-            _granularGroup.Add(_grainPitchRandom);
+            _granularGroup = Part(_sourceBox, "group");
+            _grainSize = Knob(_granularGroup, new KnobElement("Grain", GranularSettings.MinGrainMs,
+                GranularSettings.MaxGrainMs, 60f, KnobFormat.Milliseconds, KnobScale.Log));
+            _grainDensity = Knob(_granularGroup, new KnobElement("Density", GranularSettings.MinDensity,
+                GranularSettings.MaxDensity, 30f, KnobFormat.Number, KnobScale.Log));
+            _grainSpray = Knob(_granularGroup, new KnobElement("Spray", 0f, GranularSettings.MaxSprayMs, 20f,
+                KnobFormat.Milliseconds));
+            _grainPitchRandom = Knob(_granularGroup, new KnobElement("Pitch Rnd", 0f, GranularSettings.MaxPitchRandom,
+                0f, KnobFormat.Semitones));
 
-            var knobs = Row("knobs");
-            _pitch = new KnobElement("Pitch", ParamRanges.PitchMin, ParamRanges.PitchMax, 0f,
-                KnobFormat.Semitones, bipolar: true);
-            _cutoff = new KnobElement("Cutoff", ParamRanges.CutoffMin, ParamRanges.CutoffMax, 2000f,
-                KnobFormat.Hertz, KnobScale.Log);
-            _resonance = new KnobElement("Reso", 0f, 1f, 0.1f, KnobFormat.Percent);
-            _decay = new KnobElement("Decay", ParamRanges.DecayMinMs, ParamRanges.DecayMaxMs, 500f,
-                KnobFormat.Milliseconds, KnobScale.Log);
-            _level = new KnobElement("Level", ParamRanges.LevelMinDb, ParamRanges.LevelMaxDb, -6f,
-                KnobFormat.Decibels);
-            _pan = new KnobElement("Pan", -1f, 1f, 0f, KnobFormat.Pan, bipolar: true);
-            _offset = new KnobElement("Offset", 0f, ParamRanges.OffsetMaxMs, 0f, KnobFormat.Milliseconds);
-            knobs.Add(_pitch);
-            knobs.Add(_cutoff);
-            knobs.Add(_resonance);
-            knobs.Add(_decay);
-            knobs.Add(_level);
-            knobs.Add(_pan);
-            knobs.Add(_offset);
+            _modKnobs = new[]
+            {
+                (_pitch, ModTarget.Pitch),
+                (_cutoff, ModTarget.Cutoff),
+                (_level, ModTarget.Level),
+                (_pan, ModTarget.Pan),
+                (_decay, ModTarget.Decay),
+                (_resonance, ModTarget.Resonance),
+            };
+            foreach (var (knob, target) in _modKnobs) knob.ModTarget = target;
 
             _lockableKnobs = new[]
             {
@@ -196,7 +226,28 @@ namespace DataKeeper.Editor.Forge
             foreach (var (field, param) in _lockableFields)
                 field.AddManipulator(new ContextualMenuManipulator(evt => PopulateFieldMenu(evt, param)));
 
-            header.AddManipulator(new ContextualMenuManipulator(PopulateHeaderMenu));
+            var help = ForgeHelp.Layers;
+            ForgeHints.Set(_tab, help, "Side tab");
+            ForgeHints.Set(_name, help, "Name, band");
+            ForgeHints.Set(_band, help, "Name, band");
+            ForgeHints.Set(_mute, help, "M  S");
+            ForgeHints.Set(_solo, help, "M  S");
+            ForgeHints.Set(_menuButton, help, "…");
+            ForgeHints.Set(sourceRow, help, "Source");
+            ForgeHints.Set(views, help, "Pictures");
+            ForgeHints.Set(_pitch, help, "Pitch");
+            ForgeHints.Set(_offset, help, "Offset");
+            ForgeHints.Set(_decay, help, "Decay");
+            ForgeHints.Set(amp, help, "Level / Pan");
+            ForgeHints.Set(filter, help, "Filter");
+            ForgeHints.Set(_fmGroup, help, "FM");
+            ForgeHints.Set(_wavetableGroup, help, "Wavetable");
+            ForgeHints.Set(_sampleGroup, help, "Sample");
+            ForgeHints.Set(_sampleClip, help, "Sample");
+            ForgeHints.Set(_granularGroup, help, "Granular");
+
+            head.AddManipulator(new ContextualMenuManipulator(PopulateLayerMenu));
+            _tab.AddManipulator(new ContextualMenuManipulator(PopulateLayerMenu));
 
             // Trickle-down so it fires even when a knob or field consumes the click.
             RegisterCallback<PointerDownEvent>(_ => Selected?.Invoke(_layerIndex), TrickleDown.TrickleDown);
@@ -207,16 +258,26 @@ namespace DataKeeper.Editor.Forge
             set => EnableInClassList(UssClassName + "--selected", value);
         }
 
+        public bool Compact
+        {
+            set => EnableInClassList(UssClassName + "--compact", value);
+        }
+
+        public float Playhead
+        {
+            set => _wave.Playhead = value;
+        }
+
         public void Bind(SerializedProperty layer, int index)
         {
             _layer = layer;
             _layerIndex = index;
             _index.text = (index + 1).ToString();
+            foreach (var (knob, _) in _modKnobs) knob.ModLayer = index;
 
             _enabled.BindProperty(Relative("Enabled"));
             _name.BindProperty(Relative("Name"));
             _band.BindProperty(Relative("Band"));
-            _lock.BindProperty(Relative("Locked"));
             _mute.BindProperty(Relative("Mute"));
             _solo.BindProperty(Relative("Solo"));
             _sourceType.BindProperty(Relative("Source.Type"));
@@ -249,6 +310,22 @@ namespace DataKeeper.Editor.Forge
             UpdateState();
         }
 
+        // A layer the renderer skipped (off, muted, soloed out, missing clip) draws flat.
+        public void ShowRender(SfxRenderer renderer)
+        {
+            if (_layerIndex >= renderer.LayerCount || !renderer.IsLayerAudible(_layerIndex))
+            {
+                _wave.ClearSamples();
+                _scope.ClearTrace();
+                return;
+            }
+
+            renderer.LayerFrameRange(_layerIndex, out var start, out var end);
+            var output = renderer.LayerOutput(_layerIndex);
+            _wave.SetSamples(output, SfxRenderer.Channels, start, end);
+            _scope.SetCycles(output, SfxRenderer.Channels, start, end, renderer.SampleRate);
+        }
+
         private SerializedProperty Relative(string path) => _layer.FindPropertyRelative(path);
 
         private void UpdateState()
@@ -258,10 +335,13 @@ namespace DataKeeper.Editor.Forge
             var type = (SourceType)Relative("Source.Type").intValue;
             Show(_waveform, type == SourceType.Oscillator);
             Show(_noiseColor, type == SourceType.Noise);
+            Show(_wavetableBank, type == SourceType.Wavetable);
+            Show(_sampleClip, SourceSettings.UsesClip(type));
             Show(_fmGroup, type == SourceType.FM);
             Show(_wavetableGroup, type == SourceType.Wavetable);
             Show(_sampleGroup, SourceSettings.UsesClip(type));
             Show(_granularGroup, type == SourceType.Granular);
+            Show(_sourceBox, type != SourceType.Oscillator && type != SourceType.Noise);
             _pitch.SetEnabled(type != SourceType.Noise);
 
             var filterOn = Relative("Filter.Type").intValue != (int)FilterType.Off;
@@ -275,12 +355,16 @@ namespace DataKeeper.Editor.Forge
             var locks = Relative("LockedParams").intValue;
             foreach (var (knob, param) in _lockableKnobs) knob.Locked = (locks & (int)param) != 0;
             foreach (var (field, param) in _lockableFields)
-                field.EnableInClassList(UssClassName + "__dropdown--locked", (locks & (int)param) != 0);
+                field.EnableInClassList(LockedFieldClass, (locks & (int)param) != 0);
             _index.EnableInClassList(UssClassName + "__index--curve-locked", AnyCurveLocked());
 
             var band = Relative("Band").intValue;
             foreach (Band value in Enum.GetValues(typeof(Band)))
-                _band.EnableInClassList($"{UssClassName}__band--{value.ToString().ToLowerInvariant()}", (int)value == band);
+            {
+                var name = value.ToString().ToLowerInvariant();
+                _band.EnableInClassList($"{UssClassName}__band--{name}", (int)value == band);
+                EnableInClassList($"{UssClassName}--band-{name}", (int)value == band);
+            }
         }
 
         private void PopulateFieldMenu(ContextualMenuPopulateEvent evt, LayerParam param)
@@ -289,17 +373,35 @@ namespace DataKeeper.Editor.Forge
             evt.menu.AppendAction(locked ? "Unlock" : "Lock", _ => SetParamLock(param, !locked));
         }
 
-        private void PopulateHeaderMenu(ContextualMenuPopulateEvent evt)
+        private void PopulateLayerMenu(ContextualMenuPopulateEvent evt) =>
+            AddLayerMenuItems((name, isChecked, enabled, action) => evt.menu.AppendAction(name, _ => action(),
+                !enabled ? DropdownMenuAction.Status.Disabled
+                : isChecked ? DropdownMenuAction.Status.Checked
+                : DropdownMenuAction.Status.Normal));
+
+        private void ShowMenu(Rect anchor)
+        {
+            var menu = new GenericDropdownMenu();
+            AddLayerMenuItems((name, isChecked, enabled, action) =>
+            {
+                if (enabled) menu.AddItem(name, isChecked, action);
+                else menu.AddDisabledItem(name, isChecked);
+            });
+            menu.DropDown(anchor, this, DropdownMenuSizeMode.Auto);
+        }
+
+        // One item list for both the … button and the right-click menu, so they never drift apart.
+        private void AddLayerMenuItems(Action<string, bool, bool, Action> add)
         {
             var layerLocked = Relative("Locked").boolValue;
-            evt.menu.AppendAction(layerLocked ? "Unlock Layer" : "Lock Layer", _ => SetBool("Locked", !layerLocked));
-
             var curvesLocked = AnyCurveLocked();
-            evt.menu.AppendAction(curvesLocked ? "Unlock Curves" : "Lock Curves", _ => SetCurvesLocked(!curvesLocked));
-
             var hasParamLocks = Relative("LockedParams").intValue != 0;
-            evt.menu.AppendAction("Clear Parameter Locks", _ => SetLockFlags(0),
-                hasParamLocks ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+
+            add("Duplicate", false, true, () => DuplicateRequested?.Invoke(_layerIndex));
+            add("Remove", false, true, () => RemoveRequested?.Invoke(_layerIndex));
+            add("Lock Layer", layerLocked, true, () => SetBool("Locked", !layerLocked));
+            add("Lock Curves", curvesLocked, true, () => SetCurvesLocked(!curvesLocked));
+            add("Clear Parameter Locks", false, hasParamLocks, () => SetLockFlags(0));
         }
 
         private void SetParamLock(LayerParam param, bool locked)
@@ -342,20 +444,34 @@ namespace DataKeeper.Editor.Forge
         private static void Show(VisualElement element, bool visible) =>
             element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
 
-        private static VisualElement Group(VisualElement parent)
+        private static VisualElement Part(VisualElement parent, string name)
         {
-            var group = new VisualElement();
-            group.AddToClassList(UssClassName + "__group");
-            parent.Add(group);
-            return group;
+            var part = new VisualElement();
+            part.AddToClassList($"{UssClassName}__{name}");
+            parent.Add(part);
+            return part;
         }
 
-        private VisualElement Row(string name)
+        private static ParamBoxElement Box(VisualElement parent, string title)
         {
-            var row = new VisualElement();
-            row.AddToClassList($"{UssClassName}__{name}");
-            Add(row);
-            return row;
+            var box = new ParamBoxElement(title);
+            parent.Add(box);
+            return box;
+        }
+
+        private static KnobElement Knob(VisualElement parent, KnobElement knob)
+        {
+            knob.AddToClassList(UssClassName + "__knob");
+            parent.Add(knob);
+            return knob;
+        }
+
+        private static StepperElement Stepper(VisualElement parent, Enum initial, string role)
+        {
+            var stepper = new StepperElement(initial);
+            stepper.AddToClassList($"{UssClassName}__stepper--{role}");
+            parent.Add(stepper);
+            return stepper;
         }
 
         private static ToolbarToggle FlagToggle(string text, string flag)
@@ -365,20 +481,6 @@ namespace DataKeeper.Editor.Forge
             toggle.AddToClassList(UssClassName + "__flag");
             toggle.AddToClassList($"{UssClassName}__flag--{flag}");
             return toggle;
-        }
-
-        private static Button ActionButton(string text, Action onClick)
-        {
-            var button = new Button(onClick) { text = text, focusable = false };
-            button.AddToClassList(UssClassName + "__action");
-            return button;
-        }
-
-        private static EnumField Dropdown(Enum initial, string label)
-        {
-            var field = new EnumField(label, initial);
-            field.AddToClassList(UssClassName + "__dropdown");
-            return field;
         }
     }
 }
