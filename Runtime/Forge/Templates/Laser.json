@@ -1,0 +1,97 @@
+{
+  "Category": "Laser",
+  "LengthMs": { "Min": 150, "Max": 800 },
+  "FmRatios": [1.0, 1.41, 3.5],
+  "Fx": {
+    "DriveDb": { "Min": 0, "Max": 18 },
+    "DistortionModes": ["Tanh", "Foldback"],
+    "DelayProbability": 0.3,
+    "DelayTimeMs": { "Min": 50, "Max": 150 },
+    "DelayMix": { "Min": 0.1, "Max": 0.3 },
+    "ReverbMix": { "Min": 0.05, "Max": 0.2 },
+    "ReverbSize": { "Min": 0.3, "Max": 0.6 }
+  },
+  "Layers": [
+    {
+      "Name": "Beam",
+      "Band": "Body",
+      "Tonal": true,
+      "Sources": ["Oscillator", "FM", "Wavetable"],
+      "Waveforms": ["Saw", "Square"],
+      "Pitch": { "Min": 4, "Max": 22 },
+      "Filters": ["LowPass", "BandPass"],
+      "CutoffHz": { "Min": 800, "Max": 2000 },
+      "Resonance": { "Min": 0.4, "Max": 0.85 },
+      "LevelDb": { "Min": -12, "Max": -5 },
+      "DecayMs": { "Min": 120, "Max": 700 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.01, "Value": 1, "Tension": -0.3 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.005,
+        "TensionJitter": 0.4,
+        "AttackIndex": 1
+      },
+      "PitchCurve": {
+        "Min": -36,
+        "Max": 12,
+        "Points": [ { "Time": 0, "Value": 1, "Tension": -0.5 }, { "Time": 1, "Value": 0.25 } ],
+        "ValueJitter": 0.1,
+        "TensionJitter": 0.4
+      },
+      "CutoffCurve": {
+        "Min": -3,
+        "Max": 3,
+        "Points": [ { "Time": 0, "Value": 0.8 }, { "Time": 1, "Value": 0.35 } ],
+        "ValueJitter": 0.1,
+        "TensionJitter": 0.3
+      },
+      "Wavetables": ["Basic", "Pulse", "Harmonic"],
+      "FmIndex": { "Min": 1, "Max": 5 },
+      "FmIndexEnvelope": { "Min": 0.2, "Max": 0.8 }
+    },
+    {
+      "Name": "Zap",
+      "Band": "Click",
+      "Tonal": true,
+      "Sources": ["Oscillator", "FM"],
+      "Waveforms": ["Saw", "Square"],
+      "Pitch": { "Min": 27, "Max": 42 },
+      "Filters": ["Off", "BandPass"],
+      "CutoffHz": { "Min": 2500, "Max": 6000 },
+      "Resonance": { "Min": 0.2, "Max": 0.6 },
+      "LevelDb": { "Min": -18, "Max": -10 },
+      "Pan": { "Min": -0.3, "Max": 0.3 },
+      "DecayMs": { "Min": 40, "Max": 160 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 1, "Tension": -0.5 }, { "Time": 1, "Value": 0 } ],
+        "TensionJitter": 0.3
+      },
+      "PitchCurve": {
+        "Min": -36,
+        "Max": 12,
+        "Points": [ { "Time": 0, "Value": 1, "Tension": -0.6 }, { "Time": 1, "Value": 0.3 } ],
+        "ValueJitter": 0.1,
+        "TensionJitter": 0.3
+      },
+      "FmIndex": { "Min": 2, "Max": 8 },
+      "FmIndexEnvelope": { "Min": 0.5, "Max": 1 }
+    },
+    {
+      "Name": "Sub",
+      "Band": "Sub",
+      "Tonal": true,
+      "Probability": 0.35,
+      "Sources": ["Oscillator"],
+      "Waveforms": ["Sine"],
+      "Pitch": { "Min": -40, "Max": -26 },
+      "Filters": ["Off"],
+      "LevelDb": { "Min": -16, "Max": -8 },
+      "DecayMs": { "Min": 80, "Max": 300 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.02, "Value": 1, "Tension": -0.5 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.01,
+        "TensionJitter": 0.2,
+        "AttackIndex": 1
+      }
+    }
+  ]
+}

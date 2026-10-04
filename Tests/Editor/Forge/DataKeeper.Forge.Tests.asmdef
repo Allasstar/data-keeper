@@ -1,0 +1,28 @@
+{
+    "name": "DataKeeper.Forge.Tests",
+    "rootNamespace": "DataKeeper.Forge.Tests",
+    "references": [
+        "DataKeeper.Forge.Core",
+        "DataKeeper.Forge.Runtime",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

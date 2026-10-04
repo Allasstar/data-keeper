@@ -222,7 +222,7 @@ namespace DataKeeper.Tests.Editor.AssetCommander
         [TestCase("*.prefab", true)]
         [TestCase("*.mat", false)]
         [TestCase("Play?r.prefab", true)]
-        [TestCase("Play??.prefab", false)]
+        [TestCase("Play?.prefab", false)]
         public void SearchFilter_MatchesNamesTypesAndGlobs(string query, bool expected)
         {
             var item = new AssetItem("Assets/A/Player.prefab", false, false, 0, 0);

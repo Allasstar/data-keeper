@@ -1,0 +1,96 @@
+{
+  "Category": "Explosion",
+  "LengthMs": { "Min": 900, "Max": 4000 },
+  "FmRatios": [1.0, 1.41, 2.76],
+  "Fx": {
+    "TransientAttack": { "Min": 0.3, "Max": 0.9 },
+    "DriveDb": { "Min": 6, "Max": 24 },
+    "ReverbMix": { "Min": 0.15, "Max": 0.35 },
+    "ReverbSize": { "Min": 0.6, "Max": 0.95 }
+  },
+  "Layers": [
+    {
+      "Name": "Boom",
+      "Band": "Sub",
+      "Tonal": true,
+      "Sources": ["Oscillator", "Wavetable"],
+      "Waveforms": ["Sine", "Triangle"],
+      "Pitch": { "Min": -46, "Max": -30 },
+      "Filters": ["Off"],
+      "LevelDb": { "Min": -5, "Max": 0 },
+      "DecayMs": { "Min": 400, "Max": 2200 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.01, "Value": 1, "Tension": -0.5 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.005,
+        "TensionJitter": 0.25,
+        "AttackIndex": 1
+      },
+      "PitchCurve": {
+        "Min": -12,
+        "Max": 12,
+        "Points": [ { "Time": 0, "Value": 0.7, "Tension": -0.5 }, { "Time": 1, "Value": 0.45 } ],
+        "ValueJitter": 0.05,
+        "TensionJitter": 0.2
+      },
+      "Wavetables": ["Basic"],
+      "WavetablePosition": { "Min": 0, "Max": 0.4 }
+    },
+    {
+      "Name": "Rumble",
+      "Band": "Body",
+      "Sources": ["Noise"],
+      "NoiseColors": ["Brown"],
+      "Filters": ["LowPass"],
+      "CutoffHz": { "Min": 150, "Max": 600 },
+      "Resonance": { "Min": 0, "Max": 0.3 },
+      "LevelDb": { "Min": -8, "Max": -2 },
+      "DecayMs": { "Min": 800, "Max": 3800 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.03, "Value": 1, "Tension": -0.3 }, { "Time": 0.35, "Value": 0.55, "Tension": -0.2 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.05,
+        "ValueJitter": 0.15,
+        "TensionJitter": 0.25,
+        "AttackIndex": 1
+      },
+      "CutoffCurve": {
+        "Min": -2,
+        "Max": 2,
+        "Points": [ { "Time": 0, "Value": 0.75 }, { "Time": 1, "Value": 0.35 } ],
+        "ValueJitter": 0.1,
+        "TensionJitter": 0.3
+      }
+    },
+    {
+      "Name": "Debris",
+      "Band": "Click",
+      "Sources": ["Noise"],
+      "NoiseColors": ["White", "Pink"],
+      "Filters": ["BandPass"],
+      "CutoffHz": { "Min": 2000, "Max": 5000 },
+      "Resonance": { "Min": 0.1, "Max": 0.5 },
+      "LevelDb": { "Min": -18, "Max": -9 },
+      "Pan": { "Min": -0.6, "Max": 0.6 },
+      "DecayMs": { "Min": 300, "Max": 1400 },
+      "OffsetMs": { "Min": 20, "Max": 150 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.05, "Value": 1, "Tension": -0.4 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.03,
+        "TensionJitter": 0.3
+      }
+    },
+    {
+      "Name": "Crack",
+      "Band": "Air",
+      "Sources": ["Noise"],
+      "NoiseColors": ["White"],
+      "Filters": ["HighPass"],
+      "CutoffHz": { "Min": 6000, "Max": 10000 },
+      "LevelDb": { "Min": -16, "Max": -8 },
+      "DecayMs": { "Min": 30, "Max": 140 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 1, "Tension": -0.6 }, { "Time": 1, "Value": 0 } ],
+        "TensionJitter": 0.2
+      }
+    }
+  ]
+}

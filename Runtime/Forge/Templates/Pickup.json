@@ -1,0 +1,78 @@
+{
+  "Category": "Pickup",
+  "LengthMs": { "Min": 150, "Max": 600 },
+  "FmRatios": [1.0, 2.0, 3.0],
+  "Fx": {
+    "DelayProbability": 0.4,
+    "DelayTimeMs": { "Min": 60, "Max": 160 },
+    "DelayMix": { "Min": 0.1, "Max": 0.25 },
+    "ReverbMix": { "Min": 0.05, "Max": 0.2 },
+    "ReverbSize": { "Min": 0.3, "Max": 0.6 }
+  },
+  "Layers": [
+    {
+      "Name": "Lead",
+      "Band": "Body",
+      "Tonal": true,
+      "Sources": ["Oscillator", "Wavetable"],
+      "Waveforms": ["Square", "Triangle"],
+      "Pitch": { "Min": 7, "Max": 22 },
+      "Filters": ["Off", "LowPass"],
+      "CutoffHz": { "Min": 1500, "Max": 2000 },
+      "Resonance": { "Min": 0, "Max": 0.3 },
+      "LevelDb": { "Min": -12, "Max": -6 },
+      "DecayMs": { "Min": 100, "Max": 450 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.02, "Value": 1 }, { "Time": 0.5, "Value": 0.7, "Tension": -0.3 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.05,
+        "ValueJitter": 0.15,
+        "TensionJitter": 0.3,
+        "AttackIndex": 1
+      },
+      "PitchCurve": {
+        "Min": 0,
+        "Max": 24,
+        "SnapToHarmony": true,
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.32, "Value": 0 }, { "Time": 0.34, "Value": 0.29 }, { "Time": 0.65, "Value": 0.29 }, { "Time": 0.67, "Value": 0.5 }, { "Time": 1, "Value": 0.5 } ],
+        "TimeJitter": 0.02
+      },
+      "Wavetables": ["Pulse", "Basic"]
+    },
+    {
+      "Name": "Harmony",
+      "Band": "Body",
+      "Tonal": true,
+      "Sources": ["Oscillator", "FM"],
+      "Waveforms": ["Sine", "Triangle"],
+      "Pitch": { "Min": 12, "Max": 26 },
+      "Filters": ["Off"],
+      "LevelDb": { "Min": -18, "Max": -10 },
+      "Pan": { "Min": -0.4, "Max": 0.4 },
+      "DecayMs": { "Min": 80, "Max": 400 },
+      "OffsetMs": { "Min": 0, "Max": 60 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.03, "Value": 1, "Tension": -0.4 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.02,
+        "TensionJitter": 0.3,
+        "AttackIndex": 1
+      },
+      "FmIndex": { "Min": 0.5, "Max": 2 },
+      "FmIndexEnvelope": { "Min": 0.5, "Max": 1 }
+    },
+    {
+      "Name": "Sparkle",
+      "Band": "Air",
+      "Probability": 0.5,
+      "Sources": ["Noise"],
+      "NoiseColors": ["White"],
+      "Filters": ["HighPass"],
+      "CutoffHz": { "Min": 7000, "Max": 12000 },
+      "LevelDb": { "Min": -26, "Max": -16 },
+      "DecayMs": { "Min": 60, "Max": 250 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 1, "Tension": -0.4 }, { "Time": 1, "Value": 0 } ],
+        "TensionJitter": 0.3
+      }
+    }
+  ]
+}

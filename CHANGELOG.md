@@ -13,6 +13,14 @@
 - `Optional<T>` — implements `IEquatable<Optional<T>>` with matching `Equals` / `GetHashCode`. `EqualityComparer<Optional<T>>.Default` previously fell back to reflection-based `ValueType.Equals`, which boxes both operands on every comparison.
 
 ### Added
+- **SFX Forge** (`Tools > Windows > SFX Forge`) — a procedural sound-effect generator. Recipes
+  layer oscillator, noise, wavetable, FM, sample and granular sources with drawable curves, a
+  modulation matrix (macros, LFO, envelope, random) and an FX chain, rendered offline with Burst
+  and deterministic per seed. A rule-based randomizer generates and filters candidates by
+  analysis (true peak, LUFS, centroid, length). Batch WAV export with naming templates,
+  normalization, trim and fade; JSON presets; runtime rendering through `SfxClipRenderer` and the
+  `SfxVariationPool` component. Adds dependencies on Burst, Collections and Mathematics. See
+  [SFX Forge](Documentation~/SfxForge.md).
 - **Asset Commander** (`Tools > Windows > Asset Commander`) — a two-panel, Total-Commander-style
   project browser. Each side holds a folder or a scene (a closed scene is loaded into a read-only
   preview scene, so browsing never disturbs the open-scene setup) and renders it as a tree or a

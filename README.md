@@ -224,6 +224,13 @@ button, context menu, or drag and drop. Each one resolves its destinations and n
 front and shows the whole list in a confirm dialog before touching anything. No command is bound
 to a keyboard shortcut, by design; the keys are navigation only.
 
+## [SFX Forge](https://github.com/Allasstar/data-keeper/blob/main/Documentation~/SfxForge.md)
+
+`Tools > Windows > SFX Forge` — procedural sound effects. Layer oscillators, noise, wavetables, FM,
+samples and granular sources, shape them with curves, macros and an FX chain, and let a
+rule-based randomizer generate and filter variations by category. Export WAV batches into the
+project, or render recipes at runtime with `SfxClipRenderer` and `SfxVariationPool`.
+
 # DataKeeper Namespace Documentation
 
 The `DataKeeper` namespace provides a suite of tools and utilities designed to enhance Unity development, offering solutions for reactive programming, data management, service location, object pooling, and event signaling.

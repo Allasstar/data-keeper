@@ -1,0 +1,86 @@
+{
+  "Category": "Whoosh",
+  "LengthMs": { "Min": 400, "Max": 1600 },
+  "FmRatios": [1.0, 2.0],
+  "Fx": {
+    "DelayProbability": 0.2,
+    "DelayTimeMs": { "Min": 80, "Max": 250 },
+    "DelayMix": { "Min": 0.1, "Max": 0.25 },
+    "ReverbMix": { "Min": 0.1, "Max": 0.3 },
+    "ReverbSize": { "Min": 0.5, "Max": 0.9 }
+  },
+  "Layers": [
+    {
+      "Name": "Air",
+      "Band": "Air",
+      "Sources": ["Noise"],
+      "NoiseColors": ["White", "Pink"],
+      "Filters": ["BandPass", "HighPass"],
+      "CutoffHz": { "Min": 6000, "Max": 12000 },
+      "Resonance": { "Min": 0.2, "Max": 0.6 },
+      "LevelDb": { "Min": -10, "Max": -3 },
+      "Pan": { "Min": -0.5, "Max": 0.5 },
+      "DecayMs": { "Min": 400, "Max": 1600 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0, "Tension": 0.5 }, { "Time": 0.55, "Value": 1, "Tension": -0.3 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.15,
+        "TensionJitter": 0.3
+      },
+      "CutoffCurve": {
+        "Min": -2,
+        "Max": 2,
+        "Points": [ { "Time": 0, "Value": 0.25, "Tension": 0.3 }, { "Time": 0.55, "Value": 0.85, "Tension": -0.3 }, { "Time": 1, "Value": 0.3 } ],
+        "TimeJitter": 0.1,
+        "ValueJitter": 0.1,
+        "TensionJitter": 0.3
+      },
+      "PanCurve": {
+        "Points": [ { "Time": 0, "Value": 0.25 }, { "Time": 1, "Value": 0.75 } ],
+        "ValueJitter": 0.2,
+        "TensionJitter": 0.3
+      }
+    },
+    {
+      "Name": "Body",
+      "Band": "Body",
+      "Sources": ["Noise"],
+      "NoiseColors": ["Pink"],
+      "Filters": ["BandPass"],
+      "CutoffHz": { "Min": 400, "Max": 1800 },
+      "Resonance": { "Min": 0.3, "Max": 0.7 },
+      "LevelDb": { "Min": -12, "Max": -5 },
+      "Pan": { "Min": -0.3, "Max": 0.3 },
+      "DecayMs": { "Min": 400, "Max": 1600 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0, "Tension": 0.4 }, { "Time": 0.6, "Value": 1, "Tension": -0.2 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.12,
+        "TensionJitter": 0.3
+      },
+      "CutoffCurve": {
+        "Min": -2,
+        "Max": 2,
+        "Points": [ { "Time": 0, "Value": 0.3, "Tension": 0.3 }, { "Time": 0.6, "Value": 0.8, "Tension": -0.3 }, { "Time": 1, "Value": 0.35 } ],
+        "TimeJitter": 0.1,
+        "ValueJitter": 0.1,
+        "TensionJitter": 0.3
+      }
+    },
+    {
+      "Name": "Rumble",
+      "Band": "Sub",
+      "Probability": 0.4,
+      "Sources": ["Noise"],
+      "NoiseColors": ["Brown"],
+      "Filters": ["LowPass"],
+      "CutoffHz": { "Min": 60, "Max": 120 },
+      "Resonance": { "Min": 0, "Max": 0.3 },
+      "LevelDb": { "Min": -14, "Max": -6 },
+      "DecayMs": { "Min": 400, "Max": 1600 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0, "Tension": 0.3 }, { "Time": 0.6, "Value": 1 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.1,
+        "TensionJitter": 0.2
+      }
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "Category": "Footstep",
+  "LengthMs": { "Min": 70, "Max": 320 },
+  "FmRatios": [1.0],
+  "Fx": {
+    "TransientAttack": { "Min": 0.2, "Max": 0.8 },
+    "ReverbMix": { "Min": 0, "Max": 0.1 },
+    "ReverbSize": { "Min": 0.2, "Max": 0.4 }
+  },
+  "Layers": [
+    {
+      "Name": "Thud",
+      "Band": "Sub",
+      "Tonal": true,
+      "Sources": ["Oscillator"],
+      "Waveforms": ["Sine", "Triangle"],
+      "Pitch": { "Min": -36, "Max": -23 },
+      "Filters": ["Off"],
+      "LevelDb": { "Min": -10, "Max": -4 },
+      "DecayMs": { "Min": 40, "Max": 140 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.04, "Value": 1, "Tension": -0.5 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.02,
+        "TensionJitter": 0.3,
+        "AttackIndex": 1
+      },
+      "PitchCurve": {
+        "Min": -12,
+        "Max": 12,
+        "Points": [ { "Time": 0, "Value": 0.65, "Tension": -0.5 }, { "Time": 1, "Value": 0.5 } ],
+        "ValueJitter": 0.04,
+        "TensionJitter": 0.2
+      }
+    },
+    {
+      "Name": "Scuff",
+      "Band": "Click",
+      "Sources": ["Noise"],
+      "NoiseColors": ["Pink", "White"],
+      "Filters": ["BandPass", "LowPass"],
+      "CutoffHz": { "Min": 2000, "Max": 4500 },
+      "Resonance": { "Min": 0, "Max": 0.4 },
+      "LevelDb": { "Min": -14, "Max": -6 },
+      "Pan": { "Min": -0.2, "Max": 0.2 },
+      "DecayMs": { "Min": 40, "Max": 180 },
+      "OffsetMs": { "Min": 0, "Max": 25 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 0 }, { "Time": 0.1, "Value": 1, "Tension": -0.4 }, { "Time": 1, "Value": 0 } ],
+        "TimeJitter": 0.05,
+        "TensionJitter": 0.3
+      }
+    },
+    {
+      "Name": "Grit",
+      "Band": "Air",
+      "Probability": 0.5,
+      "Sources": ["Noise"],
+      "NoiseColors": ["White"],
+      "Filters": ["HighPass"],
+      "CutoffHz": { "Min": 6000, "Max": 9000 },
+      "LevelDb": { "Min": -24, "Max": -14 },
+      "DecayMs": { "Min": 20, "Max": 70 },
+      "AmpCurve": {
+        "Points": [ { "Time": 0, "Value": 1, "Tension": -0.5 }, { "Time": 1, "Value": 0 } ],
+        "TensionJitter": 0.3
+      }
+    }
+  ]
+}

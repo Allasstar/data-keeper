@@ -1,0 +1,804 @@
+:root {
+    --forge-bg: rgb(26, 27, 30);
+    --forge-panel: rgb(38, 40, 44);
+    --forge-panel-raised: rgb(46, 48, 53);
+    --forge-border: rgb(14, 15, 17);
+    --forge-text: rgb(214, 216, 220);
+    --forge-text-dim: rgb(132, 136, 143);
+    --forge-accent: rgb(255, 146, 48);
+    --forge-accent-text: rgb(28, 20, 10);
+    --forge-mute: rgb(70, 140, 255);
+    --forge-solo: rgb(240, 200, 60);
+    --forge-lock: rgb(230, 90, 90);
+}
+
+.forge-root {
+    flex-grow: 1;
+    background-color: var(--forge-bg);
+    color: var(--forge-text);
+}
+
+.forge-bar {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 4px 6px;
+    background-color: var(--forge-panel);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--forge-border);
+}
+
+.forge-spacer {
+    flex-grow: 1;
+}
+
+.forge-recipe-field {
+    flex-grow: 1;
+    max-width: 360px;
+    min-width: 140px;
+}
+
+.forge-button {
+    min-width: 56px;
+    height: 22px;
+    border-radius: 3px;
+}
+
+.forge-primary {
+    background-color: var(--forge-accent);
+    color: var(--forge-accent-text);
+    -unity-font-style: bold;
+}
+
+.forge-primary:hover {
+    background-color: rgb(255, 170, 90);
+}
+
+.forge-placeholder {
+    flex-grow: 1;
+    -unity-text-align: middle-center;
+    color: var(--forge-text-dim);
+}
+
+.forge-separator {
+    width: 1px;
+    height: 18px;
+    margin: 0 6px;
+    background-color: var(--forge-border);
+}
+
+.forge-main {
+    flex-grow: 1;
+    flex-direction: row;
+}
+
+.forge-column {
+    flex-shrink: 0;
+}
+
+.forge-center {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 360px;
+}
+
+.forge-left,
+.forge-right {
+    width: 240px;
+    padding: 6px;
+    background-color: var(--forge-panel);
+    border-color: var(--forge-border);
+}
+
+.forge-left {
+    border-right-width: 1px;
+}
+
+.forge-right {
+    border-left-width: 1px;
+}
+
+.forge-section-title {
+    margin: 4px 0 4px 0;
+    -unity-font-style: bold;
+    font-size: 11px;
+    color: var(--forge-accent);
+}
+
+.forge-subtitle {
+    margin: 6px 0 2px 0;
+    font-size: 10px;
+    color: var(--forge-text-dim);
+}
+
+.forge-hint {
+    margin-top: 12px;
+    font-size: 10px;
+    white-space: normal;
+    color: var(--forge-text-dim);
+}
+
+/* ── Categories, pills, variations ────────────────────────────────────── */
+
+.forge-category-list {
+    margin-bottom: 8px;
+}
+
+.forge-category {
+    height: 22px;
+    margin: 1px 0;
+    -unity-text-align: middle-left;
+    padding-left: 8px;
+    background-color: var(--forge-panel-raised);
+}
+
+.forge-pills {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.forge-pill {
+    min-width: 0;
+    height: 20px;
+    margin: 2px;
+    padding: 0 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    background-color: var(--forge-panel-raised);
+}
+
+.forge-selected {
+    background-color: var(--forge-accent);
+    color: var(--forge-accent-text);
+    -unity-font-style: bold;
+}
+
+.forge-randomizer-knobs {
+    flex-direction: row;
+    justify-content: space-around;
+    margin-top: 8px;
+}
+
+.forge-candidates {
+    margin-top: 6px;
+}
+
+.forge-candidates > Label {
+    min-width: 72px;
+}
+
+.forge-variation-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.forge-thumb {
+    width: 48%;
+    height: 44px;
+    margin-bottom: 4px;
+    border-width: 1px;
+    border-color: var(--forge-border);
+    border-radius: 3px;
+    background-color: rgb(16, 17, 19);
+}
+
+.forge-thumb:hover {
+    border-color: var(--forge-text-dim);
+}
+
+.forge-thumb--selected {
+    border-color: var(--forge-accent);
+    border-width: 2px;
+}
+
+.forge-thumb--empty {
+    opacity: 0.35;
+}
+
+.forge-thumb > .forge-waveform {
+    flex-grow: 1;
+    height: auto;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.forge-thumb__label {
+    position: absolute;
+    left: 3px;
+    top: 1px;
+    font-size: 9px;
+    color: var(--forge-text-dim);
+}
+
+.forge-seed > Label {
+    min-width: 36px;
+}
+
+.forge-globals .forge-field {
+    min-width: 180px;
+    margin-right: 8px;
+}
+
+.forge-globals .forge-field > Label {
+    min-width: 60px;
+}
+
+/* ── Waveform ─────────────────────────────────────────────────────────── */
+
+.forge-wave-panel {
+    flex-shrink: 0;
+    padding: 6px;
+    background-color: var(--forge-bg);
+}
+
+.forge-waveform {
+    height: 130px;
+    background-color: rgb(16, 17, 19);
+    border-width: 1px;
+    border-color: var(--forge-border);
+    border-radius: 3px;
+    --wave-color: rgb(255, 146, 48);
+    --wave-center-color: rgba(255, 255, 255, 0.10);
+    --playhead-color: rgb(240, 240, 240);
+    --trim-color: rgb(90, 190, 255);
+    --trim-shade-color: rgba(0, 0, 0, 0.55);
+}
+
+.forge-readout {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 4px;
+    font-size: 11px;
+}
+
+.forge-readout__item {
+    flex-direction: row;
+    margin-right: 14px;
+}
+
+.forge-readout__name {
+    margin-right: 4px;
+    color: var(--forge-text-dim);
+}
+
+.forge-readout__value {
+    color: var(--forge-text);
+}
+
+.forge-readout__warning {
+    color: var(--forge-lock);
+    -unity-font-style: bold;
+}
+
+/* ── Curve editor ─────────────────────────────────────────────────────── */
+
+.forge-curve-panel {
+    flex-shrink: 0;
+    padding: 0 6px 6px 6px;
+}
+
+.forge-curve-bar {
+    padding: 2px 0;
+    background-color: rgba(0, 0, 0, 0);
+    border-bottom-width: 0;
+}
+
+.forge-tab {
+    min-width: 48px;
+    height: 20px;
+    margin: 0 1px;
+    border-radius: 3px 3px 0 0;
+    background-color: var(--forge-panel-raised);
+}
+
+.forge-curve-layer {
+    margin-left: 8px;
+    font-size: 11px;
+    color: var(--forge-text-dim);
+}
+
+.forge-curve-toggle {
+    height: 20px;
+    margin-left: 2px;
+    padding: 0 6px;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: var(--forge-border);
+    background-color: var(--forge-panel-raised);
+}
+
+.forge-curve-toggle:checked {
+    background-color: var(--forge-accent);
+    color: var(--forge-accent-text);
+}
+
+.forge-curve-editor {
+    height: 150px;
+    background-color: rgb(16, 17, 19);
+    border-width: 1px;
+    border-color: var(--forge-border);
+    border-radius: 3px;
+    --curve-color: rgb(255, 146, 48);
+    --curve-fill-color: rgba(255, 146, 48, 0.12);
+    --grid-color: rgba(255, 255, 255, 0.06);
+    --grid-zero-color: rgba(255, 255, 255, 0.18);
+    --point-color: rgb(236, 236, 240);
+    --point-selected-color: rgb(255, 146, 48);
+    --stroke-color: rgb(90, 190, 255);
+}
+
+.forge-curve-editor:focus {
+    border-color: var(--forge-text-dim);
+}
+
+.forge-curve-editor--locked {
+    border-color: var(--forge-lock);
+    --curve-color: rgb(200, 120, 120);
+}
+
+.forge-curve-editor__readout {
+    position: absolute;
+    right: 6px;
+    top: 3px;
+    font-size: 10px;
+    color: var(--forge-text);
+}
+
+.forge-curve-hint {
+    margin-top: 2px;
+    font-size: 10px;
+    color: var(--forge-text-dim);
+}
+
+/* ── Knobs ────────────────────────────────────────────────────────────── */
+
+.forge-knob {
+    align-items: center;
+    width: 62px;
+    margin: 0 2px;
+    --knob-track-color: rgb(16, 17, 19);
+    --knob-value-color: rgb(255, 146, 48);
+    --knob-body-color: rgb(58, 61, 67);
+    --knob-indicator-color: rgb(236, 236, 240);
+}
+
+.forge-knob__title {
+    font-size: 10px;
+    color: var(--forge-text-dim);
+    -unity-text-align: middle-center;
+    margin: 0;
+    padding: 0;
+}
+
+.forge-knob__dial {
+    width: 38px;
+    height: 38px;
+    cursor: resize-vertical;
+}
+
+.forge-knob__value {
+    font-size: 10px;
+    -unity-text-align: middle-center;
+    margin: 0;
+    padding: 0;
+}
+
+.forge-knob--locked {
+    --knob-value-color: rgb(140, 140, 148);
+}
+
+.forge-knob--locked > .forge-knob__title {
+    color: var(--forge-lock);
+}
+
+.forge-knob:disabled {
+    opacity: 0.4;
+}
+
+.forge-knob--inline {
+    flex-direction: row;
+    width: auto;
+}
+
+.forge-knob--inline > .forge-knob__dial {
+    width: 30px;
+    height: 30px;
+    margin: 0 4px;
+}
+
+/* ── Layer strips ─────────────────────────────────────────────────────── */
+
+.forge-layers {
+    flex-grow: 1;
+    padding: 0 6px;
+}
+
+.forge-strip {
+    margin-bottom: 6px;
+    padding: 4px 6px 6px 6px;
+    background-color: var(--forge-panel);
+    border-width: 1px;
+    border-color: var(--forge-border);
+    border-left-width: 3px;
+    border-left-color: var(--forge-accent);
+    border-radius: 3px;
+}
+
+.forge-strip--muted,
+.forge-strip--disabled {
+    opacity: 0.5;
+}
+
+.forge-strip--selected {
+    border-top-color: var(--forge-text-dim);
+    border-right-color: var(--forge-text-dim);
+    border-bottom-color: var(--forge-text-dim);
+    background-color: var(--forge-panel-raised);
+}
+
+.forge-strip--locked {
+    border-left-color: var(--forge-lock);
+}
+
+.forge-strip__header,
+.forge-strip__source,
+.forge-strip__knobs {
+    flex-direction: row;
+    align-items: center;
+}
+
+.forge-strip__knobs {
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.forge-strip__dropdown--locked > Label {
+    color: var(--forge-lock);
+}
+
+.forge-strip__index.forge-strip__index--curve-locked {
+    color: var(--forge-lock);
+}
+
+.forge-strip__index {
+    width: 16px;
+    -unity-font-style: bold;
+    color: var(--forge-accent);
+    -unity-text-align: middle-center;
+}
+
+.forge-strip__name {
+    flex-grow: 1;
+    min-width: 80px;
+}
+
+.forge-strip__band {
+    width: 72px;
+}
+
+.forge-strip__band > .unity-base-field__input {
+    border-radius: 9px;
+    -unity-font-style: bold;
+}
+
+.forge-strip__band--sub > .unity-base-field__input { background-color: rgb(92, 60, 150); }
+.forge-strip__band--body > .unity-base-field__input { background-color: rgb(60, 110, 160); }
+.forge-strip__band--click > .unity-base-field__input { background-color: rgb(50, 140, 100); }
+.forge-strip__band--air > .unity-base-field__input { background-color: rgb(150, 130, 50); }
+
+.forge-strip__flag {
+    width: 22px;
+    min-width: 22px;
+    height: 20px;
+    margin-left: 2px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: var(--forge-border);
+    background-color: var(--forge-panel-raised);
+}
+
+.forge-strip__flag--mute:checked { background-color: var(--forge-mute); }
+.forge-strip__flag--solo:checked { background-color: var(--forge-solo); color: rgb(30, 25, 5); }
+.forge-strip__flag--lock:checked { background-color: var(--forge-lock); }
+
+.forge-strip__action {
+    min-width: 28px;
+    height: 20px;
+    margin-left: 4px;
+}
+
+.forge-strip__dropdown {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 110px;
+}
+
+.forge-strip__dropdown > Label {
+    min-width: 44px;
+    color: var(--forge-text-dim);
+}
+
+.forge-add-layer {
+    height: 26px;
+    margin-bottom: 6px;
+    border-radius: 3px;
+}
+
+/* ── FX panel ─────────────────────────────────────────────────────────── */
+
+.forge-left__scroll,
+.forge-right__scroll {
+    flex-grow: 1;
+}
+
+.forge-fx-panel {
+    margin-top: 10px;
+}
+
+.forge-fx-header {
+    flex-direction: row;
+    align-items: center;
+}
+
+.forge-locked-title {
+    color: var(--forge-lock);
+}
+
+.forge-fx {
+    margin-bottom: 6px;
+    padding: 3px;
+    border-radius: 3px;
+    background-color: var(--forge-panel-raised);
+}
+
+.forge-fx__enable {
+    margin-left: 0;
+    -unity-font-style: bold;
+}
+
+.forge-fx__controls {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-around;
+}
+
+.forge-fx__mode {
+    width: 100%;
+    margin: 2px 0;
+}
+
+.forge-knob--small {
+    width: 52px;
+}
+
+.forge-knob--small > .forge-knob__dial {
+    width: 30px;
+    height: 30px;
+}
+
+/* ── Source parameters ────────────────────────────────────────────────── */
+
+.forge-strip__source-params,
+.forge-strip__group {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.forge-strip__source-params {
+    margin-top: 2px;
+}
+
+.forge-strip__clip {
+    min-width: 200px;
+    flex-grow: 1;
+}
+
+.forge-strip__clip > Label {
+    min-width: 30px;
+    color: var(--forge-text-dim);
+}
+
+.forge-strip__flag--reverse {
+    width: 36px;
+}
+
+.forge-strip__flag--reverse:checked {
+    background-color: var(--forge-accent);
+    color: var(--forge-accent-text);
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+
+.forge-export {
+    margin-top: 10px;
+}
+
+.forge-export > .unity-foldout__toggle {
+    margin-left: 0;
+}
+
+.forge-export > .unity-foldout__toggle .unity-foldout__text {
+    -unity-font-style: bold;
+    color: var(--forge-accent);
+}
+
+.forge-export > .unity-foldout__content {
+    margin-left: 0;
+}
+
+.forge-export__row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.forge-export__field {
+    margin: 1px 0;
+}
+
+.forge-export__field > Label {
+    min-width: 72px;
+    width: 72px;
+    margin-right: 4px;
+    color: var(--forge-text-dim);
+}
+
+.forge-export__field > .unity-base-field__input {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.forge-export__folder {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    margin-right: 2px;
+}
+
+.forge-export__button {
+    height: 24px;
+    margin: 6px 0 2px 0;
+}
+
+.forge-button--icon {
+    min-width: 22px;
+    width: 22px;
+    padding: 0;
+}
+
+.forge-status {
+    flex-shrink: 0;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: var(--forge-text-dim);
+    background-color: var(--forge-border);
+}
+
+/* ── Presets and meter ────────────────────────────────────────────────── */
+
+.forge-preset-name {
+    min-width: 120px;
+    max-width: 220px;
+    -unity-text-align: middle-left;
+    overflow: hidden;
+}
+
+.forge-meter {
+    width: 140px;
+    height: 16px;
+    margin: 0 8px;
+    --meter-track-color: rgb(16, 17, 19);
+    --meter-level-color: rgb(90, 200, 120);
+    --meter-warn-color: rgb(240, 200, 60);
+    --meter-clip-color: rgb(230, 90, 90);
+}
+
+/* ── Macros and modulation ────────────────────────────────────────────── */
+
+.forge-macros {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.forge-macros > .forge-knob {
+    width: 50px;
+    margin: 0;
+}
+
+.forge-mod-panel {
+    margin-bottom: 8px;
+}
+
+.forge-lfo {
+    flex-direction: row;
+    align-items: center;
+}
+
+.forge-lfo > .forge-subtitle {
+    margin-right: 6px;
+}
+
+.forge-lfo__shape {
+    flex-grow: 1;
+    min-width: 70px;
+}
+
+.forge-routes__buttons {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+.forge-route {
+    padding: 3px 4px;
+    margin-bottom: 3px;
+    border-radius: 3px;
+    background-color: var(--forge-panel-raised);
+}
+
+.forge-route--unsupported {
+    border-left-width: 2px;
+    border-left-color: var(--forge-lock);
+    opacity: 0.6;
+}
+
+.forge-route__row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.forge-route__source,
+.forge-route__target {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 60px;
+    margin: 0 2px;
+}
+
+.forge-route__arrow {
+    color: var(--forge-text-dim);
+}
+
+.forge-route__layer {
+    flex-grow: 1;
+    margin: 0 2px;
+}
+
+.forge-route__amount {
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+}
+
+.forge-route__amount > .forge-knob__dial {
+    width: 22px;
+    height: 22px;
+}
+
+.forge-route__amount > .forge-knob__value {
+    min-width: 62px;
+    margin-left: 4px;
+}
+
+.forge-route__remove {
+    width: 20px;
+    min-width: 20px;
+    padding: 0;
+}
+
+.forge-volume {
+    width: 110px;
+    margin: 0 8px 0 0;
+}
+
+.forge-volume > Label {
+    min-width: 0;
+    margin-right: 4px;
+    color: var(--forge-text-dim);
+}

@@ -10,7 +10,10 @@
   "licensesUrl": "https://github.com/Allasstar/data-keeper/blob/main/LICENSE",
   "dependencies": {
     "com.unity.textmeshpro": "3.0.6",
-    "com.unity.nuget.newtonsoft-json": "3.0.2"
+    "com.unity.nuget.newtonsoft-json": "3.0.2",
+    "com.unity.burst": "1.8.18",
+    "com.unity.collections": "2.5.1",
+    "com.unity.mathematics": "1.3.2"
   },
   "keywords": [
     "Reactive",
