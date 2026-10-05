@@ -58,6 +58,13 @@ namespace DataKeeper.Editor.Forge
         private readonly KnobElement _grainSpray;
         private readonly KnobElement _grainPitchRandom;
 
+        private readonly ParamBoxElement _unisonBox;
+        private readonly KnobElement _voices;
+        private readonly KnobElement _detune;
+        private readonly KnobElement _spread;
+        private readonly KnobElement _phase;
+        private readonly ToolbarToggle _phaseRandom;
+
         private readonly (KnobElement Knob, LayerParam Param)[] _lockableKnobs;
         private readonly (KnobElement Knob, ModTarget Target)[] _modKnobs;
         private readonly (VisualElement Field, LayerParam Param)[] _lockableFields;
@@ -176,6 +183,18 @@ namespace DataKeeper.Editor.Forge
             _grainPitchRandom = Knob(_granularGroup, new KnobElement("Pitch Rnd", 0f, GranularSettings.MaxPitchRandom,
                 0f, KnobFormat.Semitones));
 
+            _unisonBox = Box(controls, "UNISON");
+            _voices = Knob(_unisonBox, new KnobElement("Voices", UnisonSettings.MinVoices, UnisonSettings.MaxVoices,
+                UnisonSettings.MinVoices, KnobFormat.Integer) { WholeNumbers = true });
+            _detune = Knob(_unisonBox, new KnobElement("Detune", 0f, UnisonSettings.MaxDetuneCents, 0f, KnobFormat.Cents));
+            _spread = Knob(_unisonBox, new KnobElement("Spread", 0f, 1f, 0f, KnobFormat.Percent));
+            _phase = Knob(_unisonBox, new KnobElement("Phase", 0f, 1f, 0f, KnobFormat.Degrees));
+            var phaseOptions = Part(_unisonBox, "options");
+            _phaseRandom = FlagToggle("Rnd", "random");
+            phaseOptions.Add(_phaseRandom);
+            // Bound by hand: the knob is a float field and Voices is an int property.
+            _voices.RegisterValueChangedCallback(evt => SetVoices((int)evt.newValue));
+
             _modKnobs = new[]
             {
                 (_pitch, ModTarget.Pitch),
@@ -205,6 +224,10 @@ namespace DataKeeper.Editor.Forge
                 (_grainDensity, LayerParam.Source),
                 (_grainSpray, LayerParam.Source),
                 (_grainPitchRandom, LayerParam.Source),
+                (_voices, LayerParam.Source),
+                (_detune, LayerParam.Source),
+                (_spread, LayerParam.Source),
+                (_phase, LayerParam.Source),
             };
             foreach (var (knob, param) in _lockableKnobs)
             {
@@ -222,6 +245,7 @@ namespace DataKeeper.Editor.Forge
                 (_sampleClip, LayerParam.Source),
                 (_sampleReverse, LayerParam.Source),
                 (_sampleInterpolation, LayerParam.Source),
+                (_phaseRandom, LayerParam.Source),
             };
             foreach (var (field, param) in _lockableFields)
                 field.AddManipulator(new ContextualMenuManipulator(evt => PopulateFieldMenu(evt, param)));
@@ -245,6 +269,7 @@ namespace DataKeeper.Editor.Forge
             ForgeHints.Set(_sampleGroup, help, "Sample");
             ForgeHints.Set(_sampleClip, help, "Sample");
             ForgeHints.Set(_granularGroup, help, "Granular");
+            ForgeHints.Set(_unisonBox, help, "Unison");
 
             head.AddManipulator(new ContextualMenuManipulator(PopulateLayerMenu));
             _tab.AddManipulator(new ContextualMenuManipulator(PopulateLayerMenu));
@@ -297,6 +322,10 @@ namespace DataKeeper.Editor.Forge
             _grainDensity.BindProperty(Relative("Source.Granular.Density"));
             _grainSpray.BindProperty(Relative("Source.Granular.SprayMs"));
             _grainPitchRandom.BindProperty(Relative("Source.Granular.PitchRandom"));
+            _detune.BindProperty(Relative("Unison.DetuneCents"));
+            _spread.BindProperty(Relative("Unison.Spread"));
+            _phase.BindProperty(Relative("Phase.Start"));
+            _phaseRandom.BindProperty(Relative("Phase.Random"));
 
             _pitch.BindProperty(Relative("Pitch"));
             _cutoff.BindProperty(Relative("Filter.CutoffHz"));
@@ -342,7 +371,12 @@ namespace DataKeeper.Editor.Forge
             Show(_sampleGroup, SourceSettings.UsesClip(type));
             Show(_granularGroup, type == SourceType.Granular);
             Show(_sourceBox, type != SourceType.Oscillator && type != SourceType.Noise);
+            Show(_unisonBox, SourceSettings.IsTonal(type));
             _pitch.SetEnabled(type != SourceType.Noise);
+
+            // Old layers deserialize Voices as 0; the renderer plays them as one voice.
+            _voices.SetValueWithoutNotify(Mathf.Max(UnisonSettings.MinVoices, Relative("Unison.Voices").intValue));
+            _phase.SetEnabled(!Relative("Phase.Random").boolValue);
 
             var filterOn = Relative("Filter.Type").intValue != (int)FilterType.Off;
             _cutoff.SetEnabled(filterOn);
@@ -402,6 +436,15 @@ namespace DataKeeper.Editor.Forge
             add("Lock Layer", layerLocked, true, () => SetBool("Locked", !layerLocked));
             add("Lock Curves", curvesLocked, true, () => SetCurvesLocked(!curvesLocked));
             add("Clear Parameter Locks", false, hasParamLocks, () => SetLockFlags(0));
+        }
+
+        private void SetVoices(int voices)
+        {
+            var property = Relative("Unison.Voices");
+            if (property.intValue == voices) return;
+
+            property.intValue = voices;
+            Apply();
         }
 
         private void SetParamLock(LayerParam param, bool locked)

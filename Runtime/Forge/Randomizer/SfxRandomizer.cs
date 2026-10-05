@@ -233,6 +233,9 @@ namespace DataKeeper.Forge
             to.LockedParams = locks;
             to.Mute = from.Mute;
             to.Solo = from.Solo;
+            // Unison and phase are the user's voicing, not generated content (FSF-D4).
+            to.Unison = from.Unison;
+            to.Phase = from.Phase;
 
             if (Has(locks, LayerParam.Source)) to.Source = from.Source;
             if (Has(locks, LayerParam.Pitch)) to.Pitch = from.Pitch;

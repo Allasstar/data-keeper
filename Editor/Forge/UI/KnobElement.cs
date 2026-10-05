@@ -22,6 +22,9 @@ namespace DataKeeper.Editor.Forge
         Percent,
         Ratio,
         Octaves,
+        Integer,
+        Cents,
+        Degrees,
     }
 
     [UxmlElement]
@@ -52,6 +55,7 @@ namespace DataKeeper.Editor.Forge
         private bool _dragging;
         private bool _locked;
         private float _lastPointerY;
+        private float _dragNormalized;
         private ModTarget? _modTarget;
         private VisualElement _modChips;
         private int _modArcCount;
@@ -93,6 +97,8 @@ namespace DataKeeper.Editor.Forge
         [UxmlAttribute] public KnobScale Scale { get; set; }
 
         [UxmlAttribute] public bool Bipolar { get; set; }
+
+        [UxmlAttribute] public bool WholeNumbers { get; set; }
 
         [UxmlAttribute]
         public KnobFormat Format
@@ -140,6 +146,7 @@ namespace DataKeeper.Editor.Forge
             set
             {
                 var clamped = Mathf.Clamp(value, Mathf.Min(_min, _max), Mathf.Max(_min, _max));
+                if (WholeNumbers) clamped = Mathf.Round(clamped);
                 if (clamped == _value) return;
 
                 if (panel == null)
@@ -265,7 +272,13 @@ namespace DataKeeper.Editor.Forge
         private float Offset(float v, float amount) =>
             Scale == KnobScale.Log && _min > 0f ? v * Mathf.Pow(2f, amount) : v + amount;
 
-        private void Nudge(float normalizedDelta) => value = FromNormalized(ToNormalized(_value) + normalizedDelta);
+        // Whole-number knobs accumulate the drag: rounding each small step would undo it.
+        private void Nudge(float normalizedDelta)
+        {
+            var from = WholeNumbers ? _dragNormalized : ToNormalized(_value);
+            _dragNormalized = Mathf.Clamp01(from + normalizedDelta);
+            value = FromNormalized(_dragNormalized);
+        }
 
         private void OnPointerDown(PointerDownEvent evt)
         {
@@ -279,6 +292,7 @@ namespace DataKeeper.Editor.Forge
             {
                 _dragging = true;
                 _lastPointerY = evt.position.y;
+                _dragNormalized = ToNormalized(_value);
                 _dial.CapturePointer(evt.pointerId);
             }
 
@@ -402,6 +416,9 @@ namespace DataKeeper.Editor.Forge
             KnobFormat.Percent => $"{v * 100f:0}%",
             KnobFormat.Ratio => $"x{v:0.00}",
             KnobFormat.Octaves => $"{v:+0.00;-0.00;0.00} oct",
+            KnobFormat.Integer => $"{v:0}",
+            KnobFormat.Cents => $"{v:0} ct",
+            KnobFormat.Degrees => $"{v * 360f:0}°",
             _ => $"{v:0.00}",
         };
     }

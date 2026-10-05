@@ -26,6 +26,8 @@ namespace DataKeeper.Editor.Forge
 
         public VisualElement Ghost => _ghost;
 
+        public event Action<ModSource> Clicked;
+
         public ModSourceBarElement(ForgeModulation modulation, Action<string> status)
         {
             _modulation = modulation;
@@ -36,13 +38,34 @@ namespace DataKeeper.Editor.Forge
             title.AddToClassList(UssClassName + "__title");
             Add(title);
 
-            foreach (ModSource source in Enum.GetValues(typeof(ModSource)))
-                Add(Chip(source));
+            // Chips sit in one box per group, so a narrow window wraps between groups only.
+            VisualElement box = null;
+            var group = -1;
+            foreach (var source in ForgeModulation.SourceOrder)
+            {
+                if (Group(source) != group)
+                {
+                    group = Group(source);
+                    box = new VisualElement();
+                    box.AddToClassList(UssClassName + "__group");
+                    Add(box);
+                }
+
+                box.Add(Chip(source));
+            }
 
             _ghost = new Label { pickingMode = PickingMode.Ignore };
             _ghost.AddToClassList(UssClassName + "__ghost");
             _ghost.style.display = DisplayStyle.None;
         }
+
+        private static int Group(ModSource source) => source switch
+        {
+            ModSource.Lfo or ModSource.Lfo2 or ModSource.Lfo3 => 1,
+            ModSource.Envelope or ModSource.Env2 or ModSource.Env3 => 2,
+            ModSource.Random => 3,
+            _ => 0,
+        };
 
         private VisualElement Chip(ModSource source)
         {
@@ -109,10 +132,16 @@ namespace DataKeeper.Editor.Forge
         {
             if (_pressedChip == null || !_pressedChip.HasPointerCapture(evt.pointerId)) return;
 
+            var clicked = !_dragging;
             var knob = _dragging ? KnobAt(evt.position) : null;
             _pressedChip.ReleasePointer(evt.pointerId);
             if (knob != null) _modulation.Drop(_source, knob, evt.altKey);
-            else if (!_dragging) _status($"Drag {ForgeModulation.SourceName(_source)} onto a knob to add a route.");
+            else if (clicked)
+            {
+                _status($"Drag {ForgeModulation.SourceName(_source)} onto a knob to add a route.");
+                Clicked?.Invoke(_source);
+            }
+
             evt.StopPropagation();
         }
 

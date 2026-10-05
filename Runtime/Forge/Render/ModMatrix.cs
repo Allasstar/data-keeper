@@ -11,9 +11,15 @@ namespace DataKeeper.Forge.Render
         public float DecayOctaves;
         public float Resonance;
 
-        // x pitch (st), y cutoff (oct), z level (dB), w pan; applied at control rate.
+        // One depth per continuous source, x pitch (st), y cutoff (oct), z level (dB), w pan;
+        // applied at control rate. LfoDepth and EnvelopeDepth are LFO 1 and Env 1.
         public float4 LfoDepth;
+        public float4 Lfo2Depth;
+        public float4 Lfo3Depth;
         public float4 EnvelopeDepth;
+        public float4 Env2Depth;
+        public float4 Env3Depth;
+        public float4 RandomDepth;
     }
 
     public struct GlobalModulation
@@ -27,22 +33,24 @@ namespace DataKeeper.Forge.Render
         public float LfoDepth;
     }
 
-    // Static sources (macros, random) become fixed offsets before rendering; the LFO and the
-    // envelope become per-layer depths the render job applies every control block.
+    // Static sources (macros, Constant random) become fixed offsets before rendering; the LFOs,
+    // envelopes and moving random become per-layer depths the render job applies every control block.
     public static class ModMatrix
     {
         private const float MaxLfoDepthScale = 2f;
+        private const uint RandomSalt = 0x52A4Du;
 
         public static GlobalModulation Evaluate(SfxRecipe recipe, uint seed, LayerModulation[] layers, int layerCount)
         {
             for (var i = 0; i < layerCount; i++) layers[i] = default;
             var global = new GlobalModulation();
             var routes = recipe.Routes;
+            var randomMode = recipe.Random.Mode;
 
             for (var r = 0; r < routes.Count; r++)
             {
                 var route = routes[r];
-                if (!route.Enabled || route.Amount == 0f || ModTargets.IsContinuous(route.Source)) continue;
+                if (!route.Enabled || route.Amount == 0f || ModTargets.IsContinuous(route.Source, randomMode)) continue;
 
                 if (!ModTargets.IsPerLayer(route.Target))
                 {
@@ -61,17 +69,15 @@ namespace DataKeeper.Forge.Render
             for (var r = 0; r < routes.Count; r++)
             {
                 var route = routes[r];
-                if (!route.Enabled || route.Amount == 0f || !ModTargets.IsContinuous(route.Source)) continue;
+                if (!route.Enabled || route.Amount == 0f || !ModTargets.IsContinuous(route.Source, randomMode)) continue;
                 if (!ModTargets.IsContinuous(route.Target)) continue;
 
-                var isLfo = route.Source == ModSource.Lfo;
-                var amount = isLfo ? route.Amount * lfoScale : route.Amount;
+                // The LFO Depth target scales LFO 1 only.
+                var amount = route.Source == ModSource.Lfo ? route.Amount * lfoScale : route.Amount;
                 for (var layer = 0; layer < layerCount; layer++)
                 {
                     if (!Applies(route, layer)) continue;
-                    var depth = Component((int)route.Target, amount);
-                    if (isLfo) layers[layer].LfoDepth += depth;
-                    else layers[layer].EnvelopeDepth += depth;
+                    AddDepth(ref layers[layer], route.Source, Component((int)route.Target, amount));
                 }
             }
 
@@ -85,7 +91,7 @@ namespace DataKeeper.Forge.Render
             ModSource.Energy => macros.Energy * 2f - 1f,
             ModSource.Tone => macros.Tone * 2f - 1f,
             ModSource.Motion => macros.Motion * 2f - 1f,
-            ModSource.Random => math.hash(new uint3(seed, (uint)route, (uint)(layer + 1))) / (float)uint.MaxValue * 2f - 1f,
+            ModSource.Random => Avalanche(math.hash(new uint3(seed, (uint)route, (uint)(layer + 1)))) / (float)uint.MaxValue * 2f - 1f,
             _ => 0f,
         };
 
@@ -101,6 +107,34 @@ namespace DataKeeper.Forge.Render
             };
         }
 
+        // -1..1 for a whole step, from the layer seed.
+        public static float RandomStep(uint seed, int step) =>
+            (Avalanche(math.hash(new uint3(seed, (uint)step, RandomSalt))) >> 8) * (2f / (1 << 24)) - 1f;
+
+        // lowbias32 (Chris Wellons). Every hash of neighbouring integers (steps, voices, routes,
+        // seeds) goes through it, because math.hash alone is a linear combination of its inputs.
+        public static uint Avalanche(uint x)
+        {
+            x ^= x >> 16;
+            x *= 0x7FEB352Du;
+            x ^= x >> 15;
+            x *= 0x846CA68Bu;
+            x ^= x >> 16;
+            return x;
+        }
+
+        // steps = seconds × rate. Smooth is value noise: smoothstep between neighbouring steps,
+        // so it is continuous and its slope never exceeds 1.5 × the step difference.
+        public static float RandomSignal(RandomMode mode, uint seed, float steps)
+        {
+            var step = (int)math.floor(steps);
+            var held = RandomStep(seed, step);
+            if (mode != RandomMode.Smooth) return held;
+
+            var f = steps - step;
+            return math.lerp(held, RandomStep(seed, step + 1), f * f * (3f - 2f * f));
+        }
+
         private static bool Applies(ModRoute route, int layer) => route.Layer < 0 || route.Layer == layer;
 
         private static float4 Component(int index, float value)
@@ -108,6 +142,20 @@ namespace DataKeeper.Forge.Render
             var result = float4.zero;
             result[index] = value;
             return result;
+        }
+
+        private static void AddDepth(ref LayerModulation mod, ModSource source, float4 depth)
+        {
+            switch (source)
+            {
+                case ModSource.Lfo: mod.LfoDepth += depth; break;
+                case ModSource.Lfo2: mod.Lfo2Depth += depth; break;
+                case ModSource.Lfo3: mod.Lfo3Depth += depth; break;
+                case ModSource.Envelope: mod.EnvelopeDepth += depth; break;
+                case ModSource.Env2: mod.Env2Depth += depth; break;
+                case ModSource.Env3: mod.Env3Depth += depth; break;
+                case ModSource.Random: mod.RandomDepth += depth; break;
+            }
         }
 
         private static void AddLayer(ref LayerModulation mod, ModTarget target, float value)

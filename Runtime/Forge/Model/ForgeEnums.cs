@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace DataKeeper.Forge
 {
     // Explicit values: these are serialized as ints in recipe assets and JSON presets.
@@ -119,15 +121,34 @@ namespace DataKeeper.Forge
         Pan = 3,
     }
 
+    // InspectorName gives the editor's EnumFields (route rows, Inspector) the names the source
+    // bar uses; they must match ForgeModulation's source names.
     public enum ModSource
     {
         Size = 0,
         Energy = 1,
         Tone = 2,
         Motion = 3,
-        Lfo = 4,
-        Envelope = 5,
-        Random = 6,
+        [InspectorName("LFO 1")] Lfo = 4,
+        [InspectorName("Env 1")] Envelope = 5,
+        [InspectorName("Rnd")] Random = 6,
+        [InspectorName("LFO 2")] Lfo2 = 7,
+        [InspectorName("LFO 3")] Lfo3 = 8,
+        [InspectorName("Env 2")] Env2 = 9,
+        [InspectorName("Env 3")] Env3 = 10,
+    }
+
+    public enum LfoMode
+    {
+        Retrigger = 0,
+        Free = 1,
+    }
+
+    public enum RandomMode
+    {
+        Constant = 0,
+        [InspectorName("Sample & Hold")] SampleHold = 1,
+        Smooth = 2,
     }
 
     public enum ModTarget

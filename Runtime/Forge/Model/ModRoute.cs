@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace DataKeeper.Forge
 {
     // Amount is in the target's unit (semitones, octaves, dB, pan, mix). Macro and random
-    // sources are bipolar (-1..1, a macro at 0.5 is neutral), the LFO swings -1..1 and the
-    // envelope is the layer's amp curve (0..1).
+    // sources are bipolar (-1..1, a macro at 0.5 is neutral), the LFOs swing -1..1, Env 1 is
+    // the layer's amp curve and Env 2/3 are the recipe's curves over the whole sound (0..1).
     [Serializable]
     public class ModRoute
     {
@@ -53,16 +53,36 @@ namespace DataKeeper.Forge
 
         public Waveform Shape = Waveform.Sine;
         public float RateHz = 4f;
+        public float Phase;
+        public LfoMode Mode;
+    }
+
+    // Constant is one fixed value per route and layer; the moving modes make Rnd a
+    // continuous source with one signal per layer.
+    [Serializable]
+    public class RandomSettings
+    {
+        public const float MinRateHz = 0.1f;
+        public const float MaxRateHz = 40f;
+
+        public RandomMode Mode;
+        public float RateHz = 4f;
     }
 
     public static class ModTargets
     {
         public static bool IsPerLayer(ModTarget target) => target <= ModTarget.Resonance;
 
-        // Only these are evaluated at control rate, so only they can follow the LFO or envelope.
+        // Only these are evaluated at control rate, so only they can follow a continuous source.
         public static bool IsContinuous(ModTarget target) => target <= ModTarget.Pan;
 
-        public static bool IsContinuous(ModSource source) => source == ModSource.Lfo || source == ModSource.Envelope;
+        public static bool IsContinuous(ModSource source, RandomMode randomMode) => source switch
+        {
+            ModSource.Lfo or ModSource.Lfo2 or ModSource.Lfo3 => true,
+            ModSource.Envelope or ModSource.Env2 or ModSource.Env3 => true,
+            ModSource.Random => randomMode != RandomMode.Constant,
+            _ => false,
+        };
 
         public static float MaxAmount(ModTarget target) => target switch
         {

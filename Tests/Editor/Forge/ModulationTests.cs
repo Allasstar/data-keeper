@@ -127,6 +127,22 @@ namespace DataKeeper.Forge.Tests
             Assert.That(first, Is.InRange(-12f, 12f));
         }
 
+        // An unmixed math.hash steps by a fixed amount between consecutive seeds (FSF-O3).
+        [Test]
+        public void StaticRandom_IsNotEvenlySteppedAcrossSeeds()
+        {
+            var macros = new Macros();
+            var steps = new float[3];
+            for (var i = 0; i < steps.Length; i++)
+            {
+                var delta = ModMatrix.StaticValue(ModSource.Random, macros, (uint)(i + 2), 0, 0)
+                            - ModMatrix.StaticValue(ModSource.Random, macros, (uint)(i + 1), 0, 0);
+                steps[i] = delta < 0f ? delta + 2f : delta;
+            }
+
+            Assert.IsFalse(Mathf.Approximately(steps[0], steps[1]) && Mathf.Approximately(steps[1], steps[2]));
+        }
+
         [Test]
         public void Length_RouteChangesTheRenderedLength()
         {

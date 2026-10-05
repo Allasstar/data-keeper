@@ -13,6 +13,8 @@ namespace DataKeeper.Forge.Render
     {
         public const int Channels = 2;
 
+        private const uint PhaseSalt = 0x9A5Eu;
+
         private readonly Dictionary<AudioClip, float[]> _clipCache = new();
         private readonly LayerModulation[] _modulation = new LayerModulation[SfxRecipe.MaxLayers];
 
@@ -71,7 +73,7 @@ namespace DataKeeper.Forge.Render
 
             EnsureCapacity(ref _layerBuffer, FrameCount * Channels * SfxRecipe.MaxLayers);
             EnsureCapacity(ref _output, FrameCount * Channels);
-            EnsureCapacity(ref _breakpoints, CountBreakpoints(recipe.Layers, layerCount));
+            EnsureCapacity(ref _breakpoints, CountBreakpoints(recipe, layerCount));
             PrepareSources(recipe.Layers, layerCount);
             BuildLayers(recipe, layerCount, seed, global);
 
@@ -165,12 +167,21 @@ namespace DataKeeper.Forge.Render
         private void BuildLayers(SfxRecipe recipe, int layerCount, uint seed, in GlobalModulation global)
         {
             var layers = recipe.Layers;
-            var lfoRate = math.clamp(recipe.Lfo.RateHz * math.exp2(global.LfoRateOctaves), LfoSettings.MinRateHz, LfoSettings.MaxRateHz);
+            var transpose = (float)(math.clamp(recipe.RootNote, SfxRecipe.MinRootNote, SfxRecipe.MaxRootNote)
+                                    - SfxRecipe.DefaultRootNote);
+            // The LFO Rate target moves LFO 1 only.
+            var lfo1 = PackLfo(recipe.Lfo, global.LfoRateOctaves);
+            var lfo2 = PackLfo(recipe.Lfo2, 0f);
+            var lfo3 = PackLfo(recipe.Lfo3, 0f);
+            var randomRate = math.clamp(recipe.Random.RateHz, RandomSettings.MinRateHz, RandomSettings.MaxRateHz);
             var anySolo = false;
             for (var i = 0; i < layerCount; i++)
                 anySolo |= layers[i].Enabled && layers[i].Solo;
 
+            // Env 2/3 are shared by every layer, so they are copied once.
             var cursor = 0;
+            var env2 = CopyCurve(recipe.Env2, ref cursor);
+            var env3 = CopyCurve(recipe.Env3, ref cursor);
             var sampleCursor = 0;
             for (var i = 0; i < layerCount; i++)
             {
@@ -186,7 +197,7 @@ namespace DataKeeper.Forge.Render
                     Source = source.Type,
                     Waveform = source.Oscillator.Waveform,
                     NoiseColor = source.Noise.Color,
-                    Pitch = layer.Pitch + mod.Pitch,
+                    Pitch = layer.Pitch + mod.Pitch + transpose,
                     Gain = audible ? AudioMath.DbToLinear(layer.LevelDb + mod.LevelDb) : 0f,
                     Pan = math.clamp(layer.Pan + mod.Pan, -1f, 1f),
                     StartFrame = startFrame,
@@ -205,17 +216,71 @@ namespace DataKeeper.Forge.Render
                     PitchCurve = CopyCurve(layer.PitchCurve, ref cursor),
                     CutoffCurve = CopyCurve(layer.CutoffCurve, ref cursor),
                     PanCurve = CopyCurve(layer.PanCurve, ref cursor),
-                    LfoShape = recipe.Lfo.Shape,
-                    LfoRateHz = lfoRate,
+                    StartSeconds = startFrame / (float)SampleRate,
+                    Lfo1 = lfo1,
+                    Lfo2 = lfo2,
+                    Lfo3 = lfo3,
+                    RandomMode = recipe.Random.Mode,
+                    RandomRateHz = randomRate,
                     LfoDepth = mod.LfoDepth,
+                    Lfo2Depth = mod.Lfo2Depth,
+                    Lfo3Depth = mod.Lfo3Depth,
                     EnvelopeDepth = mod.EnvelopeDepth,
+                    Env2Depth = mod.Env2Depth,
+                    Env3Depth = mod.Env3Depth,
+                    RandomDepth = mod.RandomDepth,
+                    Env2Curve = env2,
+                    Env3Curve = env3,
                 };
 
+                SetVoices(layer, ref parameters);
                 if (SourceSettings.UsesClip(source.Type)) CopySample(source.Sample, ref parameters, ref sampleCursor);
                 if (source.Type == SourceType.Granular) SetGrains(source.Granular, ref parameters);
                 _layers[i] = parameters;
             }
         }
+
+        private static LfoParams PackLfo(LfoSettings lfo, float rateOctaves) => new()
+        {
+            Shape = lfo.Shape,
+            RateHz = math.clamp(lfo.RateHz * math.exp2(rateOctaves), LfoSettings.MinRateHz, LfoSettings.MaxRateHz),
+            Phase = math.saturate(lfo.Phase),
+            Mode = lfo.Mode,
+        };
+
+        private static void SetVoices(Layer layer, ref LayerRenderParams parameters)
+        {
+            var voices = SourceSettings.IsTonal(layer.Source.Type)
+                ? math.clamp(layer.Unison.Voices, UnisonSettings.MinVoices, UnisonSettings.MaxVoices)
+                : 1;
+            var detuneOctaves = math.clamp(layer.Unison.DetuneCents, 0f, UnisonSettings.MaxDetuneCents) / 1200f;
+            var spread = math.saturate(layer.Unison.Spread);
+            var start = math.frac(math.saturate(layer.Phase.Start));
+            // √2 undoes the constant-power centre dip, so a centred voice matches the mono path
+            // before the 1/√N level; the layer pan is applied after the filter as usual.
+            var gain = math.SQRT2 / math.sqrt(voices);
+
+            parameters.Voices = voices;
+            for (var v = 0; v < voices; v++)
+            {
+                var position = voices == 1 ? 0f : (float)v / (voices - 1) - 0.5f;
+                parameters.VoiceRatios.Add(math.exp2(position * detuneOctaves));
+                parameters.VoicePhases.Add(layer.Phase.Random ? RandomPhase(parameters.Seed, v) : start);
+                parameters.VoiceGains.Add(AudioMath.ConstantPowerPan(spread * SpreadPosition(v, voices)) * gain);
+            }
+        }
+
+        // Even voices take the left positions from the outside in and odd voices the right ones,
+        // so neighbouring detunes land on opposite sides.
+        private static float SpreadPosition(int voice, int voices)
+        {
+            if (voices == 1) return 0f;
+            var slot = (voice & 1) == 0 ? voice / 2 : voices - 1 - voice / 2;
+            return 2f * slot / (voices - 1) - 1f;
+        }
+
+        private static float RandomPhase(uint layerSeed, int voice) =>
+            (ModMatrix.Avalanche(math.hash(new uint3(layerSeed, (uint)voice, PhaseSalt))) >> 8) * (1f / (1 << 24));
 
         private void CopySample(SampleSettings sample, ref LayerRenderParams parameters, ref int cursor)
         {
@@ -305,9 +370,10 @@ namespace DataKeeper.Forge.Render
             }
         }
 
-        private static int CountBreakpoints(List<Layer> layers, int layerCount)
+        private static int CountBreakpoints(SfxRecipe recipe, int layerCount)
         {
-            var count = 0;
+            var layers = recipe.Layers;
+            var count = recipe.Env2.Points.Count + recipe.Env3.Points.Count;
             for (var i = 0; i < layerCount; i++)
             {
                 var layer = layers[i];

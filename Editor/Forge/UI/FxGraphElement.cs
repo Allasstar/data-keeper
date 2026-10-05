@@ -28,10 +28,14 @@ namespace DataKeeper.Editor.Forge
         private Color _referenceColor = new(1f, 1f, 1f, 0.25f);
         private Color _markerColor = new(0.9f, 0.35f, 0.35f);
         private Color _gridColor = new(1f, 1f, 1f, 0.08f);
+        private bool _traceColorFromCode;
 
         public bool Bipolar { get; set; }
 
         public float Marker { get; set; } = float.NaN;
+
+        // A vertical line, 0..1 left to right whether or not the graph is Bipolar.
+        public float MarkerX { get; set; } = float.NaN;
 
         public FxGraphElement()
         {
@@ -47,6 +51,15 @@ namespace DataKeeper.Editor.Forge
             return _trace.AsSpan(0, _traceCount);
         }
 
+        // Wins over the stylesheet, for graphs coloured by what they show (a mod source).
+        public void SetTraceColor(Color color)
+        {
+            _traceColorFromCode = true;
+            _traceColor = color;
+            _fillColor = new Color(color.r, color.g, color.b, 0.18f);
+            MarkDirtyRepaint();
+        }
+
         public Span<float> Reference(int count)
         {
             _referenceCount = Mathf.Clamp(count, 0, Capacity);
@@ -55,8 +68,8 @@ namespace DataKeeper.Editor.Forge
 
         private void OnCustomStyleResolved(CustomStyleResolvedEvent evt)
         {
-            if (evt.customStyle.TryGetValue(TraceColorProperty, out var trace)) _traceColor = trace;
-            if (evt.customStyle.TryGetValue(FillColorProperty, out var fill)) _fillColor = fill;
+            if (!_traceColorFromCode && evt.customStyle.TryGetValue(TraceColorProperty, out var trace)) _traceColor = trace;
+            if (!_traceColorFromCode && evt.customStyle.TryGetValue(FillColorProperty, out var fill)) _fillColor = fill;
             if (evt.customStyle.TryGetValue(ReferenceColorProperty, out var reference)) _referenceColor = reference;
             if (evt.customStyle.TryGetValue(MarkerColorProperty, out var marker)) _markerColor = marker;
             if (evt.customStyle.TryGetValue(GridColorProperty, out var grid)) _gridColor = grid;
@@ -79,6 +92,11 @@ namespace DataKeeper.Editor.Forge
 
             if (!float.IsNaN(Marker))
                 Line(painter, rect, _markerColor, 1f, new Vector2(Bipolar ? -1f : 0f, Marker), new Vector2(1f, Marker));
+            if (!float.IsNaN(MarkerX))
+            {
+                var x = Bipolar ? MarkerX * 2f - 1f : MarkerX;
+                Line(painter, rect, _markerColor, 1f, new Vector2(x, Bipolar ? -1f : 0f), new Vector2(x, 1f));
+            }
 
             if (_referenceCount > 1) Stroke(painter, rect, _reference, _referenceCount, _referenceColor, 1f);
             if (_traceCount < 2) return;

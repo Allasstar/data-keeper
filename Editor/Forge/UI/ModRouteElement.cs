@@ -38,7 +38,7 @@ namespace DataKeeper.Editor.Forge
             _enabled.AddToClassList("forge-power");
             Add(_enabled);
 
-            _source = new StepperElement(ModSource.Size);
+            _source = new StepperElement(ModSource.Size, ForgeModulation.SourceOrder);
             _source.AddToClassList(UssClassName + "__source");
             Add(_source);
 
@@ -78,13 +78,14 @@ namespace DataKeeper.Editor.Forge
             _target.BindProperty(Relative(nameof(ModRoute.Target)));
             _amount.BindProperty(Relative(nameof(ModRoute.Amount)));
 
-            this.TrackPropertyValue(route, _ => UpdateState());
-            UpdateState();
+            this.TrackPropertyValue(route, _ => Refresh());
+            Refresh();
         }
 
         private SerializedProperty Relative(string path) => _route.FindPropertyRelative(path);
 
-        private void UpdateState()
+        // Public because the Rnd mode lives outside the route but decides whether it is supported.
+        public void Refresh()
         {
             if (_route == null) return;
 
@@ -101,10 +102,12 @@ namespace DataKeeper.Editor.Forge
             _layer.text = perLayer ? LayerName(Relative(nameof(ModRoute.Layer)).intValue) : "Global";
 
             var enabled = Relative(nameof(ModRoute.Enabled)).boolValue;
-            var supported = ForgeModulation.IsSupported(source, target);
+            var randomMode = (RandomMode)_route.serializedObject
+                .FindProperty($"{nameof(SfxRecipe.Random)}.{nameof(RandomSettings.Mode)}").intValue;
+            var supported = ForgeModulation.IsSupported(source, target, randomMode);
             EnableInClassList(UssClassName + "--off", !enabled);
             EnableInClassList(UssClassName + "--unsupported", !supported);
-            tooltip = supported ? string.Empty : $"{ForgeModulation.SourceName(source)} only modulates Pitch, Cutoff, Level and Pan.";
+            tooltip = supported ? string.Empty : ForgeModulation.UnsupportedReason(source, randomMode);
         }
 
         private Button Arrow(string text, int direction)

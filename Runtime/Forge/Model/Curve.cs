@@ -36,6 +36,12 @@ namespace DataKeeper.Forge
             _ => DefaultAmp(),
         };
 
+        public static Curve DefaultModEnvelope() => new()
+        {
+            Unit = CurveUnit.Gain,
+            Points = new List<Breakpoint> { new(0f, 0f), new(1f, 0f) },
+        };
+
         public static Curve DefaultAmp() => new()
         {
             Unit = CurveUnit.Gain,

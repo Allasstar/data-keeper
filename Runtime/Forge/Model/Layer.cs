@@ -12,6 +12,8 @@ namespace DataKeeper.Forge
         public bool Locked;
         public LayerParam LockedParams;
         public SourceSettings Source = SourceSettings.Default;
+        public UnisonSettings Unison = UnisonSettings.Default;
+        public PhaseSettings Phase;
         public Band Band = Band.Body;
 
         // Semitones relative to A4 (440 Hz).

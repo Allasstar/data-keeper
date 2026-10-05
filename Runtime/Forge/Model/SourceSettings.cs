@@ -105,4 +105,29 @@ namespace DataKeeper.Forge
 
         public static GranularSettings Default => new() { GrainMs = 60f, Density = 30f, SprayMs = 20f };
     }
+
+    // Tonal sources only. Old data deserializes Voices as 0, which the renderer reads as 1.
+    [Serializable]
+    public struct UnisonSettings
+    {
+        public const int MinVoices = 1;
+        public const int MaxVoices = 8;
+        public const float MaxDetuneCents = 100f;
+
+        public int Voices;
+
+        // Total width: voices spread evenly across ±DetuneCents / 2.
+        public float DetuneCents;
+        public float Spread;
+
+        public static UnisonSettings Default => new() { Voices = MinVoices };
+    }
+
+    [Serializable]
+    public struct PhaseSettings
+    {
+        // Fraction of a cycle; Random replaces it with a per-voice phase from the layer seed.
+        public float Start;
+        public bool Random;
+    }
 }

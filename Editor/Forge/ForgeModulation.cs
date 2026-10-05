@@ -24,9 +24,24 @@ namespace DataKeeper.Editor.Forge
             new(0.72f, 0.5f, 1f),
             new(0.3f, 0.86f, 0.9f),
             new(0.92f, 0.5f, 0.82f),
+            new(1f, 0.6f, 0.25f),
+            new(0.75f, 0.92f, 0.3f),
+            new(0.22f, 0.66f, 0.66f),
+            new(0.85f, 0.85f, 0.95f),
         };
 
-        private static readonly string[] SourceNames = { "Size", "Energy", "Tone", "Motion", "LFO", "Env", "Rnd" };
+        // Indexed by the ModSource value, which appends new sources at the end (FSF-D5).
+        private static readonly string[] SourceNames =
+            { "Size", "Energy", "Tone", "Motion", "LFO 1", "Env 1", "Rnd", "LFO 2", "LFO 3", "Env 2", "Env 3" };
+
+        // Display order for the source bar and the route rows' arrows.
+        public static readonly ModSource[] SourceOrder =
+        {
+            ModSource.Size, ModSource.Energy, ModSource.Tone, ModSource.Motion,
+            ModSource.Lfo, ModSource.Lfo2, ModSource.Lfo3,
+            ModSource.Envelope, ModSource.Env2, ModSource.Env3,
+            ModSource.Random,
+        };
 
         private readonly VisualElement _root;
         private readonly Action<string> _status;
@@ -58,8 +73,16 @@ namespace DataKeeper.Editor.Forge
             _ => KnobFormat.Octaves,
         };
 
-        public static bool IsSupported(ModSource source, ModTarget target) =>
-            !ModTargets.IsContinuous(source) || ModTargets.IsContinuous(target);
+        public static bool IsSupported(ModSource source, ModTarget target, RandomMode randomMode) =>
+            !ModTargets.IsContinuous(source, randomMode) || ModTargets.IsContinuous(target);
+
+        public static string UnsupportedReason(ModSource source, RandomMode randomMode) =>
+            source == ModSource.Random
+                ? $"Rnd in {(randomMode == RandomMode.Smooth ? "Smooth" : "Sample & Hold")} mode only modulates Pitch, Cutoff, Level and Pan. Set it to Constant to reach other targets."
+                : $"{SourceName(source)} only modulates Pitch, Cutoff, Level and Pan.";
+
+        public static bool IsUnipolar(ModSource source) =>
+            source is ModSource.Envelope or ModSource.Env2 or ModSource.Env3;
 
         public void Bind(SfxRecipe recipe, SerializedObject serialized)
         {
@@ -80,9 +103,9 @@ namespace DataKeeper.Editor.Forge
 
             var target = knob.ModTarget.Value;
             var layer = DropLayer(knob, allLayers);
-            if (!IsSupported(source, target))
+            if (!IsSupported(source, target, _recipe.Random.Mode))
             {
-                message = $"{SourceName(source)} only modulates Pitch, Cutoff, Level and Pan.";
+                message = UnsupportedReason(source, _recipe.Random.Mode);
                 return false;
             }
 
@@ -189,7 +212,7 @@ namespace DataKeeper.Editor.Forge
             var route = _recipe.Routes[index];
             var text = $"{Describe(route.Source, route.Target, route.Layer)}: {KnobElement.FormatAs(Format(route.Target), route.Amount)}";
             if (!route.Enabled) return text + " (off)";
-            return IsSupported(route.Source, route.Target) ? text : text + " (no effect on this target)";
+            return IsSupported(route.Source, route.Target, _recipe.Random.Mode) ? text : text + " (no effect on this target)";
         }
 
         private void SetEnabled(int index, bool enabled)
@@ -258,8 +281,8 @@ namespace DataKeeper.Editor.Forge
                     if (knob.ModLayer >= 0 && route.Layer >= 0 && route.Layer != knob.ModLayer) continue;
 
                     var color = SourceColor(route.Source);
-                    var active = route.Enabled && IsSupported(route.Source, target);
-                    if (active) knob.AddModArc(route.Amount, color, route.Source == ModSource.Envelope);
+                    var active = route.Enabled && IsSupported(route.Source, target, _recipe.Random.Mode);
+                    if (active) knob.AddModArc(route.Amount, color, IsUnipolar(route.Source));
 
                     var chip = count < chips.childCount ? (ModChipElement)chips[count] : AddChip(chips);
                     chip.Set(i, knob.ModLayer, color, active, knob.ModLayer >= 0 && route.Layer < 0);

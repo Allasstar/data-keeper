@@ -13,15 +13,20 @@ platform.
 |---|---|
 | Top bar | Recipe, New, `< category >`, `< preset >` with save, Undo/Redo, Play/Stop/Autoplay, output meter (drag it sideways to set the preview volume, shown as the thin middle line; double-click resets) |
 | Left | Randomize and Mutate, randomizer settings (harmony, variation, physics, candidates), the 8-variation grid (hover a thumbnail for its loudness, brightness and length), seed. `«` at the left of the page tabs hides the panel, `»` brings it back |
-| Sound page | Length, waveform with trim handles and analysis readouts, curve editor (Pitch/Filter/Amp/Pan), layer strips |
+| Sound page | Length, root-note keyboard, waveform with trim handles and analysis readouts, curve editor (Pitch/Filter/Amp/Pan), layer strips |
 | FX page | The FX chain, one module per effect (see below) |
-| Mod page | Macros, LFO and modulation routes |
+| Mod page | Macros, the source panels (LFO 1–3, ENV 1–3, RND) and modulation routes |
 | Export page | WAV export settings |
 | Status bar | The last message, or the name and a line of help for the control under the mouse |
 
 The window remembers the last page. Hotkeys: `Space` play/stop, `R` randomize, `M` mutate.
 Right-click a knob or stepper to lock it against the randomizer. Each panel has a `?` button that
 explains the panel and every control in it; click outside the card or press `Esc` to close it.
+
+**Root note.** The keyboard next to Length (C2–B6) sets the recipe's `RootNote`, a MIDI note
+that defaults to A4 (69). Every layer is transposed by its distance from A4, so each layer's
+Pitch stays relative to the root. Clicking a key, or sliding across the keys, plays the sound
+at that note. Runtime renders use the root note too.
 
 ## Layers and sources
 
@@ -33,7 +38,7 @@ Each layer strip has the same layout:
 - **Side tab:** on/off light, layer number, band colour. It turns red when the layer is locked.
 - **Header:** name, band, Mute, Solo, and `…` (Duplicate, Remove, Lock Layer, Lock Curves, Clear Parameter Locks; right-clicking the header or tab opens the same menu).
 - **Display:** `< >` steppers for the source type and its variant (wave, noise colour, wavetable bank, or the clip field), above two pictures of the layer's own render before mixing and FX. The left picture shows two cycles of the wave at its loudest point. The right one shows the whole layer over time, scaled to its own peak. A flat picture means the layer is silent.
-- **Boxes:** **VOICE** (Pitch, Offset, Decay), **AMP** (Level, Pan), **FILTER** (type, Cutoff, Reso), and **SOURCE** (the FM, Wavetable, Sample or Granular controls; hidden for Oscillator and Noise).
+- **Boxes:** **VOICE** (Pitch, Offset, Decay), **AMP** (Level, Pan), **FILTER** (type, Cutoff, Reso), **SOURCE** (the FM, Wavetable, Sample or Granular controls; hidden for Oscillator and Noise), and **UNISON** (Voices, Detune, Spread, Phase, Rnd; Oscillator, Wavetable and FM only).
 
 `Compact` in the Layers header hides the boxes on every strip.
 
@@ -45,6 +50,15 @@ Each layer strip has the same layout:
 | FM | 2-operator; ratio, index, index follows the amp curve |
 | Sample | AudioClip, start, reverse, linear or cubic; pitch transposes the clip |
 | Granular | Uses the Sample clip settings, plus grain size, density, spray and per-grain detune. The read head moves in real time, so pitch does not change duration |
+
+**Unison and start phase** (Oscillator, Wavetable and FM):
+
+- **Voices** (1–8) stacks copies of the source, each at 1/√Voices gain.
+- **Detune** (0–100 cents) is the total width: voices are spread evenly across ±Detune/2. FM detunes the modulator with its carrier, so each voice keeps the same timbre.
+- **Spread** (0–1) pans voices alternately left and right, up to ±Spread. The layer's Pan still applies on top.
+- **Phase** (0–360°) sets where every voice's wave starts. **Rnd** gives each voice its own start instead, hashed from the layer seed, so each render seed sounds slightly different.
+- More than one voice sums to stereo before the filter, which then runs per channel. One voice with Phase 0 and Rnd off renders exactly as before.
+- Randomize and Mutate keep each layer's unison and phase (by layer index); the templates never generate them.
 
 Sample and granular clips are read with `AudioClip.GetData`, which only returns data for
 uncompressed clips or clips set to Decompress On Load.
@@ -78,26 +92,47 @@ keep the best 8 in the grid.
 Four macros — Size, Energy, Tone, Motion — sit at 0.5, which is neutral. They drive parameters
 through **routes**: source → target × amount, with the amount in the target's unit.
 
-| Sources | Targets |
-|---|---|
-| Size, Energy, Tone, Motion (bipolar around 0.5) | Per layer: Pitch, Cutoff, Level, Pan, Decay, Resonance |
-| Random (bipolar, from the render seed) | Global: Length, Drive, Reverb Mix, Delay Mix, Transient Attack, LFO Rate, LFO Depth |
-| LFO (one per recipe, shape and rate) | |
-| Envelope (the layer's amp curve, 0..1) | |
+| Source | Signal | Reaches |
+|---|---|---|
+| Size, Energy, Tone, Motion | Bipolar around 0.5, fixed for the render | Every target |
+| LFO 1, LFO 2, LFO 3 | Recipe-level, −1..1. Shape (sine, saw, square, triangle), Rate 0.05–40 Hz, Phase 0–1 (where the cycle starts), Mode: **Retrigger** restarts at each layer's start, **Free** runs from the sound's start | Pitch, Cutoff, Level, Pan |
+| Env 1 | Each layer's amp curve, 0..1 | Pitch, Cutoff, Level, Pan |
+| Env 2, Env 3 | Recipe-level drawn curves, 0..1, spanning the whole sound and shared by every layer. Flat at 0 by default | Pitch, Cutoff, Level, Pan |
+| Rnd | Bipolar, from the render seed. Mode: **Constant** gives one fixed value per route and layer; **Sample & Hold** jumps to a new value at Rate; **Smooth** glides between those values at Rate (0.1–40 Hz). The moving modes give each layer its own signal on the sound's timeline | Constant: every target. Moving modes: Pitch, Cutoff, Level, Pan |
 
-LFO and Envelope are evaluated every 32 samples, so they only reach Pitch, Cutoff, Level and Pan;
-other combinations are greyed out in the route list. New recipes start with default routes that
+Targets are per layer (Pitch, Cutoff, Level, Pan, Decay, Resonance) or global (Length, Drive,
+Reverb Mix, Delay Mix, Transient Attack, LFO Rate, LFO Depth). LFO Rate and LFO Depth act on
+LFO 1 only.
+
+The LFOs, the envelopes and moving Rnd are evaluated every 32 samples, so they only reach Pitch,
+Cutoff, Level and Pan; other combinations are greyed out in the route list. Defaults leave the
+sound unchanged: LFO Phase 0 in Retrigger, Rnd in Constant, and Env 2/3 do nothing until routed.
+New recipes start with default routes that
 follow the design rules: Size lowers pitch and lengthens the sound, Energy adds attack, drive and
-brightness, Tone tilts brightness, Motion scales the LFO and adds delay. A route can target all
+brightness, Tone tilts brightness, Motion scales LFO 1 and adds delay. A route can target all
 layers or one.
 
+**Source panels.** Below the macros, a column of tabs (LFO 1, LFO 2, LFO 3, ENV 1, ENV 2, ENV 3,
+RND), each edged in its source's colour, opens one panel at a time. The window remembers the
+last tab.
+
+| Tab | Panel |
+|---|---|
+| LFO 1–3 | A picture of two cycles of the shape, with a line where the LFO starts (Phase), plus Shape, Mode (Retrigger or Free), Rate and Phase (0–360°). LFO 1's Rate is also a drop target, for the LFO Rate route target |
+| ENV 1 | A note that Env 1 is each layer's Amp curve, and a button that opens the Sound page's curve editor on Amp |
+| ENV 2, ENV 3 | A curve editor for the recipe's envelope (0..1 across the whole sound), with Draw, Grid and Reset. A drag is one undo step |
+| RND | Mode (Constant, Sample & Hold, Smooth) and, for the moving modes, Rate and a picture of layer 1's signal over the sound for the current seed. Constant shows a line of text instead, since its values don't move |
+
 **Drag to modulate.** The source bar under the page tabs holds one coloured chip per source and
-is there on every page. Drag a chip onto a highlighted knob to add a route at a quarter of the
-target's range:
+is there on every page, in the order macros, LFOs, envelopes, Rnd. A narrow window wraps it
+between those groups. Drag a chip onto a highlighted knob to add a route at a quarter of the
+target's range; click an LFO, Env or Rnd chip without dragging to open its tab on the Mod page:
 
 - On a layer knob the route moves that layer only; hold Alt while dropping to move every layer.
-- LFO and Env are refused on targets they can't reach, and an existing source/target/layer
+- The LFOs, the envelopes and moving Rnd are refused on targets they can't reach, and an existing source/target/layer
   combination is refused as a duplicate. The status bar says why.
+- Switching Rnd to Sample & Hold or Smooth dims its existing routes on other targets (rows and
+  chips, with no arc); switching back to Constant brings them back.
 
 Every route that reaches a knob draws an arc for its range in the source's colour, with a dot
 at the `+amount` end, and a small chip in the dial's bottom gap. Drag a chip vertically to set

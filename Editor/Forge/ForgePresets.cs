@@ -42,6 +42,13 @@ namespace DataKeeper.Editor.Forge
             // The JSON carries the preset's object name; keeping the asset's own name avoids a
             // mismatch with its file name.
             var name = recipe.name;
+
+            // FromJsonOverwrite keeps fields the JSON lacks, so an older preset would otherwise
+            // inherit them from whatever recipe was open (FSF-D2).
+            var defaults = UnityEngine.ScriptableObject.CreateInstance<SfxRecipe>();
+            EditorJsonUtility.FromJsonOverwrite(EditorJsonUtility.ToJson(defaults), recipe);
+            UnityEngine.Object.DestroyImmediate(defaults);
+
             EditorJsonUtility.FromJsonOverwrite(File.ReadAllText(assetPath), recipe);
             recipe.name = name;
             EditorUtility.SetDirty(recipe);

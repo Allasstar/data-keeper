@@ -16,10 +16,14 @@ namespace DataKeeper.Editor.Forge
 
         public event Action<Enum> Changed;
 
-        public StepperElement(Enum initial)
+        public Enum value => _field.value;
+
+        // Order sets what the arrows step through, for enums whose values are appended out of
+        // display order; the dropdown still lists them in declaration order.
+        public StepperElement(Enum initial, Array order = null)
         {
             AddToClassList(UssClassName);
-            _values = Enum.GetValues(initial.GetType());
+            _values = order ?? Enum.GetValues(initial.GetType());
 
             Add(Arrow("<", -1));
             _field = new EnumField(initial);

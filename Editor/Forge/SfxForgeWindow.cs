@@ -53,6 +53,9 @@ namespace DataKeeper.Editor.Forge
         [SerializeField] private bool _gridSnap;
         [SerializeField] private bool _harmonySnap = true;
         [SerializeField] private bool _compactStrips;
+        [SerializeField] private ModSource _modTab = ModSource.Lfo;
+        [SerializeField] private bool _envDrawMode;
+        [SerializeField] private bool _envGridSnap;
 
         private readonly List<LayerStripElement> _strips = new();
         private readonly Dictionary<Page, Button> _pageTabs = new();
@@ -66,6 +69,11 @@ namespace DataKeeper.Editor.Forge
         private readonly List<ModRouteElement> _routeElements = new();
         private readonly KnobElement[] _macroKnobs = new KnobElement[4];
         private static readonly string[] MacroNames = { nameof(Macros.Size), nameof(Macros.Energy), nameof(Macros.Tone), nameof(Macros.Motion) };
+        private static readonly ModSource[] LfoSources = { ModSource.Lfo, ModSource.Lfo2, ModSource.Lfo3 };
+        private static readonly string[] LfoPaths = { nameof(SfxRecipe.Lfo), nameof(SfxRecipe.Lfo2), nameof(SfxRecipe.Lfo3) };
+        private readonly LfoPanelElement[] _lfoPanels = new LfoPanelElement[3];
+        private readonly Dictionary<ModSource, Button> _modTabs = new();
+        private readonly Dictionary<ModSource, VisualElement> _modPanels = new();
 
         private SfxRenderer _renderer;
         private SfxRenderer _thumbRenderer;
@@ -88,6 +96,8 @@ namespace DataKeeper.Editor.Forge
         private Label _placeholder;
         private UnsignedIntegerField _seed;
         private KnobElement _length;
+        private PianoElement _piano;
+        private Label _rootNoteLabel;
         private KnobElement _variationAmount;
         private KnobElement _coupling;
         private IntegerField _candidates;
@@ -103,8 +113,9 @@ namespace DataKeeper.Editor.Forge
         private Button _exportButton;
         private Button _presetName;
         private MeterElement _meter;
-        private StepperElement _lfoShape;
-        private KnobElement _lfoRate;
+        private RandomPanelElement _randomPanel;
+        private ParamBoxElement _envPanel;
+        private CurveEditorElement _envEditor;
         private Label _routesTitle;
         private VisualElement _routeContainer;
         private VisualElement _peakTarget;
@@ -383,6 +394,7 @@ namespace DataKeeper.Editor.Forge
             tabs.Add(Hint(_leftToggle, ForgeHelp.Variations, "«  »"));
             SetLeftCollapsed(_leftCollapsed);
             _modBar = new ModSourceBarElement(_modulation, SetStatus);
+            _modBar.Clicked += OnSourceClicked;
             column.Add(_modBar);
             AddPage(column, tabs, Page.Sound, "Sound", BuildSoundPage());
             AddPage(column, tabs, Page.Fx, "FX", BuildFxPage());
@@ -435,6 +447,12 @@ namespace DataKeeper.Editor.Forge
             _length.AddToClassList("forge-knob--inline");
             _length.LockToggled += locked => SetRecipeBool("Randomizer.LockLength", locked);
             globals.Add(Hint(_length, ForgeHelp.Waveform, "Length knob"));
+            _piano = new PianoElement();
+            _piano.NoteClicked += SetRootNote;
+            globals.Add(Hint(_piano, ForgeHelp.Waveform, "Root note"));
+            _rootNoteLabel = new Label();
+            _rootNoteLabel.AddToClassList("forge-root-note");
+            globals.Add(Hint(_rootNoteLabel, ForgeHelp.Waveform, "Root note"));
             globals.Add(Spacer());
             globals.Add(HelpButton(ForgeHelp.Waveform));
             page.Add(globals);
@@ -540,7 +558,7 @@ namespace DataKeeper.Editor.Forge
         {
             var page = ScrollPage();
             var topic = ForgeHelp.Modulation;
-            page.Add(SectionHeader("Macros and LFO", topic));
+            page.Add(SectionHeader("Macros and sources", topic));
 
             var row = new VisualElement();
             row.AddToClassList("forge-mod-row");
@@ -551,19 +569,8 @@ namespace DataKeeper.Editor.Forge
                 macros.Add(Hint(_macroKnobs[i], topic, MacroNames[i]));
             }
             row.Add(macros);
-
-            var lfo = new ParamBoxElement("LFO");
-            lfo.AddToClassList(ParamBoxElement.UssClassName + "--stacked");
-            _lfoShape = new StepperElement(Waveform.Sine);
-            _lfoShape.AddToClassList("forge-lfo__shape");
-            lfo.Add(_lfoShape);
-            _lfoRate = new KnobElement("Rate", LfoSettings.MinRateHz, LfoSettings.MaxRateHz, 4f, KnobFormat.Hertz, KnobScale.Log)
-            {
-                ModTarget = ModTarget.LfoRate,
-            };
-            lfo.Add(_lfoRate);
-            row.Add(Hint(lfo, topic, "LFO"));
             page.Add(row);
+            page.Add(BuildModSources());
 
             var routesHeader = new VisualElement();
             routesHeader.AddToClassList("forge-section-header");
@@ -579,6 +586,132 @@ namespace DataKeeper.Editor.Forge
             _routeContainer.AddToClassList("forge-routes");
             page.Add(Hint(_routeContainer, topic, "Routes"));
             return page;
+        }
+
+        // Vital's left column: a tab per continuous source beside the selected source's panel.
+        private VisualElement BuildModSources()
+        {
+            var sources = new VisualElement();
+            sources.AddToClassList("forge-mod-sources");
+            var tabs = new VisualElement();
+            tabs.AddToClassList("forge-mod-tabs");
+            sources.Add(tabs);
+            var panels = new VisualElement();
+            panels.AddToClassList("forge-mod-panels");
+            sources.Add(panels);
+
+            for (var i = 0; i < _lfoPanels.Length; i++)
+            {
+                var source = LfoSources[i];
+                // LFO 1's Rate stays a drop target: the LfoRate route target acts on LFO 1 only.
+                _lfoPanels[i] = new LfoPanelElement(TabName(source), ForgeModulation.SourceColor(source),
+                    i == 0 ? ModTarget.LfoRate : (ModTarget?)null);
+                AddModTab(tabs, panels, source, _lfoPanels[i], "LFO");
+            }
+
+            AddModTab(tabs, panels, ModSource.Envelope, BuildEnv1Panel(), "ENV 1");
+            _envPanel = BuildEnvPanel();
+            AddModTab(tabs, panels, ModSource.Env2, _envPanel, "ENV 2 / 3");
+            AddModTab(tabs, panels, ModSource.Env3, _envPanel, "ENV 2 / 3");
+            _randomPanel = new RandomPanelElement(ForgeModulation.SourceColor(ModSource.Random));
+            AddModTab(tabs, panels, ModSource.Random, _randomPanel, "RND");
+
+            ShowModTab(_modTab);
+            return sources;
+        }
+
+        private static string TabName(ModSource source) => ForgeModulation.SourceName(source).ToUpperInvariant();
+
+        private void AddModTab(VisualElement tabs, VisualElement panels, ModSource source, VisualElement panel, string hint)
+        {
+            var tab = MakeButton(TabName(source), () => ShowModTab(source), "forge-mod-tab");
+            tab.style.borderLeftColor = ForgeModulation.SourceColor(source);
+            _modTabs[source] = tab;
+            tabs.Add(Hint(tab, ForgeHelp.Modulation, hint));
+
+            _modPanels[source] = panel;
+            if (panel.parent == null) panels.Add(Hint(panel, ForgeHelp.Modulation, hint));
+        }
+
+        private VisualElement BuildEnv1Panel()
+        {
+            var box = new ParamBoxElement("ENV 1");
+            box.AddToClassList(LfoPanelElement.PanelClassName);
+            var text = new Label("Env 1 is each layer's own Amp curve, so a route from it follows every layer's " +
+                                 "volume envelope. Edit it as the Amp curve on the Sound page.");
+            text.AddToClassList(LfoPanelElement.PanelClassName + "__text");
+            box.Add(text);
+            box.Add(MakeButton("Edit Amp Curve", EditAmpCurve));
+            return box;
+        }
+
+        private ParamBoxElement BuildEnvPanel()
+        {
+            var box = new ParamBoxElement();
+            box.AddToClassList(LfoPanelElement.PanelClassName);
+            box.AddToClassList(ParamBoxElement.UssClassName + "--stacked");
+
+            var bar = new VisualElement();
+            bar.AddToClassList(LfoPanelElement.PanelClassName + "__bar");
+            bar.Add(CurveToggle("Draw", _envDrawMode, value =>
+            {
+                _envDrawMode = value;
+                RefreshEnvEditor();
+            }));
+            bar.Add(CurveToggle("Grid", _envGridSnap, value =>
+            {
+                _envGridSnap = value;
+                RefreshEnvEditor();
+            }));
+            bar.Add(Hint(MakeButton("Reset", ResetEnvCurve), ForgeHelp.Curves, "Reset"));
+            box.Add(bar);
+
+            _envEditor = new CurveEditorElement();
+            _envEditor.AddToClassList(LfoPanelElement.PanelClassName + "__curve");
+            _envEditor.EditStarted += OnCurveEditStarted;
+            _envEditor.Changed += OnEnvCurveChanged;
+            _envEditor.EditFinished += OnEnvCurveEditFinished;
+            box.Add(Hint(_envEditor, ForgeHelp.Curves, "Mouse"));
+            return box;
+        }
+
+        private void ShowModTab(ModSource source)
+        {
+            if (!_modPanels.ContainsKey(source)) source = ModSource.Lfo;
+            _modTab = source;
+            foreach (var pair in _modPanels) pair.Value.style.display = DisplayStyle.None;
+            _modPanels[source].style.display = DisplayStyle.Flex;
+            foreach (var pair in _modTabs) pair.Value.EnableInClassList("forge-mod-tab--selected", pair.Key == source);
+            _envPanel.Title = TabName(source == ModSource.Env3 ? ModSource.Env3 : ModSource.Env2);
+            RefreshEnvEditor();
+        }
+
+        // A chip click without a drag opens that source's panel, if it has one.
+        private void OnSourceClicked(ModSource source)
+        {
+            if (_modPanels.ContainsKey(source)) ShowModTab(source);
+        }
+
+        private void EditAmpCurve()
+        {
+            _curveTarget = CurveTarget.Amp;
+            ShowPage(Page.Sound);
+            RefreshCurveEditor();
+        }
+
+        // Rows refresh here too: the Rnd mode decides whether a row's route is supported.
+        private void RefreshModPanels()
+        {
+            _lfoPanels[0].Show(_recipe.Lfo);
+            _lfoPanels[1].Show(_recipe.Lfo2);
+            _lfoPanels[2].Show(_recipe.Lfo3);
+            _randomPanel.Show(_recipe);
+            RefreshEnvEditor();
+
+            // A variation can bring a different route count, which would leave rows on stale
+            // array elements until the tracker catches up.
+            if (_routeElements.Count != _recipe.Routes.Count) RebuildRoutes();
+            else foreach (var route in _routeElements) route.Refresh();
         }
 
         private VisualElement BuildFxPage()
@@ -970,8 +1103,8 @@ namespace DataKeeper.Editor.Forge
             _candidates.BindProperty(_serializedRecipe.FindProperty("Randomizer.CandidateCount"));
             for (var i = 0; i < _macroKnobs.Length; i++)
                 _macroKnobs[i].BindProperty(_serializedRecipe.FindProperty($"{nameof(SfxRecipe.Macros)}.{MacroNames[i]}"));
-            _lfoShape.BindProperty(_serializedRecipe.FindProperty("Lfo.Shape"));
-            _lfoRate.BindProperty(_serializedRecipe.FindProperty("Lfo.RateHz"));
+            for (var i = 0; i < _lfoPanels.Length; i++) _lfoPanels[i].Bind(_serializedRecipe.FindProperty(LfoPaths[i]));
+            _randomPanel.Bind(_serializedRecipe.FindProperty(nameof(SfxRecipe.Random)));
             _distortionMode.BindProperty(_serializedRecipe.FindProperty("Fx.Distortion.Mode"));
             foreach (var (element, path) in _fxBindings) element.BindProperty(_serializedRecipe.FindProperty(path));
             RebuildStrips();
@@ -1017,12 +1150,15 @@ namespace DataKeeper.Editor.Forge
         private void RefreshSelectors()
         {
             _category.SetValueWithoutNotify(_recipe.Category);
+            _piano.RootNote = _recipe.RootNote;
+            _rootNoteLabel.text = PianoElement.NoteName(_recipe.RootNote);
             foreach (var pair in _harmonyButtons)
                 pair.Value.EnableInClassList("forge-selected", pair.Key == _recipe.Randomizer.Harmony);
             _length.Locked = _recipe.Randomizer.LockLength;
             _fxTitle.EnableInClassList("forge-locked-title", _recipe.Randomizer.LockFx);
             RefreshFxModules();
             RefreshCurveEditor();
+            RefreshModPanels();
             _modulation.Refresh();
         }
 
@@ -1145,6 +1281,61 @@ namespace DataKeeper.Editor.Forge
             to.Min = from.Min;
             to.Max = from.Max;
             to.Unit = from.Unit;
+        }
+
+        // ── Mod envelopes (Env 2/3) ─────────────────────────────────────────────────
+
+        private Curve SelectedEnvCurve => _modTab == ModSource.Env3 ? _recipe.Env3 : _recipe.Env2;
+
+        private void RefreshEnvEditor()
+        {
+            if (_recipe == null || _envEditor == null) return;
+
+            var curve = SelectedEnvCurve;
+            var shown = IsUsable(curve) ? curve : Curve.DefaultModEnvelope();
+            _envEditor.GridSnap = _envGridSnap;
+            _envEditor.FreehandMode = _envDrawMode;
+            _envEditor.SetCurve(shown.Points, shown.Min, shown.Max, shown.Unit, false);
+        }
+
+        // The drag opens its undo group in OnCurveEditStarted, shared with the layer curves.
+        private void OnEnvCurveChanged(List<Breakpoint> points)
+        {
+            EditEnvCurve("Edit Envelope", curve =>
+            {
+                if (!IsUsable(curve)) CopyRange(Curve.DefaultModEnvelope(), curve);
+                curve.Points.Clear();
+                curve.Points.AddRange(points);
+            });
+        }
+
+        private void OnEnvCurveEditFinished()
+        {
+            Undo.CollapseUndoOperations(_curveUndoGroup);
+            RefreshEnvEditor();
+        }
+
+        private void ResetEnvCurve()
+        {
+            EditEnvCurve("Reset Envelope", curve =>
+            {
+                var fresh = Curve.DefaultModEnvelope();
+                CopyRange(fresh, curve);
+                curve.Points.Clear();
+                curve.Points.AddRange(fresh.Points);
+            });
+            RefreshEnvEditor();
+        }
+
+        private void EditEnvCurve(string undoName, Action<Curve> edit)
+        {
+            if (_recipe == null) return;
+
+            Undo.RecordObject(_recipe, undoName);
+            edit(SelectedEnvCurve);
+            EditorUtility.SetDirty(_recipe);
+            _serializedRecipe.Update();
+            RequestRender();
         }
 
         // ── Randomizer ──────────────────────────────────────────────────────────────
@@ -1272,6 +1463,12 @@ namespace DataKeeper.Editor.Forge
             _serializedRecipe.FindProperty(path).boolValue = value;
             _serializedRecipe.ApplyModifiedProperties();
             RefreshSelectors();
+        }
+
+        private void SetRootNote(int note)
+        {
+            SetRecipeInt(nameof(SfxRecipe.RootNote), note);
+            Play();
         }
 
         private void SetRecipeInt(string path, int value)

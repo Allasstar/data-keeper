@@ -1,4 +1,5 @@
 # SFX Forge UI/UX Overhaul
+Status: Shipped 2026-10-05 in `3485b3d`
 
 Reorganise the SFX Forge editor window around Vital's layout ideas: every module has the same layout, each layer shows its own sound, `< value >` steppers replace dropdowns, the window is split into pages, and modulation is done by dragging onto knobs. Editor UI only; DSP and the recipe format stay as they are.
 
@@ -10,9 +11,9 @@ Written 2026-10-05 against `main` @ `2627a11`. Local ids are `FUI-n`.
 | 1 | Stepper control, layer strip rebuild, per-layer mini display | Complete | 2026-10-05 |
 | 2 | Page tabs and top bar declutter | Complete | 2026-10-05 |
 | 3 | FX modules with visualisations | Complete | 2026-10-05 |
-| 4 | Drag-to-modulate with knob arcs | In progress (playtest pending) | — |
+| 4 | Drag-to-modulate with knob arcs | Complete | 2026-10-05 |
 
-**Now:** Phase 4, playtest pending: the user runs the Phase 4 playtest (source bar drag/drop, arcs, chips, matrix rows).
+**Now:** — closed. Follow-up work: `plans~/sfx-forge-sound-features.md` (FUI-O2).
 
 ## Context
 - **Specs:** this repo has no `specs/` folder, so the design is described below (FUI-D1).
@@ -281,7 +282,7 @@ Depends on: Phase 2
 - **Assets:** no recipe, preset, scene or prefab changes; no Core/DSP change. Still uncommitted on top of `2627a11` with phases 1–2.
 
 ## Phase 4: Drag-to-modulate with knob arcs
-Status: In progress (built and compiled; playtest pending)
+Status: Complete
 Depends on: Phase 2
 
 - [x] Source bar (`ModSourceBarElement`) under the page tabs, visible on every page: one drag chip per `ModSource` (Size, Energy, Tone, Motion, LFO, Env, Rnd), each in its source colour (FUI-D17).
@@ -330,9 +331,15 @@ Depends on: Phase 2
 ### Verification Results
 - 2026-10-05, agent: Core, Runtime, Editor and Tests compiled with Unity 6000.6's Roslyn. 0 errors, no Forge warnings. Hint scan: 0 missing; the new names `Source bar` and `Chips` are in `ForgeHelp.Modulation`.
 - Build note: `KnobElement`'s shared formatter is the static `FormatAs(KnobFormat, float)`, because the instance already has a `Format` property. The chips and the amount bar use it.
+- 2026-10-05, user: "all works". The Phase 4 playtest passes: source bar on every page, drop highlight and refusals, layer and Alt all-layers drops, arcs and chips, chip drag/zero/menu with undo, one-line matrix rows, and the 900px layout.
 
 ### Phase Summary
-_(write when the phase completes)_
+- **Source bar** (`ModSourceBarElement`) sits between the page tabs and the pages. Each chip captures the pointer, and after a 3px move it shows a ghost label (added to the window root) and puts `forge-mod-dragging` on the root. That class highlights every knob with a `ModTarget`. `panel.Pick` finds the knob under the pointer; `ForgeModulation.CanDrop` decides accept or refuse and writes the status text.
+- **`ForgeModulation`** is the single owner of the source colours/names, drop rules (FUI-D18), and route edits from chips (one undo group per drag). `Refresh()` queries every `KnobElement` with a `ModTarget` and rebuilds its arcs and chips. It runs from `RefreshSelectors`, `RebuildStrips` and route commits, so undo, randomize and layer edits keep it right.
+- **`KnobElement`** has `ModTarget?`/`ModLayer`, a lazily created `__mods` chip row in the dial, change-detected arcs (`BeginModArcs`/`AddModArc`/`EndModArcs`, repainting only on a change), drop states, and the static `FormatAs(KnobFormat, float)`. Arcs use `base ± amount`, or `base · 2^±amount` on log knobs.
+- **Matrix:** `ModRouteElement` is one row with steppers, a layer stepper and menu, and `ModAmountElement` (a bindable bipolar bar).
+- **Assets:** no recipe-format or Core change; routes are plain `ModRoute` entries. Help (`Source bar`, `Chips`) and the docs are updated.
+- **Playtest:** user, 2026-10-05: "all works".
 
 ## Decisions & Open Questions
 - **FUI-D1 (decided):** No `specs/` folder in this repo; the user asked for a plan straight away, so the design lives in this plan's Context.
@@ -365,3 +372,9 @@ _(write when the phase completes)_
 - **FUI-D18 (decided, phase 4, user choice):** Dropping on a layer knob routes to that layer only; Alt+drop routes to all layers. All-layers routes show on every strip's knob as a hollow chip.
 - **FUI-D19 (decided, phase 4, user choice):** Amounts are edited with Vital-style chips; the arc is display only, because one knob can carry several routes and grabbing "the arc" would be ambiguous. Chips sit in the dial's bottom gap so knobs keep their size.
 - **FUI-D20 (decided, phase 4, user choice):** The matrix is one compact row per route rather than a sources × targets grid, which could not show per-layer routes.
+- **FUI-O2 (decided 2026-10-05, deferred to a new plan):** The user asked for Vital features this plan rules out as DSP/recipe-format changes. They go into a separate `plans~/sfx-forge-sound-features.md`, written after Phase 4 is playtested and this plan is closed. All four were chosen:
+  - A note keyboard after Length. It sets a recipe Root Note that transposes every layer, and plays it.
+  - LFO 1–3, each with shape, rate, phase and retrigger/free.
+  - Mod envelopes ENV 2/3 as drawn curves, plus Rnd modes: constant, sample-and-hold, Perlin.
+  - Per-layer unison (voices, detune, spread) and start phase.
+  - Today: Env is the layer's Amp curve, and Rnd is a per-route, per-layer constant from the Seed. Neither has settings.
