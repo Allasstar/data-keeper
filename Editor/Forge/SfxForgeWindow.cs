@@ -71,7 +71,9 @@ namespace DataKeeper.Editor.Forge
         private static readonly string[] MacroNames = { nameof(Macros.Size), nameof(Macros.Energy), nameof(Macros.Tone), nameof(Macros.Motion) };
         private static readonly ModSource[] LfoSources = { ModSource.Lfo, ModSource.Lfo2, ModSource.Lfo3 };
         private static readonly string[] LfoPaths = { nameof(SfxRecipe.Lfo), nameof(SfxRecipe.Lfo2), nameof(SfxRecipe.Lfo3) };
+        private static readonly ModSource[] RandomSources = { ModSource.Random, ModSource.Random2, ModSource.Random3 };
         private readonly LfoPanelElement[] _lfoPanels = new LfoPanelElement[3];
+        private readonly RandomPanelElement[] _randomPanels = new RandomPanelElement[3];
         private readonly Dictionary<ModSource, Button> _modTabs = new();
         private readonly Dictionary<ModSource, VisualElement> _modPanels = new();
 
@@ -113,7 +115,6 @@ namespace DataKeeper.Editor.Forge
         private Button _exportButton;
         private Button _presetName;
         private MeterElement _meter;
-        private RandomPanelElement _randomPanel;
         private ParamBoxElement _envPanel;
         private CurveEditorElement _envEditor;
         private Label _routesTitle;
@@ -613,8 +614,12 @@ namespace DataKeeper.Editor.Forge
             _envPanel = BuildEnvPanel();
             AddModTab(tabs, panels, ModSource.Env2, _envPanel, "ENV 2 / 3");
             AddModTab(tabs, panels, ModSource.Env3, _envPanel, "ENV 2 / 3");
-            _randomPanel = new RandomPanelElement(ForgeModulation.SourceColor(ModSource.Random));
-            AddModTab(tabs, panels, ModSource.Random, _randomPanel, "RND");
+            for (var i = 0; i < _randomPanels.Length; i++)
+            {
+                var source = RandomSources[i];
+                _randomPanels[i] = new RandomPanelElement(TabName(source), ForgeModulation.SourceColor(source), source);
+                AddModTab(tabs, panels, source, _randomPanels[i], "RND");
+            }
 
             ShowModTab(_modTab);
             return sources;
@@ -699,13 +704,13 @@ namespace DataKeeper.Editor.Forge
             RefreshCurveEditor();
         }
 
-        // Rows refresh here too: the Rnd mode decides whether a row's route is supported.
+        // Rows refresh here too: the Rnd modes decide whether a row's route is supported.
         private void RefreshModPanels()
         {
             _lfoPanels[0].Show(_recipe.Lfo);
             _lfoPanels[1].Show(_recipe.Lfo2);
             _lfoPanels[2].Show(_recipe.Lfo3);
-            _randomPanel.Show(_recipe);
+            foreach (var panel in _randomPanels) panel.Show(_recipe);
             RefreshEnvEditor();
 
             // A variation can bring a different route count, which would leave rows on stale
@@ -1104,7 +1109,8 @@ namespace DataKeeper.Editor.Forge
             for (var i = 0; i < _macroKnobs.Length; i++)
                 _macroKnobs[i].BindProperty(_serializedRecipe.FindProperty($"{nameof(SfxRecipe.Macros)}.{MacroNames[i]}"));
             for (var i = 0; i < _lfoPanels.Length; i++) _lfoPanels[i].Bind(_serializedRecipe.FindProperty(LfoPaths[i]));
-            _randomPanel.Bind(_serializedRecipe.FindProperty(nameof(SfxRecipe.Random)));
+            for (var i = 0; i < _randomPanels.Length; i++)
+                _randomPanels[i].Bind(_serializedRecipe.FindProperty(ForgeModulation.RandomPath(RandomSources[i])));
             _distortionMode.BindProperty(_serializedRecipe.FindProperty("Fx.Distortion.Mode"));
             foreach (var (element, path) in _fxBindings) element.BindProperty(_serializedRecipe.FindProperty(path));
             RebuildStrips();

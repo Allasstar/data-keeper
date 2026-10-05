@@ -216,8 +216,9 @@ namespace DataKeeper.Forge.Render
             var soundT = (p.StartFrame + t * p.VoiceFrames) / FrameCount;
             if (math.any(p.Env2Depth != 0f)) mod += p.Env2Depth * Evaluate(p.Env2Curve, soundT);
             if (math.any(p.Env3Depth != 0f)) mod += p.Env3Depth * Evaluate(p.Env3Curve, soundT);
-            if (math.any(p.RandomDepth != 0f))
-                mod += p.RandomDepth * ModMatrix.RandomSignal(p.RandomMode, p.Seed, (seconds + p.StartSeconds) * p.RandomRateHz);
+            if (math.any(p.RandomDepth != 0f)) mod += p.RandomDepth * Random(p.Random1, seconds, p.StartSeconds);
+            if (math.any(p.Random2Depth != 0f)) mod += p.Random2Depth * Random(p.Random2, seconds, p.StartSeconds);
+            if (math.any(p.Random3Depth != 0f)) mod += p.Random3Depth * Random(p.Random3, seconds, p.StartSeconds);
 
             var pitch = p.Pitch + Evaluate(p.PitchCurve, t) + mod.x;
             var frequency = math.min(AudioMath.SemitonesToHz(pitch), SampleRate * PolyBlepOscillator.MaxPhaseIncrement);
@@ -243,6 +244,9 @@ namespace DataKeeper.Forge.Render
             var time = lfo.Mode == LfoMode.Free ? seconds + startSeconds : seconds;
             return ModMatrix.Lfo(lfo.Shape, time * lfo.RateHz + lfo.Phase);
         }
+
+        private static float Random(in RandomParams random, float seconds, float startSeconds) =>
+            ModMatrix.RandomSignal(random.Mode, random.Seed, (seconds + startSeconds) * random.RateHz);
 
         private float Evaluate(in CurveRef curve, float t) =>
             math.lerp(curve.Min, curve.Max, CurveEvaluator.Evaluate(Breakpoints, curve.Start, curve.Count, t));

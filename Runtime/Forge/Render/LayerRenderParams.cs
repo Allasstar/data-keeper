@@ -19,6 +19,14 @@ namespace DataKeeper.Forge.Render
         public LfoMode Mode;
     }
 
+    // Seed is already the layer's seed for this Rnd source.
+    public struct RandomParams
+    {
+        public RandomMode Mode;
+        public float RateHz;
+        public uint Seed;
+    }
+
     public struct LayerRenderParams
     {
         public SourceType Source;
@@ -65,8 +73,9 @@ namespace DataKeeper.Forge.Render
         public LfoParams Lfo1;
         public LfoParams Lfo2;
         public LfoParams Lfo3;
-        public RandomMode RandomMode;
-        public float RandomRateHz;
+        public RandomParams Random1;
+        public RandomParams Random2;
+        public RandomParams Random3;
 
         public float4 LfoDepth;
         public float4 Lfo2Depth;
@@ -75,6 +84,8 @@ namespace DataKeeper.Forge.Render
         public float4 Env2Depth;
         public float4 Env3Depth;
         public float4 RandomDepth;
+        public float4 Random2Depth;
+        public float4 Random3Depth;
 
         public CurveRef Env2Curve;
         public CurveRef Env3Curve;

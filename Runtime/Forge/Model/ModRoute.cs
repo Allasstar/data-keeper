@@ -57,7 +57,7 @@ namespace DataKeeper.Forge
         public LfoMode Mode;
     }
 
-    // Constant is one fixed value per route and layer; the moving modes make Rnd a
+    // Constant is one fixed value per route and layer; the moving modes make that Rnd a
     // continuous source with one signal per layer.
     [Serializable]
     public class RandomSettings
@@ -80,9 +80,12 @@ namespace DataKeeper.Forge
         {
             ModSource.Lfo or ModSource.Lfo2 or ModSource.Lfo3 => true,
             ModSource.Envelope or ModSource.Env2 or ModSource.Env3 => true,
-            ModSource.Random => randomMode != RandomMode.Constant,
+            ModSource.Random or ModSource.Random2 or ModSource.Random3 => randomMode != RandomMode.Constant,
             _ => false,
         };
+
+        public static bool IsRandom(ModSource source) =>
+            source is ModSource.Random or ModSource.Random2 or ModSource.Random3;
 
         public static float MaxAmount(ModTarget target) => target switch
         {

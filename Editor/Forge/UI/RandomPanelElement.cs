@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 
 namespace DataKeeper.Editor.Forge
 {
-    // The Rnd source's Mod page panel. The picture is layer 1's moving signal over the whole
+    // An Rnd source's Mod page panel. The picture is layer 1's moving signal over the whole
     // sound; Constant has no signal over time, so it shows a line of text instead.
     public class RandomPanelElement : ParamBoxElement
     {
@@ -19,11 +19,14 @@ namespace DataKeeper.Editor.Forge
         private readonly FxGraphElement _graph;
         private readonly Label _constant;
 
+        private readonly ModSource _source;
+
         private uint _layerSeed;
         private float _lengthSeconds;
 
-        public RandomPanelElement(Color color) : base("RND")
+        public RandomPanelElement(string title, Color color, ModSource source) : base(title)
         {
+            _source = source;
             AddToClassList(PanelClassName);
             var topic = ForgeHelp.Modulation;
 
@@ -55,12 +58,13 @@ namespace DataKeeper.Editor.Forge
             _rate.BindProperty(random.FindPropertyRelative(nameof(RandomSettings.RateHz)));
         }
 
-        // Layer 1's seed, as SfxRenderer derives it.
+        // Layer 1's seed for this source, as SfxRenderer derives it.
         public void Show(SfxRecipe recipe)
         {
-            _layerSeed = math.hash(new uint2(recipe.Seed, 0u));
+            _layerSeed = ModMatrix.RandomSeed(math.hash(new uint2(recipe.Seed, 0u)), _source);
             _lengthSeconds = recipe.LengthMs / 1000f;
-            Draw(recipe.Random.Mode, recipe.Random.RateHz);
+            var random = recipe.RandomSettingsOf(_source);
+            Draw(random.Mode, random.RateHz);
         }
 
         private void Redraw() => Draw((RandomMode)_mode.value, _rate.value);

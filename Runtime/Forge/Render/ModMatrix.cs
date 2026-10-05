@@ -20,6 +20,8 @@ namespace DataKeeper.Forge.Render
         public float4 Env2Depth;
         public float4 Env3Depth;
         public float4 RandomDepth;
+        public float4 Random2Depth;
+        public float4 Random3Depth;
     }
 
     public struct GlobalModulation
@@ -39,18 +41,18 @@ namespace DataKeeper.Forge.Render
     {
         private const float MaxLfoDepthScale = 2f;
         private const uint RandomSalt = 0x52A4Du;
+        private const uint RandomSourceSalt = 0x9E3779B9u;
 
         public static GlobalModulation Evaluate(SfxRecipe recipe, uint seed, LayerModulation[] layers, int layerCount)
         {
             for (var i = 0; i < layerCount; i++) layers[i] = default;
             var global = new GlobalModulation();
             var routes = recipe.Routes;
-            var randomMode = recipe.Random.Mode;
 
             for (var r = 0; r < routes.Count; r++)
             {
                 var route = routes[r];
-                if (!route.Enabled || route.Amount == 0f || ModTargets.IsContinuous(route.Source, randomMode)) continue;
+                if (!route.Enabled || route.Amount == 0f || ModTargets.IsContinuous(route.Source, recipe.RandomModeOf(route.Source))) continue;
 
                 if (!ModTargets.IsPerLayer(route.Target))
                 {
@@ -69,7 +71,7 @@ namespace DataKeeper.Forge.Render
             for (var r = 0; r < routes.Count; r++)
             {
                 var route = routes[r];
-                if (!route.Enabled || route.Amount == 0f || !ModTargets.IsContinuous(route.Source, randomMode)) continue;
+                if (!route.Enabled || route.Amount == 0f || !ModTargets.IsContinuous(route.Source, recipe.RandomModeOf(route.Source))) continue;
                 if (!ModTargets.IsContinuous(route.Target)) continue;
 
                 // The LFO Depth target scales LFO 1 only.
@@ -91,7 +93,8 @@ namespace DataKeeper.Forge.Render
             ModSource.Energy => macros.Energy * 2f - 1f,
             ModSource.Tone => macros.Tone * 2f - 1f,
             ModSource.Motion => macros.Motion * 2f - 1f,
-            ModSource.Random => Avalanche(math.hash(new uint3(seed, (uint)route, (uint)(layer + 1)))) / (float)uint.MaxValue * 2f - 1f,
+            ModSource.Random or ModSource.Random2 or ModSource.Random3 =>
+                Avalanche(math.hash(new uint3(RandomSeed(seed, source), (uint)route, (uint)(layer + 1)))) / (float)uint.MaxValue * 2f - 1f,
             _ => 0f,
         };
 
@@ -106,6 +109,10 @@ namespace DataKeeper.Forge.Render
                 _ => math.sin(2f * math.PI * phase),
             };
         }
+
+        // Rnd 1 keeps the seed as is, so recipes from before Rnd 2/3 render unchanged.
+        public static uint RandomSeed(uint seed, ModSource source) =>
+            source is ModSource.Random2 or ModSource.Random3 ? Avalanche(seed ^ (uint)source * RandomSourceSalt) : seed;
 
         // -1..1 for a whole step, from the layer seed.
         public static float RandomStep(uint seed, int step) =>
@@ -155,6 +162,8 @@ namespace DataKeeper.Forge.Render
                 case ModSource.Env2: mod.Env2Depth += depth; break;
                 case ModSource.Env3: mod.Env3Depth += depth; break;
                 case ModSource.Random: mod.RandomDepth += depth; break;
+                case ModSource.Random2: mod.Random2Depth += depth; break;
+                case ModSource.Random3: mod.Random3Depth += depth; break;
             }
         }
 

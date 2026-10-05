@@ -103,7 +103,7 @@ namespace DataKeeper.Editor.Forge
             ("Offset", "Delay before the layer starts."));
 
         public static readonly HelpTopic Modulation = new("Macros and modulation",
-            "Macros are four big knobs that move many parameters at once through routes. At 50% they change nothing; turning them up or down pushes their targets in opposite directions. Below them, the tabs on the left open each LFO, envelope and the Rnd source. A source only does something when a route uses it.",
+            "Macros are four big knobs that move many parameters at once through routes. At 50% they change nothing; turning them up or down pushes their targets in opposite directions. Below them, the tabs on the left open each LFO, envelope and Rnd source. A source only does something when a route uses it.",
             ("Size", "By default: lower pitch, longer and roomier."),
             ("Energy", "By default: sharper attack, more drive, brighter."),
             ("Tone", "By default: brighter or darker."),
@@ -115,15 +115,15 @@ namespace DataKeeper.Editor.Forge
             ("Mode", "Retrigger starts the LFO at each layer's start, after its Offset. Free runs it from the start of the sound, so layers with different offsets share one wobble."),
             ("ENV 1", "Each layer's own Amp curve, edited on the Sound page. A route from Env 1 follows every layer's volume shape."),
             ("ENV 2 / 3", "Two curves you draw here, 0 to 1 across the whole sound and shared by every layer. They are flat at 0 until you draw them. Route one to sweep Pitch, Cutoff, Level or Pan over the sound."),
-            ("RND", "Random values from the render Seed. The picture shows layer 1's signal over the sound; every layer gets its own."),
+            ("RND", "Random values from the render Seed. Rnd 1, 2 and 3 each have their own mode, rate and values. The picture shows layer 1's signal over the sound; every layer gets its own."),
             ("Rnd mode", "Constant gives each route one fixed value per layer and reaches every target. Sample & Hold jumps to a new value at Rate; Smooth glides between them. The moving modes only reach Pitch, Cutoff, Level and Pan."),
             ("Rnd rate", "New random values per second in Sample & Hold and Smooth."),
             ("Source bar", "Drag a source onto any highlighted knob to add a route. On a layer knob it moves that layer only; hold Alt while dropping to move every layer. Click an LFO, Env or Rnd chip to open its tab on the Mod page."),
             ("Chips", "Each route on a knob shows a chip and a coloured arc for its range, with a dot at the + end. Drag a chip up or down to set the amount (Shift for fine), double-click to zero it, right-click to switch it off, change its layers or remove it. A hollow chip is a route for all layers."),
             ("Routes", "Each row is Source → Target × Amount, with the amount in the target's unit (semitones, octaves, dB...). Drag the bar to set the amount; the layer stepper picks all layers or one."),
-            ("Sources", "The four macros, LFO 1 to 3, Env 1 (the layer's Amp curve), Env 2 and 3 (drawn curves) and Rnd (changes with the seed). Each has its own colour on chips, arcs and rows."),
+            ("Sources", "The four macros, LFO 1 to 3, Env 1 (the layer's Amp curve), Env 2 and 3 (drawn curves) and Rnd 1 to 3 (change with the seed). Each has its own colour on chips, arcs and rows."),
             ("+ Route / Defaults", "Add a route, or restore the default routes."),
-            ("Greyed out", "The LFOs, the envelopes and Rnd in Sample & Hold or Smooth only move Pitch, Cutoff, Level and Pan. Routes from them to other targets have no effect: their rows and chips are dimmed and their arcs hidden. Set Rnd to Constant to reach every target again."));
+            ("Greyed out", "The LFOs, the envelopes and Rnd in Sample & Hold or Smooth only move Pitch, Cutoff, Level and Pan. Routes from them to other targets have no effect: their rows and chips are dimmed and their arcs hidden. Set that Rnd to Constant to reach every target again."));
 
         public static readonly HelpTopic Randomizer = new("Randomizer",
             "Makes new sounds and controls how. Anything locked (right-click) is kept as it is.",

@@ -173,7 +173,6 @@ namespace DataKeeper.Forge.Render
             var lfo1 = PackLfo(recipe.Lfo, global.LfoRateOctaves);
             var lfo2 = PackLfo(recipe.Lfo2, 0f);
             var lfo3 = PackLfo(recipe.Lfo3, 0f);
-            var randomRate = math.clamp(recipe.Random.RateHz, RandomSettings.MinRateHz, RandomSettings.MaxRateHz);
             var anySolo = false;
             for (var i = 0; i < layerCount; i++)
                 anySolo |= layers[i].Enabled && layers[i].Solo;
@@ -191,6 +190,7 @@ namespace DataKeeper.Forge.Render
                 var audible = layer.Enabled && !layer.Mute && (!anySolo || layer.Solo);
                 var startFrame = math.min(MsToFrames(math.max(0f, layer.StartOffsetMs)), FrameCount);
                 var voiceFrames = math.max(1, MsToFrames(layer.DecayMs * math.exp2(mod.DecayOctaves)));
+                var layerSeed = math.hash(new uint2(seed, (uint)i));
 
                 var parameters = new LayerRenderParams
                 {
@@ -206,7 +206,7 @@ namespace DataKeeper.Forge.Render
                     Filter = layer.Filter.Type,
                     CutoffHz = layer.Filter.CutoffHz * math.exp2(mod.CutoffOctaves),
                     FilterK = StateVariableFilter.ResonanceToK(math.saturate(layer.Filter.Resonance + mod.Resonance)),
-                    Seed = math.hash(new uint2(seed, (uint)i)),
+                    Seed = layerSeed,
                     FmRatio = math.clamp(source.Fm.Ratio, FmSettings.MinRatio, FmSettings.MaxRatio),
                     FmIndex = math.clamp(source.Fm.Index, 0f, FmSettings.MaxIndex),
                     FmIndexEnvelope = math.saturate(source.Fm.IndexEnvelope),
@@ -220,8 +220,9 @@ namespace DataKeeper.Forge.Render
                     Lfo1 = lfo1,
                     Lfo2 = lfo2,
                     Lfo3 = lfo3,
-                    RandomMode = recipe.Random.Mode,
-                    RandomRateHz = randomRate,
+                    Random1 = PackRandom(recipe, ModSource.Random, layerSeed),
+                    Random2 = PackRandom(recipe, ModSource.Random2, layerSeed),
+                    Random3 = PackRandom(recipe, ModSource.Random3, layerSeed),
                     LfoDepth = mod.LfoDepth,
                     Lfo2Depth = mod.Lfo2Depth,
                     Lfo3Depth = mod.Lfo3Depth,
@@ -229,6 +230,8 @@ namespace DataKeeper.Forge.Render
                     Env2Depth = mod.Env2Depth,
                     Env3Depth = mod.Env3Depth,
                     RandomDepth = mod.RandomDepth,
+                    Random2Depth = mod.Random2Depth,
+                    Random3Depth = mod.Random3Depth,
                     Env2Curve = env2,
                     Env3Curve = env3,
                 };
@@ -247,6 +250,17 @@ namespace DataKeeper.Forge.Render
             Phase = math.saturate(lfo.Phase),
             Mode = lfo.Mode,
         };
+
+        private static RandomParams PackRandom(SfxRecipe recipe, ModSource source, uint layerSeed)
+        {
+            var random = recipe.RandomSettingsOf(source);
+            return new RandomParams
+            {
+                Mode = random.Mode,
+                RateHz = math.clamp(random.RateHz, RandomSettings.MinRateHz, RandomSettings.MaxRateHz),
+                Seed = ModMatrix.RandomSeed(layerSeed, source),
+            };
+        }
 
         private static void SetVoices(Layer layer, ref LayerRenderParams parameters)
         {

@@ -15,7 +15,7 @@ platform.
 | Left | Randomize and Mutate, randomizer settings (harmony, variation, physics, candidates), the 8-variation grid (hover a thumbnail for its loudness, brightness and length), seed. `«` at the left of the page tabs hides the panel, `»` brings it back |
 | Sound page | Length, root-note keyboard, waveform with trim handles and analysis readouts, curve editor (Pitch/Filter/Amp/Pan), layer strips |
 | FX page | The FX chain, one module per effect (see below) |
-| Mod page | Macros, the source panels (LFO 1–3, ENV 1–3, RND) and modulation routes |
+| Mod page | Macros, the source panels (LFO 1–3, ENV 1–3, RND 1–3) and modulation routes |
 | Export page | WAV export settings |
 | Status bar | The last message, or the name and a line of help for the control under the mouse |
 
@@ -98,7 +98,7 @@ through **routes**: source → target × amount, with the amount in the target's
 | LFO 1, LFO 2, LFO 3 | Recipe-level, −1..1. Shape (sine, saw, square, triangle), Rate 0.05–40 Hz, Phase 0–1 (where the cycle starts), Mode: **Retrigger** restarts at each layer's start, **Free** runs from the sound's start | Pitch, Cutoff, Level, Pan |
 | Env 1 | Each layer's amp curve, 0..1 | Pitch, Cutoff, Level, Pan |
 | Env 2, Env 3 | Recipe-level drawn curves, 0..1, spanning the whole sound and shared by every layer. Flat at 0 by default | Pitch, Cutoff, Level, Pan |
-| Rnd | Bipolar, from the render seed. Mode: **Constant** gives one fixed value per route and layer; **Sample & Hold** jumps to a new value at Rate; **Smooth** glides between those values at Rate (0.1–40 Hz). The moving modes give each layer its own signal on the sound's timeline | Constant: every target. Moving modes: Pitch, Cutoff, Level, Pan |
+| Rnd 1, Rnd 2, Rnd 3 | Bipolar, from the render seed; each has its own Mode and Rate and its own values. Mode: **Constant** gives one fixed value per route and layer; **Sample & Hold** jumps to a new value at Rate; **Smooth** glides between those values at Rate (0.1–40 Hz). The moving modes give each layer its own signal on the sound's timeline | Constant: every target. Moving modes: Pitch, Cutoff, Level, Pan |
 
 Targets are per layer (Pitch, Cutoff, Level, Pan, Decay, Resonance) or global (Length, Drive,
 Reverb Mix, Delay Mix, Transient Attack, LFO Rate, LFO Depth). LFO Rate and LFO Depth act on
@@ -106,14 +106,14 @@ LFO 1 only.
 
 The LFOs, the envelopes and moving Rnd are evaluated every 32 samples, so they only reach Pitch,
 Cutoff, Level and Pan; other combinations are greyed out in the route list. Defaults leave the
-sound unchanged: LFO Phase 0 in Retrigger, Rnd in Constant, and Env 2/3 do nothing until routed.
+sound unchanged: LFO Phase 0 in Retrigger, Rnd 1–3 in Constant, and Env 2/3 do nothing until routed.
 New recipes start with default routes that
 follow the design rules: Size lowers pitch and lengthens the sound, Energy adds attack, drive and
 brightness, Tone tilts brightness, Motion scales LFO 1 and adds delay. A route can target all
 layers or one.
 
 **Source panels.** Below the macros, a column of tabs (LFO 1, LFO 2, LFO 3, ENV 1, ENV 2, ENV 3,
-RND), each edged in its source's colour, opens one panel at a time. The window remembers the
+RND 1, RND 2, RND 3), each edged in its source's colour, opens one panel at a time. The window remembers the
 last tab.
 
 | Tab | Panel |
@@ -121,7 +121,7 @@ last tab.
 | LFO 1–3 | A picture of two cycles of the shape, with a line where the LFO starts (Phase), plus Shape, Mode (Retrigger or Free), Rate and Phase (0–360°). LFO 1's Rate is also a drop target, for the LFO Rate route target |
 | ENV 1 | A note that Env 1 is each layer's Amp curve, and a button that opens the Sound page's curve editor on Amp |
 | ENV 2, ENV 3 | A curve editor for the recipe's envelope (0..1 across the whole sound), with Draw, Grid and Reset. A drag is one undo step |
-| RND | Mode (Constant, Sample & Hold, Smooth) and, for the moving modes, Rate and a picture of layer 1's signal over the sound for the current seed. Constant shows a line of text instead, since its values don't move |
+| RND 1–3 | Mode (Constant, Sample & Hold, Smooth) and, for the moving modes, Rate and a picture of layer 1's signal over the sound for the current seed. Constant shows a line of text instead, since its values don't move |
 
 **Drag to modulate.** The source bar under the page tabs holds one coloured chip per source and
 is there on every page, in the order macros, LFOs, envelopes, Rnd. A narrow window wraps it
@@ -131,7 +131,7 @@ target's range; click an LFO, Env or Rnd chip without dragging to open its tab o
 - On a layer knob the route moves that layer only; hold Alt while dropping to move every layer.
 - The LFOs, the envelopes and moving Rnd are refused on targets they can't reach, and an existing source/target/layer
   combination is refused as a duplicate. The status bar says why.
-- Switching Rnd to Sample & Hold or Smooth dims its existing routes on other targets (rows and
+- Switching an Rnd to Sample & Hold or Smooth dims its existing routes on other targets (rows and
   chips, with no arc); switching back to Constant brings them back.
 
 Every route that reaches a knob draws an arc for its range in the source's colour, with a dot

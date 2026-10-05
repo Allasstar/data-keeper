@@ -84,7 +84,7 @@ namespace DataKeeper.Editor.Forge
 
         private SerializedProperty Relative(string path) => _route.FindPropertyRelative(path);
 
-        // Public because the Rnd mode lives outside the route but decides whether it is supported.
+        // Public because the Rnd modes live outside the route but decides whether it is supported.
         public void Refresh()
         {
             if (_route == null) return;
@@ -102,8 +102,10 @@ namespace DataKeeper.Editor.Forge
             _layer.text = perLayer ? LayerName(Relative(nameof(ModRoute.Layer)).intValue) : "Global";
 
             var enabled = Relative(nameof(ModRoute.Enabled)).boolValue;
-            var randomMode = (RandomMode)_route.serializedObject
-                .FindProperty($"{nameof(SfxRecipe.Random)}.{nameof(RandomSettings.Mode)}").intValue;
+            var randomMode = ModTargets.IsRandom(source)
+                ? (RandomMode)_route.serializedObject
+                    .FindProperty($"{ForgeModulation.RandomPath(source)}.{nameof(RandomSettings.Mode)}").intValue
+                : RandomMode.Constant;
             var supported = ForgeModulation.IsSupported(source, target, randomMode);
             EnableInClassList(UssClassName + "--off", !enabled);
             EnableInClassList(UssClassName + "--unsupported", !supported);

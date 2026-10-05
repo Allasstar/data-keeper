@@ -19,7 +19,7 @@ Written 2026-10-05 against `main` @ `3485b3d`. Local ids are `FSF-n`.
 | 3 | Modulation engine: LFO 1–3, ENV 2/3, Rnd modes | Complete | 2026-10-05 |
 | 4 | Mod page source panels and source bar | Complete | 2026-10-05 |
 
-**Now:** All phases are complete. Waiting on the user: run the EditMode suite once more for the FSF-O3 hash fix (`ModulationTests.StaticRandom_IsNotEvenlySteppedAcrossSeeds`, plus the existing Rnd/unison tests), then commit. After that, close the plan and move it to `plans~/archive/`.
+**Now:** All phases are complete, plus Rnd 2/3 (FSF-D24, compiles offline). Waiting on the user: run the EditMode suite (`ModSourcesTests`, `ModulationTests`), check the RND 1–3 tabs in the window, then commit. After that, close the plan and move it to `plans~/archive/`.
 
 ## Context
 - **Specs:** this repo has no `specs/` folder, so the design is described below (FSF-D1, same as FUI-D1).
@@ -374,4 +374,10 @@ Depends on: Phase 3
   - This deliberately changes renders: any recipe with an Rnd route, or with unison Rnd phase on, sounds different from before. Default routes don't use Rnd, so unrouted recipes are unaffected.
   - The `math.hash(uint2)` seeds for the randomizer, variations and layer noise were left alone. They feed `Unity.Mathematics.Random` or noise generators, which do their own mixing.
   - Regression test: `ModulationTests.StaticRandom_IsNotEvenlySteppedAcrossSeeds`. Offline, seeds 1–4 stepped by exactly −0.3973 before the fix.
+- **FSF-D24 (decided 2026-10-05, user: "maybe add more Rnd?"):** Rnd 2 and Rnd 3 join Rnd 1, matching LFO 1–3 and Env 1–3.
+  - `ModSource.Random2 = 11`, `Random3 = 12` (appended, FSF-D5); `Random` now shows as "Rnd 1". `SfxRecipe.Random2/Random3` each have their own Mode and Rate; `RandomSettingsOf`/`RandomModeOf(source)` replace direct `recipe.Random.Mode` reads, so greying follows each source's own mode.
+  - `ModMatrix.RandomSeed(seed, source)` gives Rnd 2/3 their own values (Constant and moving); Rnd 1 keeps the seed unchanged, so existing recipes render bit-identical.
+  - Render params carry three `RandomParams` (mode, rate, per-source layer seed) and depths `RandomDepth`, `Random2Depth`, `Random3Depth`.
+  - Mod page gets RND 1/2/3 tabs, one `RandomPanelElement` each; the source bar groups all three.
+  - Tests: `ExtraMovingRandom_UsesItsOwnModeAndDepth`, `RandomSources_HaveIndependentValues`, `RandomSampleHold_HoldsStepsOfOneOverRate` over all three sources.
 

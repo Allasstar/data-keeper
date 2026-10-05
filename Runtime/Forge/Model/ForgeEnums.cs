@@ -131,11 +131,13 @@ namespace DataKeeper.Forge
         Motion = 3,
         [InspectorName("LFO 1")] Lfo = 4,
         [InspectorName("Env 1")] Envelope = 5,
-        [InspectorName("Rnd")] Random = 6,
+        [InspectorName("Rnd 1")] Random = 6,
         [InspectorName("LFO 2")] Lfo2 = 7,
         [InspectorName("LFO 3")] Lfo3 = 8,
         [InspectorName("Env 2")] Env2 = 9,
         [InspectorName("Env 3")] Env3 = 10,
+        [InspectorName("Rnd 2")] Random2 = 11,
+        [InspectorName("Rnd 3")] Random3 = 12,
     }
 
     public enum LfoMode

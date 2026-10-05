@@ -31,9 +31,22 @@ namespace DataKeeper.Forge
         public Curve Env2 = Curve.DefaultModEnvelope();
         public Curve Env3 = Curve.DefaultModEnvelope();
         public RandomSettings Random = new();
+        public RandomSettings Random2 = new();
+        public RandomSettings Random3 = new();
         public List<ModRoute> Routes = ModRoute.Defaults();
         public FxChain Fx = new();
         public RandomizerSettings Randomizer = new();
+
+        public RandomSettings RandomSettingsOf(ModSource source) => source switch
+        {
+            ModSource.Random2 => Random2,
+            ModSource.Random3 => Random3,
+            _ => Random,
+        };
+
+        // Only the Rnd sources have a mode; every other source reads as Constant.
+        public RandomMode RandomModeOf(ModSource source) =>
+            ModTargets.IsRandom(source) ? RandomSettingsOf(source).Mode : RandomMode.Constant;
 
         public string ToJson() => JsonUtility.ToJson(this, true);
 

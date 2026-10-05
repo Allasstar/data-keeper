@@ -63,7 +63,7 @@ namespace DataKeeper.Editor.Forge
         {
             ModSource.Lfo or ModSource.Lfo2 or ModSource.Lfo3 => 1,
             ModSource.Envelope or ModSource.Env2 or ModSource.Env3 => 2,
-            ModSource.Random => 3,
+            ModSource.Random or ModSource.Random2 or ModSource.Random3 => 3,
             _ => 0,
         };
 

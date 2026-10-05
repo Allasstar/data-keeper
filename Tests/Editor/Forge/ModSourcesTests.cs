@@ -33,7 +33,8 @@ namespace DataKeeper.Forge.Tests
                 Assert.AreEqual(LfoMode.Retrigger, lfo.Mode);
             }
 
-            Assert.AreEqual(RandomMode.Constant, recipe.Random.Mode);
+            foreach (var random in new[] { recipe.Random, recipe.Random2, recipe.Random3 })
+                Assert.AreEqual(RandomMode.Constant, random.Mode);
             foreach (var env in new[] { recipe.Env2, recipe.Env3 })
             {
                 Assert.AreEqual(CurveUnit.Gain, env.Unit);
@@ -55,6 +56,8 @@ namespace DataKeeper.Forge.Tests
             Assert.AreEqual(8, (int)ModSource.Lfo3);
             Assert.AreEqual(9, (int)ModSource.Env2);
             Assert.AreEqual(10, (int)ModSource.Env3);
+            Assert.AreEqual(11, (int)ModSource.Random2);
+            Assert.AreEqual(12, (int)ModSource.Random3);
         }
 
         [Test]
@@ -66,9 +69,13 @@ namespace DataKeeper.Forge.Tests
                 Assert.IsTrue(ModTargets.IsContinuous(source, RandomMode.Smooth), source.ToString());
             }
 
-            Assert.IsFalse(ModTargets.IsContinuous(ModSource.Random, RandomMode.Constant));
-            Assert.IsTrue(ModTargets.IsContinuous(ModSource.Random, RandomMode.SampleHold));
-            Assert.IsTrue(ModTargets.IsContinuous(ModSource.Random, RandomMode.Smooth));
+            foreach (var source in new[] { ModSource.Random, ModSource.Random2, ModSource.Random3 })
+            {
+                Assert.IsFalse(ModTargets.IsContinuous(source, RandomMode.Constant), source.ToString());
+                Assert.IsTrue(ModTargets.IsContinuous(source, RandomMode.SampleHold), source.ToString());
+                Assert.IsTrue(ModTargets.IsContinuous(source, RandomMode.Smooth), source.ToString());
+            }
+
             Assert.IsFalse(ModTargets.IsContinuous(ModSource.Size, RandomMode.Smooth));
         }
 
@@ -86,6 +93,8 @@ namespace DataKeeper.Forge.Tests
             recipe.Env2 = Curve.DefaultModEnvelope();
             recipe.Env3 = Curve.DefaultModEnvelope();
             recipe.Random = new RandomSettings { Mode = RandomMode.Constant };
+            recipe.Random2 = new RandomSettings();
+            recipe.Random3 = new RandomSettings();
             using var rendered = new SfxRenderer();
             rendered.Render(recipe);
 
@@ -104,6 +113,8 @@ namespace DataKeeper.Forge.Tests
             recipe.Env2 = Ramp(0f, 1f);
             recipe.Env3 = Ramp(1f, 0.2f);
             recipe.Random.RateHz = 17f;
+            recipe.Random2 = new RandomSettings { Mode = RandomMode.Smooth, RateHz = 3f };
+            recipe.Random3 = new RandomSettings { Mode = RandomMode.SampleHold, RateHz = 11f };
             using var rendered = new SfxRenderer();
             rendered.Render(recipe);
 
@@ -254,16 +265,58 @@ namespace DataKeeper.Forge.Tests
             Assert.AreEqual(12f, _layers[0].RandomDepth.x);
         }
 
+        [TestCase(ModSource.Random2)]
+        [TestCase(ModSource.Random3)]
+        public void ExtraMovingRandom_UsesItsOwnModeAndDepth(ModSource source)
+        {
+            var recipe = SineRecipe(500f);
+            recipe.RandomSettingsOf(source).Mode = RandomMode.Smooth;
+            recipe.Routes = new List<ModRoute>
+            {
+                new(source, ModTarget.Pitch, 12f),
+                new(ModSource.Random, ModTarget.Decay, 1f),
+            };
+
+            ModMatrix.Evaluate(recipe, 5u, _layers, 1);
+
+            var depth = source == ModSource.Random2 ? _layers[0].Random2Depth : _layers[0].Random3Depth;
+            Assert.AreEqual(12f, depth.x);
+            Assert.AreEqual(float4.zero, _layers[0].RandomDepth);
+            Assert.AreEqual(0f, _layers[0].Pitch);
+            Assert.AreEqual(ModMatrix.StaticValue(ModSource.Random, recipe.Macros, 5u, 1, 0), _layers[0].DecayOctaves);
+        }
+
         [Test]
-        public void RandomSampleHold_HoldsStepsOfOneOverRate()
+        public void RandomSources_HaveIndependentValues()
+        {
+            var macros = new Macros();
+            Assert.AreEqual(7u, ModMatrix.RandomSeed(7u, ModSource.Random));
+            Assert.AreNotEqual(ModMatrix.RandomSeed(7u, ModSource.Random2), ModMatrix.RandomSeed(7u, ModSource.Random3));
+
+            var matches = 0;
+            for (var seed = 1u; seed <= 64u; seed++)
+            {
+                var rnd1 = ModMatrix.StaticValue(ModSource.Random, macros, seed, 0, 0);
+                var rnd2 = ModMatrix.StaticValue(ModSource.Random2, macros, seed, 0, 0);
+                var rnd3 = ModMatrix.StaticValue(ModSource.Random3, macros, seed, 0, 0);
+                if (rnd1 == rnd2 || rnd1 == rnd3 || rnd2 == rnd3) matches++;
+            }
+
+            Assert.AreEqual(0, matches);
+        }
+
+        [TestCase(ModSource.Random)]
+        [TestCase(ModSource.Random2)]
+        [TestCase(ModSource.Random3)]
+        public void RandomSampleHold_HoldsStepsOfOneOverRate(ModSource source)
         {
             const float rate = 10f;
-            var recipe = RandomOnLevel(RandomMode.SampleHold, rate);
+            var recipe = RandomOnLevel(RandomMode.SampleHold, rate, source);
             using var renderer = new SfxRenderer();
             renderer.Render(recipe);
 
             var output = renderer.LayerOutput(0);
-            var layerSeed = math.hash(new uint2(recipe.Seed, 0u));
+            var layerSeed = ModMatrix.RandomSeed(math.hash(new uint2(recipe.Seed, 0u)), source);
             var firstDb = AudioMath.LinearToDb(Peak(output, 0.005f, 0.045f));
             var spread = 0f;
             for (var step = 0; step < 9; step++)
@@ -383,11 +436,13 @@ namespace DataKeeper.Forge.Tests
             return recipe;
         }
 
-        private SfxRecipe RandomOnLevel(RandomMode mode, float rateHz)
+        private SfxRecipe RandomOnLevel(RandomMode mode, float rateHz, ModSource source = ModSource.Random)
         {
             var recipe = SineRecipe(1000f);
-            recipe.Random = new RandomSettings { Mode = mode, RateHz = rateHz };
-            recipe.Routes = new List<ModRoute> { new(ModSource.Random, ModTarget.Level, 12f) };
+            var random = recipe.RandomSettingsOf(source);
+            random.Mode = mode;
+            random.RateHz = rateHz;
+            recipe.Routes = new List<ModRoute> { new(source, ModTarget.Level, 12f) };
             return recipe;
         }
 
