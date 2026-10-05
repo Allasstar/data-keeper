@@ -305,6 +305,34 @@ namespace DataKeeper.Forge.Tests
             Assert.AreEqual(0, matches);
         }
 
+        [Test]
+        public void RandomSourceSeed_ZeroKeepsRenderSeed_OtherValuesReroll()
+        {
+            var macros = new Macros();
+            foreach (var source in new[] { ModSource.Random, ModSource.Random2, ModSource.Random3 })
+            {
+                Assert.AreEqual(ModMatrix.RandomSeed(7u, source), ModMatrix.RandomSeed(7u, source, 0u));
+                Assert.AreNotEqual(ModMatrix.RandomSeed(7u, source, 1u), ModMatrix.RandomSeed(7u, source, 2u));
+                Assert.AreNotEqual(ModMatrix.StaticValue(source, macros, 7u, 0, 0),
+                    ModMatrix.StaticValue(source, macros, 7u, 0, 0, 3u));
+            }
+        }
+
+        [Test]
+        public void RandomSourceSeed_RerollsConstantRoutesOfThatSourceOnly()
+        {
+            var recipe = SineRecipe(500f);
+            recipe.Routes = new List<ModRoute> { new(ModSource.Random, ModTarget.Pitch, 12f), new(ModSource.Random2, ModTarget.Decay, 1f) };
+            ModMatrix.Evaluate(recipe, 5u, _layers, 1);
+            var pitch = _layers[0].Pitch;
+            var decay = _layers[0].DecayOctaves;
+
+            recipe.Random.Seed = 42u;
+            ModMatrix.Evaluate(recipe, 5u, _layers, 1);
+            Assert.AreNotEqual(pitch, _layers[0].Pitch);
+            Assert.AreEqual(decay, _layers[0].DecayOctaves);
+        }
+
         [TestCase(ModSource.Random)]
         [TestCase(ModSource.Random2)]
         [TestCase(ModSource.Random3)]

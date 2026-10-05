@@ -55,6 +55,7 @@ namespace DataKeeper.Forge.Render
         private const float MaxLfoDepthScale = 2f;
         private const uint RandomSalt = 0x52A4Du;
         private const uint RandomSourceSalt = 0x9E3779B9u;
+        private const uint RandomSeedSalt = 0x85EBCA6Bu;
 
         public static GlobalModulation Evaluate(SfxRecipe recipe, uint seed, LayerModulation[] layers, int layerCount)
         {
@@ -66,17 +67,18 @@ namespace DataKeeper.Forge.Render
             {
                 var route = routes[r];
                 if (!route.Enabled || route.Amount == 0f || ModTargets.IsContinuous(route.Source, recipe.RandomModeOf(route.Source))) continue;
+                var sourceSeed = ModTargets.IsRandom(route.Source) ? recipe.RandomSettingsOf(route.Source).Seed : 0u;
 
                 if (!ModTargets.IsPerLayer(route.Target))
                 {
-                    AddGlobal(ref global, route.Target, StaticValue(route.Source, recipe.Macros, seed, r, -1) * route.Amount);
+                    AddGlobal(ref global, route.Target, StaticValue(route.Source, recipe.Macros, seed, r, -1, sourceSeed) * route.Amount);
                     continue;
                 }
 
                 for (var layer = 0; layer < layerCount; layer++)
                 {
                     if (!Applies(route, layer)) continue;
-                    AddLayer(ref layers[layer], route.Target, StaticValue(route.Source, recipe.Macros, seed, r, layer) * route.Amount);
+                    AddLayer(ref layers[layer], route.Target, StaticValue(route.Source, recipe.Macros, seed, r, layer, sourceSeed) * route.Amount);
                 }
             }
 
@@ -101,14 +103,14 @@ namespace DataKeeper.Forge.Render
         }
 
         // Bipolar so that a macro at its 0.5 default contributes exactly nothing.
-        public static float StaticValue(ModSource source, Macros macros, uint seed, int route, int layer) => source switch
+        public static float StaticValue(ModSource source, Macros macros, uint seed, int route, int layer, uint sourceSeed = 0u) => source switch
         {
             ModSource.Size => macros.Size * 2f - 1f,
             ModSource.Energy => macros.Energy * 2f - 1f,
             ModSource.Tone => macros.Tone * 2f - 1f,
             ModSource.Motion => macros.Motion * 2f - 1f,
             ModSource.Random or ModSource.Random2 or ModSource.Random3 =>
-                Avalanche(math.hash(new uint3(RandomSeed(seed, source), (uint)route, (uint)(layer + 1)))) / (float)uint.MaxValue * 2f - 1f,
+                Avalanche(math.hash(new uint3(RandomSeed(seed, source, sourceSeed), (uint)route, (uint)(layer + 1)))) / (float)uint.MaxValue * 2f - 1f,
             _ => 0f,
         };
 
@@ -124,9 +126,13 @@ namespace DataKeeper.Forge.Render
             };
         }
 
-        // Rnd 1 keeps the seed as is, so recipes from before Rnd 2/3 render unchanged.
-        public static uint RandomSeed(uint seed, ModSource source) =>
-            source is ModSource.Random2 or ModSource.Random3 ? Avalanche(seed ^ (uint)source * RandomSourceSalt) : seed;
+        // Rnd 1 keeps the seed as is, so recipes from before Rnd 2/3 render unchanged; likewise
+        // a source seed of 0 leaves it alone.
+        public static uint RandomSeed(uint seed, ModSource source, uint sourceSeed = 0u)
+        {
+            if (source is ModSource.Random2 or ModSource.Random3) seed = Avalanche(seed ^ (uint)source * RandomSourceSalt);
+            return sourceSeed == 0u ? seed : Avalanche(seed ^ Avalanche(sourceSeed + RandomSeedSalt));
+        }
 
         // -1..1 for a whole step, from the layer seed.
         public static float RandomStep(uint seed, int step) =>

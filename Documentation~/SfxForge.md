@@ -124,7 +124,7 @@ through **routes**: source → target × amount, with the amount in the target's
 | LFO 1, LFO 2, LFO 3 | Recipe-level, −1..1. Shape (sine, saw, square, triangle), Rate 0.05–40 Hz, Phase 0–1 (where the cycle starts), Mode: **Retrigger** restarts at each layer's start, **Free** runs from the sound's start | Pitch, Cutoff, Level, Pan |
 | Env 1 | Each layer's amp curve, 0..1 | Pitch, Cutoff, Level, Pan |
 | Env 2, Env 3 | Recipe-level drawn curves, 0..1, spanning the whole sound and shared by every layer. Flat at 0 by default | Pitch, Cutoff, Level, Pan |
-| Rnd 1, Rnd 2, Rnd 3 | Bipolar, from the render seed; each has its own Mode and Rate and its own values. Mode: **Constant** gives one fixed value per route and layer; **Sample & Hold** jumps to a new value at Rate; **Smooth** glides between those values at Rate (0.1–40 Hz). The moving modes give each layer its own signal on the sound's timeline | Constant: every target. Moving modes: Pitch, Cutoff, Level, Pan |
+| Rnd 1, Rnd 2, Rnd 3 | Bipolar, from the render seed; each has its own Mode, Rate and Seed and its own values. Seed 0 follows the render seed alone; any other value rerolls just that Rnd. Mode: **Constant** gives one fixed value per route and layer; **Sample & Hold** jumps to a new value at Rate; **Smooth** glides between those values at Rate (0.1–40 Hz). The moving modes give each layer its own signal on the sound's timeline | Constant: every target. Moving modes: Pitch, Cutoff, Level, Pan |
 
 Targets are per layer (Pitch, Cutoff, Level, Pan, Decay, Resonance) or global (Length, Drive,
 Reverb Mix, Delay Mix, Transient Attack, LFO Rate, LFO Depth, Compressor Depth). LFO Rate and LFO Depth act on
@@ -147,7 +147,7 @@ last tab.
 | LFO 1–3 | A picture of two cycles of the shape, with a line where the LFO starts (Phase), plus Shape, Mode (Retrigger or Free), Rate and Phase (0–360°). LFO 1's Rate is also a drop target, for the LFO Rate route target |
 | ENV 1 | A note that Env 1 is each layer's Amp curve, and a button that opens the Sound page's curve editor on Amp |
 | ENV 2, ENV 3 | A curve editor for the recipe's envelope (0..1 across the whole sound), with Draw, Grid and Reset. A drag is one undo step |
-| RND 1–3 | Mode (Constant, Sample & Hold, Smooth) and, for the moving modes, Rate and a picture of layer 1's signal over the sound for the current seed. Constant shows a line of text instead, since its values don't move |
+| RND 1–3 | A bar on top with Mode (Constant, Sample & Hold, Smooth), Rate (moving modes only) and Seed with **Roll**; below it a picture of layer 1's signal over the sound for the current seed. Constant shows a line of text instead, since its values don't move |
 
 **Drag to modulate.** The source bar under the page tabs holds one coloured chip per source and
 is there on every page, in the order macros, LFOs, envelopes, Rnd. A narrow window wraps it

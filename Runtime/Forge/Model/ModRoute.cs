@@ -58,7 +58,8 @@ namespace DataKeeper.Forge
     }
 
     // Constant is one fixed value per route and layer; the moving modes make that Rnd a
-    // continuous source with one signal per layer.
+    // continuous source with one signal per layer. Seed 0 follows the render seed alone, so
+    // recipes from before it render unchanged; any other value rerolls just this Rnd.
     [Serializable]
     public class RandomSettings
     {
@@ -67,6 +68,7 @@ namespace DataKeeper.Forge
 
         public RandomMode Mode;
         public float RateHz = 4f;
+        public uint Seed;
     }
 
     public static class ModTargets

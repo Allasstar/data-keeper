@@ -581,8 +581,8 @@ namespace DataKeeper.Editor.Forge
             _routesTitle = SectionTitle("Routes");
             routesHeader.Add(_routesTitle);
             routesHeader.Add(Spacer());
-            routesHeader.Add(Hint(MakeButton("+ Route", AddRoute), topic, "+ Route / Defaults"));
-            routesHeader.Add(Hint(MakeButton("Defaults", ResetRoutes), topic, "+ Route / Defaults"));
+            routesHeader.Add(Hint(PillButton("+ Route", AddRoute, "forge-button--pill-accent"), topic, "+ Route / Defaults"));
+            routesHeader.Add(Hint(PillButton("Defaults", ResetRoutes), topic, "+ Route / Defaults"));
             page.Add(routesHeader);
 
             _routeContainer = new VisualElement();
@@ -1827,6 +1827,13 @@ namespace DataKeeper.Editor.Forge
         {
             var button = new Button(onClick) { text = text, focusable = false };
             button.AddToClassList("forge-button");
+            if (extraClass != null) button.AddToClassList(extraClass);
+            return button;
+        }
+
+        private static Button PillButton(string text, Action onClick, string extraClass = null)
+        {
+            var button = MakeButton(text, onClick, "forge-button--pill");
             if (extraClass != null) button.AddToClassList(extraClass);
             return button;
         }

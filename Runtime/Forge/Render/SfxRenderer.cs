@@ -278,7 +278,7 @@ namespace DataKeeper.Forge.Render
             {
                 Mode = random.Mode,
                 RateHz = math.clamp(random.RateHz, RandomSettings.MinRateHz, RandomSettings.MaxRateHz),
-                Seed = ModMatrix.RandomSeed(layerSeed, source),
+                Seed = ModMatrix.RandomSeed(layerSeed, source, random.Seed),
             };
         }
 
