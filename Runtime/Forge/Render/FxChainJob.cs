@@ -22,7 +22,12 @@ namespace DataKeeper.Forge.Render
                 TransientShaper.Process(Buffer, FrameCount, SampleRate, Fx.TransientAttack, Fx.TransientSustain);
 
             if (Fx.DistortionEnabled)
-                Distortion.Process(Buffer, FrameCount, Scratch, Fx.DistortionMode, Fx.DistortionDrive, Fx.DistortionMix);
+                Distortion.Process(Buffer, FrameCount, Scratch, Fx.DistortionMode, Fx.DistortionDrive,
+                    Fx.DistortionDriveDb, Fx.DistortionMix);
+
+            if (Fx.CompressorEnabled)
+                Compressor.Process(Buffer, FrameCount, SampleRate, Fx.CompressorDepth, Fx.CompressorTime,
+                    Fx.CompressorUpward, Fx.CompressorDownward, Fx.CompressorGain);
 
             if (Fx.DelayEnabled)
                 StereoDelay.Process(Buffer, FrameCount, DelayLine, Fx.DelayFrames, Fx.DelayFeedback, Fx.DelayMix, Fx.DelayPingPong);

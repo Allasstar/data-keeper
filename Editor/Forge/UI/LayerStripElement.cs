@@ -15,6 +15,9 @@ namespace DataKeeper.Editor.Forge
 
         private const string LockedFieldClass = UssClassName + "__field--locked";
 
+        // The modes the WARP stepper offers; the renderer plays the others as Off until they exist.
+        private static readonly WarpMode[] WarpModes = { WarpMode.Off, WarpMode.Sync };
+
         private readonly VisualElement _tab;
         private readonly Label _index;
         private readonly Toggle _enabled;
@@ -46,6 +49,7 @@ namespace DataKeeper.Editor.Forge
         private readonly VisualElement _wavetableGroup;
         private readonly VisualElement _sampleGroup;
         private readonly VisualElement _granularGroup;
+        private readonly VisualElement _shepardGroup;
         private readonly KnobElement _fmRatio;
         private readonly KnobElement _fmIndex;
         private readonly KnobElement _fmEnvelope;
@@ -57,6 +61,14 @@ namespace DataKeeper.Editor.Forge
         private readonly KnobElement _grainDensity;
         private readonly KnobElement _grainSpray;
         private readonly KnobElement _grainPitchRandom;
+        private readonly KnobElement _shepardRate;
+        private readonly KnobElement _shepardWidth;
+        private readonly KnobElement _shepardPartials;
+
+        private readonly ParamBoxElement _warpBox;
+        private readonly VisualElement _warpModeStepper;
+        private readonly Button _warpMode;
+        private readonly KnobElement _warpAmount;
 
         private readonly ParamBoxElement _unisonBox;
         private readonly KnobElement _voices;
@@ -183,6 +195,29 @@ namespace DataKeeper.Editor.Forge
             _grainPitchRandom = Knob(_granularGroup, new KnobElement("Pitch Rnd", 0f, GranularSettings.MaxPitchRandom,
                 0f, KnobFormat.Semitones));
 
+            _shepardGroup = Part(_sourceBox, "group");
+            _shepardRate = Knob(_shepardGroup, new KnobElement("Rate", -ShepardSettings.MaxRateOctaves,
+                ShepardSettings.MaxRateOctaves, 1f, KnobFormat.OctavesPerSecond, bipolar: true));
+            _shepardWidth = Knob(_shepardGroup, new KnobElement("Width", 0f, 1f, 0.5f, KnobFormat.Percent));
+            _shepardPartials = Knob(_shepardGroup, new KnobElement("Partials", ShepardSettings.MinPartials,
+                ShepardSettings.MaxPartials, 8f, KnobFormat.Integer) { WholeNumbers = true });
+            // Bound by hand like Voices: Partials is an int property.
+            _shepardPartials.RegisterValueChangedCallback(evt => SetInt("Source.Shepard.Partials", (int)evt.newValue));
+
+            // Hand-built rather than a StepperElement: an EnumField cannot hide the modes that are
+            // not implemented yet.
+            _warpBox = Box(controls, "WARP");
+            _warpBox.AddToClassList(ParamBoxElement.UssClassName + "--stacked");
+            _warpModeStepper = Part(_warpBox, "stepper--warp");
+            _warpModeStepper.AddToClassList(StepperElement.UssClassName);
+            _warpModeStepper.Add(StepperArrow("<", () => StepWarpMode(-1)));
+            _warpMode = new Button(ShowWarpMenu) { focusable = false };
+            _warpMode.AddToClassList(StepperElement.UssClassName + "__label");
+            _warpModeStepper.Add(_warpMode);
+            _warpModeStepper.Add(StepperArrow(">", () => StepWarpMode(1)));
+            var warpKnobs = Part(_warpBox, "knob-row");
+            _warpAmount = Knob(warpKnobs, new KnobElement("Amount", 0f, 1f, 0f, KnobFormat.Percent));
+
             _unisonBox = Box(controls, "UNISON");
             _voices = Knob(_unisonBox, new KnobElement("Voices", UnisonSettings.MinVoices, UnisonSettings.MaxVoices,
                 UnisonSettings.MinVoices, KnobFormat.Integer) { WholeNumbers = true });
@@ -193,7 +228,7 @@ namespace DataKeeper.Editor.Forge
             _phaseRandom = FlagToggle("Rnd", "random");
             phaseOptions.Add(_phaseRandom);
             // Bound by hand: the knob is a float field and Voices is an int property.
-            _voices.RegisterValueChangedCallback(evt => SetVoices((int)evt.newValue));
+            _voices.RegisterValueChangedCallback(evt => SetInt("Unison.Voices", (int)evt.newValue));
 
             _modKnobs = new[]
             {
@@ -203,6 +238,7 @@ namespace DataKeeper.Editor.Forge
                 (_pan, ModTarget.Pan),
                 (_decay, ModTarget.Decay),
                 (_resonance, ModTarget.Resonance),
+                (_warpAmount, ModTarget.Warp),
             };
             foreach (var (knob, target) in _modKnobs) knob.ModTarget = target;
 
@@ -224,6 +260,10 @@ namespace DataKeeper.Editor.Forge
                 (_grainDensity, LayerParam.Source),
                 (_grainSpray, LayerParam.Source),
                 (_grainPitchRandom, LayerParam.Source),
+                (_shepardRate, LayerParam.Source),
+                (_shepardWidth, LayerParam.Source),
+                (_shepardPartials, LayerParam.Source),
+                (_warpAmount, LayerParam.Source),
                 (_voices, LayerParam.Source),
                 (_detune, LayerParam.Source),
                 (_spread, LayerParam.Source),
@@ -246,6 +286,7 @@ namespace DataKeeper.Editor.Forge
                 (_sampleReverse, LayerParam.Source),
                 (_sampleInterpolation, LayerParam.Source),
                 (_phaseRandom, LayerParam.Source),
+                (_warpModeStepper, LayerParam.Source),
             };
             foreach (var (field, param) in _lockableFields)
                 field.AddManipulator(new ContextualMenuManipulator(evt => PopulateFieldMenu(evt, param)));
@@ -269,6 +310,8 @@ namespace DataKeeper.Editor.Forge
             ForgeHints.Set(_sampleGroup, help, "Sample");
             ForgeHints.Set(_sampleClip, help, "Sample");
             ForgeHints.Set(_granularGroup, help, "Granular");
+            ForgeHints.Set(_shepardGroup, help, "Shepard");
+            ForgeHints.Set(_warpBox, help, "Warp");
             ForgeHints.Set(_unisonBox, help, "Unison");
 
             head.AddManipulator(new ContextualMenuManipulator(PopulateLayerMenu));
@@ -322,10 +365,13 @@ namespace DataKeeper.Editor.Forge
             _grainDensity.BindProperty(Relative("Source.Granular.Density"));
             _grainSpray.BindProperty(Relative("Source.Granular.SprayMs"));
             _grainPitchRandom.BindProperty(Relative("Source.Granular.PitchRandom"));
+            _shepardRate.BindProperty(Relative("Source.Shepard.RateOctaves"));
+            _shepardWidth.BindProperty(Relative("Source.Shepard.Width"));
             _detune.BindProperty(Relative("Unison.DetuneCents"));
             _spread.BindProperty(Relative("Unison.Spread"));
             _phase.BindProperty(Relative("Phase.Start"));
             _phaseRandom.BindProperty(Relative("Phase.Random"));
+            _warpAmount.BindProperty(Relative("Warp.Amount"));
 
             _pitch.BindProperty(Relative("Pitch"));
             _cutoff.BindProperty(Relative("Filter.CutoffHz"));
@@ -370,13 +416,21 @@ namespace DataKeeper.Editor.Forge
             Show(_wavetableGroup, type == SourceType.Wavetable);
             Show(_sampleGroup, SourceSettings.UsesClip(type));
             Show(_granularGroup, type == SourceType.Granular);
+            Show(_shepardGroup, type == SourceType.Shepard);
             Show(_sourceBox, type != SourceType.Oscillator && type != SourceType.Noise);
+            Show(_warpBox, WarpSettings.Supports(type));
             Show(_unisonBox, SourceSettings.IsTonal(type));
             _pitch.SetEnabled(type != SourceType.Noise);
 
             // Old layers deserialize Voices as 0; the renderer plays them as one voice.
             _voices.SetValueWithoutNotify(Mathf.Max(UnisonSettings.MinVoices, Relative("Unison.Voices").intValue));
+            // Old layers deserialize Partials as 0 too; the renderer clamps it to the minimum.
+            _shepardPartials.SetValueWithoutNotify(Mathf.Clamp(Relative("Source.Shepard.Partials").intValue,
+                ShepardSettings.MinPartials, ShepardSettings.MaxPartials));
             _phase.SetEnabled(!Relative("Phase.Random").boolValue);
+            var warpMode = (WarpMode)Relative("Warp.Mode").intValue;
+            _warpMode.text = warpMode.ToString();
+            _warpAmount.SetEnabled(warpMode != WarpMode.Off);
 
             var filterOn = Relative("Filter.Type").intValue != (int)FilterType.Off;
             _cutoff.SetEnabled(filterOn);
@@ -438,12 +492,32 @@ namespace DataKeeper.Editor.Forge
             add("Clear Parameter Locks", false, hasParamLocks, () => SetLockFlags(0));
         }
 
-        private void SetVoices(int voices)
+        private void StepWarpMode(int direction)
         {
-            var property = Relative("Unison.Voices");
-            if (property.intValue == voices) return;
+            var index = Array.IndexOf(WarpModes, (WarpMode)Relative("Warp.Mode").intValue);
+            index = index < 0 ? 0 : (index + direction + WarpModes.Length) % WarpModes.Length;
+            SetInt("Warp.Mode", (int)WarpModes[index]);
+        }
 
-            property.intValue = voices;
+        private void ShowWarpMenu()
+        {
+            var current = Relative("Warp.Mode").intValue;
+            var menu = new GenericDropdownMenu();
+            foreach (var mode in WarpModes)
+            {
+                var choice = (int)mode;
+                menu.AddItem(mode.ToString(), choice == current, () => SetInt("Warp.Mode", choice));
+            }
+
+            menu.DropDown(_warpMode.worldBound, this, DropdownMenuSizeMode.Auto);
+        }
+
+        private void SetInt(string path, int value)
+        {
+            var property = Relative(path);
+            if (property.intValue == value) return;
+
+            property.intValue = value;
             Apply();
         }
 
@@ -515,6 +589,13 @@ namespace DataKeeper.Editor.Forge
             stepper.AddToClassList($"{UssClassName}__stepper--{role}");
             parent.Add(stepper);
             return stepper;
+        }
+
+        private static Button StepperArrow(string text, Action step)
+        {
+            var button = new Button(step) { text = text, focusable = false };
+            button.AddToClassList(StepperElement.UssClassName + "__arrow");
+            return button;
         }
 
         private static ToolbarToggle FlagToggle(string text, string flag)

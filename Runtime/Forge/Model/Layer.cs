@@ -14,6 +14,7 @@ namespace DataKeeper.Forge
         public SourceSettings Source = SourceSettings.Default;
         public UnisonSettings Unison = UnisonSettings.Default;
         public PhaseSettings Phase;
+        public WarpSettings Warp;
         public Band Band = Band.Body;
 
         // Semitones relative to A4 (440 Hz).

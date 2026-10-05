@@ -139,8 +139,10 @@ namespace DataKeeper.Editor.Forge
         private int _curveUndoGroup;
         private Label _fxTitle;
         private StepperElement _distortionMode;
+        private KnobElement _driveKnob;
         private FxGraphElement _transientGraph;
         private FxGraphElement _distortionGraph;
+        private FxGraphElement _compressorGraph;
         private FxGraphElement _delayGraph;
         private FxGraphElement _reverbGraph;
         private FxGraphElement _limiterGraph;
@@ -743,9 +745,19 @@ namespace DataKeeper.Editor.Forge
             _distortionMode = new StepperElement(DistortionMode.Tanh);
             _distortionMode.AddToClassList("forge-fx__mode");
             distortion.Add(_distortionMode);
-            distortion.Add(FxKnob(new KnobElement("Drive", 0f, DistortionSettings.MaxDriveDb, 6f, KnobFormat.Decibels)
-                { ModTarget = ModTarget.Drive }, "Fx.Distortion.DriveDb"));
+            _driveKnob = FxKnob(new KnobElement("Drive", 0f, DistortionSettings.MaxDriveDb, 6f, KnobFormat.Decibels)
+                { ModTarget = ModTarget.Drive }, "Fx.Distortion.DriveDb");
+            distortion.Add(_driveKnob);
             distortion.Add(FxKnob(new KnobElement("Mix", 0f, 1f, 1f, KnobFormat.Percent), "Fx.Distortion.Mix"));
+
+            var compressor = FxModule(page, "COMPRESSOR", "Compressor", "Fx.Compressor", fx => fx.Compressor.Enabled, out _compressorGraph);
+            compressor.Add(FxKnob(new KnobElement("Depth", 0f, 1f, 1f, KnobFormat.Percent)
+                { ModTarget = ModTarget.CompressorDepth }, "Fx.Compressor.Depth"));
+            compressor.Add(FxKnob(new KnobElement("Time", 0f, 1f, 0.5f, KnobFormat.Percent), "Fx.Compressor.Time"));
+            compressor.Add(FxKnob(new KnobElement("Upward", 0f, 1f, 1f, KnobFormat.Percent), "Fx.Compressor.Upward"));
+            compressor.Add(FxKnob(new KnobElement("Downward", 0f, 1f, 1f, KnobFormat.Percent), "Fx.Compressor.Downward"));
+            compressor.Add(FxKnob(new KnobElement("Gain", -CompressorSettings.MaxGainDb, CompressorSettings.MaxGainDb, 0f,
+                KnobFormat.Decibels, bipolar: true), "Fx.Compressor.GainDb"));
 
             var delay = FxModule(page, "DELAY", "Delay", "Fx.Delay", fx => fx.Delay.Enabled, out _delayGraph);
             delay.Add(FxKnob(new KnobElement("Time", DelaySettings.MinTimeMs, DelaySettings.MaxTimeMs, 180f,
@@ -794,11 +806,30 @@ namespace DataKeeper.Editor.Forge
             foreach (var (box, isOn) in _fxModules) box.EnableInClassList("forge-fx--off", !isOn(_recipe.Fx));
         }
 
+        // Drive stays one stored dB amount in every mode, so the Drive target works in all of
+        // them; only its name and readout follow what the mode turns it into.
+        private void RefreshDriveKnob()
+        {
+            var mode = _recipe.Fx.Distortion.Mode;
+            _driveKnob.Label = mode switch
+            {
+                DistortionMode.BitCrush => "Bits",
+                DistortionMode.Downsample => "Hold",
+                _ => "Drive",
+            };
+            _driveKnob.Format = mode switch
+            {
+                DistortionMode.BitCrush => KnobFormat.Bits,
+                DistortionMode.Downsample => KnobFormat.Hold,
+                _ => KnobFormat.Decibels,
+            };
+        }
+
         private void RefreshFxGraphs()
         {
             if (_recipe == null || _fxGraphBuilder == null) return;
             _fxGraphBuilder.Fill(_recipe.Fx, _recipe.LengthMs,
-                _transientGraph, _distortionGraph, _delayGraph, _reverbGraph, _limiterGraph);
+                _transientGraph, _distortionGraph, _compressorGraph, _delayGraph, _reverbGraph, _limiterGraph);
         }
 
         private static ToolbarToggle FxToggle(string text)
@@ -1163,6 +1194,7 @@ namespace DataKeeper.Editor.Forge
             _length.Locked = _recipe.Randomizer.LockLength;
             _fxTitle.EnableInClassList("forge-locked-title", _recipe.Randomizer.LockFx);
             RefreshFxModules();
+            RefreshDriveKnob();
             RefreshCurveEditor();
             RefreshModPanels();
             _modulation.Refresh();

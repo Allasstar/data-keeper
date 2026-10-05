@@ -1,5 +1,6 @@
 using System;
 using DataKeeper.Forge;
+using DataKeeper.Forge.Dsp.Fx;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -25,6 +26,9 @@ namespace DataKeeper.Editor.Forge
         Integer,
         Cents,
         Degrees,
+        OctavesPerSecond,
+        Bits,
+        Hold,
     }
 
     [UxmlElement]
@@ -419,6 +423,9 @@ namespace DataKeeper.Editor.Forge
             KnobFormat.Integer => $"{v:0}",
             KnobFormat.Cents => $"{v:0} ct",
             KnobFormat.Degrees => $"{v * 360f:0}°",
+            KnobFormat.OctavesPerSecond => $"{v:+0.00;-0.00;0.00} oct/s",
+            KnobFormat.Bits => $"{Distortion.BitsFor(v)} bits",
+            KnobFormat.Hold => $"×{Distortion.HoldFor(v)}",
             _ => $"{v:0.00}",
         };
     }

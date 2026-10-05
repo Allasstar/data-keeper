@@ -138,7 +138,7 @@ namespace DataKeeper.Forge.Render
             for (var i = 0; i < layerCount; i++)
             {
                 var source = layers[i].Source;
-                needsWavetables |= source.Type == SourceType.Wavetable;
+                needsWavetables |= source.Type == SourceType.Wavetable || WarpModeOf(layers[i]) != WarpMode.Off;
                 if (SourceSettings.UsesClip(source.Type) && source.Sample.Clip != null)
                     sampleTotal += ClipData(source.Sample.Clip)?.Length ?? 0;
             }
@@ -212,6 +212,13 @@ namespace DataKeeper.Forge.Render
                     FmIndexEnvelope = math.saturate(source.Fm.IndexEnvelope),
                     WavetableOffset = Wavetables.BankOffset(source.Wavetable.Bank),
                     WavetablePosition = math.saturate(source.Wavetable.Position),
+                    ShepardRate = math.clamp(source.Shepard.RateOctaves, -ShepardSettings.MaxRateOctaves,
+                        ShepardSettings.MaxRateOctaves),
+                    ShepardWidthOctaves = ShepardOscillator.WidthOctaves(source.Shepard.Width),
+                    ShepardPartials = math.clamp(source.Shepard.Partials, ShepardSettings.MinPartials,
+                        ShepardSettings.MaxPartials),
+                    Warp = WarpModeOf(layer),
+                    WarpAmount = math.saturate(layer.Warp.Amount) + mod.Warp,
                     AmpCurve = CopyCurve(layer.AmpCurve, ref cursor),
                     PitchCurve = CopyCurve(layer.PitchCurve, ref cursor),
                     CutoffCurve = CopyCurve(layer.CutoffCurve, ref cursor),
@@ -232,6 +239,15 @@ namespace DataKeeper.Forge.Render
                     RandomDepth = mod.RandomDepth,
                     Random2Depth = mod.Random2Depth,
                     Random3Depth = mod.Random3Depth,
+                    LfoWarpDepth = mod.LfoWarpDepth,
+                    Lfo2WarpDepth = mod.Lfo2WarpDepth,
+                    Lfo3WarpDepth = mod.Lfo3WarpDepth,
+                    EnvelopeWarpDepth = mod.EnvelopeWarpDepth,
+                    Env2WarpDepth = mod.Env2WarpDepth,
+                    Env3WarpDepth = mod.Env3WarpDepth,
+                    RandomWarpDepth = mod.RandomWarpDepth,
+                    Random2WarpDepth = mod.Random2WarpDepth,
+                    Random3WarpDepth = mod.Random3WarpDepth,
                     Env2Curve = env2,
                     Env3Curve = env3,
                 };
@@ -242,6 +258,10 @@ namespace DataKeeper.Forge.Render
                 _layers[i] = parameters;
             }
         }
+
+        // Only Sync is implemented so far; the other modes, and sources without warp, play as Off.
+        private static WarpMode WarpModeOf(Layer layer) =>
+            WarpSettings.Supports(layer.Source.Type) && layer.Warp.Mode == WarpMode.Sync ? WarpMode.Sync : WarpMode.Off;
 
         private static LfoParams PackLfo(LfoSettings lfo, float rateOctaves) => new()
         {

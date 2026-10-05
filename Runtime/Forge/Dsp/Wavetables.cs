@@ -16,9 +16,16 @@ namespace DataKeeper.Forge.Dsp
         public const int MaxHarmonics = TableSize / 2;
         public const int BankCount = 5;
         public const int BankSize = Frames * Levels * Stride;
-        public const int TotalSize = BankCount * BankSize;
+
+        // Internal Classic set for warped Oscillator layers: one frame per Waveform, appended after
+        // the public banks so WavetableBank and its stepper stay as they are (FS2-D2).
+        public const int ClassicOffset = BankCount * BankSize;
+        public const int ClassicWaves = 4;
+        public const int TotalSize = ClassicOffset + ClassicWaves * Levels * Stride;
 
         public static int BankOffset(WavetableBank bank) => (int)bank * BankSize;
+
+        public static int ClassicTable(Waveform waveform, int level) => TableOffset(ClassicOffset, (int)waveform, level);
 
         public static int TableOffset(int bankOffset, int frame, int level) =>
             bankOffset + (frame * Levels + level) * Stride;
@@ -45,20 +52,33 @@ namespace DataKeeper.Forge.Dsp
                     Array.Clear(cos, 0, cos.Length);
                     Array.Clear(sin, 0, sin.Length);
                     FillSpectrum((WavetableBank)bank, frame / (float)(Frames - 1), frame, cos, sin);
-
-                    // Normalise every level by the full-band peak so loudness does not jump
-                    // when a sweep crosses into a level with fewer harmonics.
-                    var gain = 1.0;
-                    for (var level = 0; level < Levels; level++)
-                    {
-                        Synthesize(cos, sin, MaxHarmonics >> level, re, im);
-                        if (level == 0) gain = 1.0 / math.max(Peak(re), 1e-9);
-
-                        var offset = TableOffset(bank * BankSize, frame, level);
-                        for (var i = 0; i < TableSize; i++) destination[offset + i] = (float)(re[i] * gain);
-                        destination[offset + TableSize] = destination[offset];
-                    }
+                    WriteLevels(destination, bank * BankSize, frame, cos, sin, re, im, true);
                 }
+            }
+
+            for (var wave = 0; wave < ClassicWaves; wave++)
+            {
+                Array.Clear(cos, 0, cos.Length);
+                Array.Clear(sin, 0, sin.Length);
+                FillClassic((Waveform)wave, cos, sin);
+                WriteLevels(destination, ClassicOffset, wave, cos, sin, re, im, false);
+            }
+        }
+
+        private static void WriteLevels(NativeArray<float> destination, int bankOffset, int frame, double[] cos,
+            double[] sin, double[] re, double[] im, bool normalise)
+        {
+            // Normalise every level by the full-band peak so loudness does not jump when a sweep
+            // crosses into a level with fewer harmonics.
+            var gain = 1.0;
+            for (var level = 0; level < Levels; level++)
+            {
+                Synthesize(cos, sin, MaxHarmonics >> level, re, im);
+                if (level == 0 && normalise) gain = 1.0 / math.max(Peak(re), 1e-9);
+
+                var offset = TableOffset(bankOffset, frame, level);
+                for (var i = 0; i < TableSize; i++) destination[offset + i] = (float)(re[i] * gain);
+                destination[offset + TableSize] = destination[offset];
             }
         }
 
@@ -129,6 +149,27 @@ namespace DataKeeper.Forge.Dsp
                         var weight = math.hash(new uint2((uint)h, (uint)frame + 1u)) / (double)uint.MaxValue;
                         sin[h] = weight * weight * weight / math.sqrt(h);
                     }
+                    break;
+            }
+        }
+
+        // The Fourier series of PolyBlepOscillator's shapes at their own amplitude, not peak
+        // normalised, so a warped wave starts out as loud as the unwarped one.
+        private static void FillClassic(Waveform waveform, double[] cos, double[] sin)
+        {
+            switch (waveform)
+            {
+                case Waveform.Saw:
+                    for (var h = 1; h < MaxHarmonics; h++) sin[h] = -2.0 / (Math.PI * h);
+                    break;
+                case Waveform.Square:
+                    for (var h = 1; h < MaxHarmonics; h += 2) sin[h] = 4.0 / (Math.PI * h);
+                    break;
+                case Waveform.Triangle:
+                    for (var h = 1; h < MaxHarmonics; h += 2) cos[h] = 8.0 / (Math.PI * Math.PI * h * h);
+                    break;
+                default:
+                    sin[1] = 1.0;
                     break;
             }
         }

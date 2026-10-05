@@ -31,6 +31,7 @@ namespace DataKeeper.Forge.Render
             public float SampleStep;
             public float FilterG;
             public float2 PanGains;
+            public float WarpAmount;
         }
 
         public void Execute(int layerIndex)
@@ -42,6 +43,12 @@ namespace DataKeeper.Forge.Render
             var start = p.StartFrame;
             var end = p.EndFrame;
             if (end <= start) return;
+
+            if (p.Warp != WarpMode.Off)
+            {
+                RenderWarp(p, offset);
+                return;
+            }
 
             // Separate loop so a single voice keeps the original mono path and its exact output.
             if (p.Voices > 1)
@@ -57,6 +64,7 @@ namespace DataKeeper.Forge.Render
             var fm = StartFm(phase, p.FmRatio);
             var sampler = new SamplePlayer { Position = p.SampleStart };
             var granular = new GranularPlayer(p.Seed, p.SampleStart);
+            var shepard = new ShepardOscillator(p.ShepardPartials, p.ShepardWidthOctaves, p.ShepardRate / SampleRate, phase);
             var filter = new StateVariableFilter();
             var invVoiceFrames = 1f / p.VoiceFrames;
             var previous = EvaluateControl(p, 0f);
@@ -97,6 +105,9 @@ namespace DataKeeper.Forge.Render
                             var grainStep = math.lerp(previous.SampleStep, next.SampleStep, f);
                             sample = granular.Next(SampleData, p.SampleOffset, p.SampleLength, p.SampleStep, grainStep,
                                 p.GrainFrames, p.GrainInterval, p.GrainSpray, p.GrainPitchRandom, p.SampleReverse, p.SampleCubic);
+                            break;
+                        case SourceType.Shepard:
+                            sample = shepard.Next(phaseIncrement);
                             break;
                         default:
                             sample = oscillator.Next(p.Waveform, phaseIncrement);
@@ -195,6 +206,60 @@ namespace DataKeeper.Forge.Render
             }
         }
 
+        // Warped Oscillator and Wavetable layers at any voice count, summed like RenderUnison. Chosen
+        // once per layer, so layers with Warp Off keep the two loops above untouched.
+        private void RenderWarp(in LayerRenderParams p, int offset)
+        {
+            var voices = p.Voices;
+            var ratios = p.VoiceRatios;
+            var gains = p.VoiceGains;
+            var phases = p.VoicePhases;
+            var oscillators = new FixedList64Bytes<WarpOscillator>();
+            for (var v = 0; v < voices; v++) oscillators.Add(new WarpOscillator { Phase = phases[v] });
+            Warp.Tables(p.Source, p.Waveform, p.WavetableOffset, p.WavetablePosition, out var tableA, out var tableB,
+                out var blend);
+
+            var filterLeft = new StateVariableFilter();
+            var filterRight = new StateVariableFilter();
+            var start = p.StartFrame;
+            var end = p.EndFrame;
+            var invVoiceFrames = 1f / p.VoiceFrames;
+            var previous = EvaluateControl(p, 0f);
+
+            for (var block = start; block < end; block += ControlRate)
+            {
+                var blockEnd = math.min(block + ControlRate, end);
+                var next = EvaluateControl(p, (blockEnd - start) * invVoiceFrames);
+                var invBlockLength = 1f / (blockEnd - block);
+
+                for (var i = block; i < blockEnd; i++)
+                {
+                    var f = (i - block) * invBlockLength;
+                    var phaseIncrement = math.lerp(previous.PhaseIncrement, next.PhaseIncrement, f);
+                    var filterG = math.lerp(previous.FilterG, next.FilterG, f);
+                    var amp = math.lerp(previous.Amp, next.Amp, f);
+                    var panGains = math.lerp(previous.PanGains, next.PanGains, f);
+                    var ratio = Warp.SyncRatio(math.lerp(previous.WarpAmount, next.WarpAmount, f));
+
+                    var mix = float2.zero;
+                    for (var v = 0; v < voices; v++)
+                    {
+                        var oscillator = oscillators[v];
+                        mix += gains[v] * oscillator.NextSync(Wavetables, tableA, tableB, blend,
+                            phaseIncrement * ratios[v], ratio);
+                        oscillators[v] = oscillator;
+                    }
+
+                    var left = filterLeft.Process(mix.x, filterG, p.FilterK, p.Filter) * amp;
+                    var right = filterRight.Process(mix.y, filterG, p.FilterK, p.Filter) * amp;
+                    LayerBuffer[offset + i * 2] = left * panGains.x;
+                    LayerBuffer[offset + i * 2 + 1] = right * panGains.y;
+                }
+
+                previous = next;
+            }
+        }
+
         // The modulator starts at the same point in time as the carrier, so Start shifts the
         // whole FM waveform rather than changing its timbre.
         private static FmOperator StartFm(float phase, float ratio) =>
@@ -227,6 +292,23 @@ namespace DataKeeper.Forge.Render
             // Skipping the pow when unmodulated keeps unrouted recipes bit-identical to before.
             var level = mod.z == 0f ? 1f : AudioMath.DbToLinear(mod.z);
 
+            // Warp sums its own lane after the float4 ones, so their order and guards are unchanged (FS2-D3).
+            var warp = 0f;
+            if (p.Warp != WarpMode.Off)
+            {
+                var lane = 0f;
+                if (p.LfoWarpDepth != 0f) lane += p.LfoWarpDepth * Lfo(p.Lfo1, seconds, p.StartSeconds);
+                if (p.EnvelopeWarpDepth != 0f) lane += p.EnvelopeWarpDepth * envelope;
+                if (p.Lfo2WarpDepth != 0f) lane += p.Lfo2WarpDepth * Lfo(p.Lfo2, seconds, p.StartSeconds);
+                if (p.Lfo3WarpDepth != 0f) lane += p.Lfo3WarpDepth * Lfo(p.Lfo3, seconds, p.StartSeconds);
+                if (p.Env2WarpDepth != 0f) lane += p.Env2WarpDepth * Evaluate(p.Env2Curve, soundT);
+                if (p.Env3WarpDepth != 0f) lane += p.Env3WarpDepth * Evaluate(p.Env3Curve, soundT);
+                if (p.RandomWarpDepth != 0f) lane += p.RandomWarpDepth * Random(p.Random1, seconds, p.StartSeconds);
+                if (p.Random2WarpDepth != 0f) lane += p.Random2WarpDepth * Random(p.Random2, seconds, p.StartSeconds);
+                if (p.Random3WarpDepth != 0f) lane += p.Random3WarpDepth * Random(p.Random3, seconds, p.StartSeconds);
+                warp = math.saturate(p.WarpAmount + lane);
+            }
+
             return new ControlFrame
             {
                 Envelope = envelope,
@@ -235,6 +317,7 @@ namespace DataKeeper.Forge.Render
                 SampleStep = p.SampleStep * AudioMath.SemitonesToRatio(pitch),
                 FilterG = StateVariableFilter.CutoffToG(cutoff, SampleRate),
                 PanGains = AudioMath.ConstantPowerPan(pan),
+                WarpAmount = warp,
             };
         }
 

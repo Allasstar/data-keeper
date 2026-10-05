@@ -29,6 +29,8 @@ namespace DataKeeper.Editor.Forge
         private const float LimiterFloorDb = -30f;
         private const float LimiterTopDb = 6f;
 
+        private const float CompressorFloorDb = -80f;
+
         private NativeArray<float> _buffer;
         private NativeArray<float> _wet;
         private NativeArray<float> _gain;
@@ -57,28 +59,79 @@ namespace DataKeeper.Editor.Forge
         // Disabled effects are skipped: their modules are collapsed, and turning one on is a
         // recipe change that renders and refills.
         public void Fill(FxChain fx, float lengthMs, FxGraphElement transient, FxGraphElement distortion,
-            FxGraphElement delay, FxGraphElement reverb, FxGraphElement limiter)
+            FxGraphElement compressor, FxGraphElement delay, FxGraphElement reverb, FxGraphElement limiter)
         {
             var p = FxParams.From(fx, SampleRate);
             if (p.TransientEnabled) FillTransient(transient, p);
             if (p.DistortionEnabled) FillDistortion(distortion, p);
+            if (p.CompressorEnabled) FillCompressor(compressor, p);
             if (p.DelayEnabled) FillDelay(delay, p, lengthMs);
             if (p.ReverbEnabled) FillReverb(reverb, p, lengthMs);
             if (p.LimiterEnabled) FillLimiter(limiter, p);
         }
 
-        private static void FillDistortion(FxGraphElement graph, in FxParams p)
+        private void FillDistortion(FxGraphElement graph, in FxParams p)
         {
             graph.Bipolar = true;
+            if (p.DistortionMode == DistortionMode.Downsample)
+            {
+                FillDownsample(graph, p);
+                return;
+            }
+
             var reference = graph.Reference(2);
             reference[0] = -1f;
+            reference[1] = 1f;
+
+            var bits = Distortion.BitsFor(p.DistortionDriveDb);
+            var trace = graph.Trace(FxGraphElement.Capacity);
+            for (var i = 0; i < trace.Length; i++)
+            {
+                var x = (float)i / (trace.Length - 1) * 2f - 1f;
+                var shaped = p.DistortionMode == DistortionMode.BitCrush
+                    ? Distortion.Crush(x, bits)
+                    : Distortion.Shape(x * p.DistortionDrive, p.DistortionMode);
+                trace[i] = Mathf.Lerp(x, shaped, p.DistortionMix);
+            }
+
+            graph.MarkDirtyRepaint();
+        }
+
+        // Downsample has no static curve, so it shows one cycle of a test wave before (grey) and
+        // after (orange). Starting at the peak keeps the steps visible even at the top hold.
+        private void FillDownsample(FxGraphElement graph, in FxParams p)
+        {
+            const int frames = FxGraphElement.Capacity;
+            var reference = graph.Reference(frames);
+            for (var frame = 0; frame < frames; frame++)
+            {
+                var sample = Mathf.Cos(2f * Mathf.PI * frame / frames);
+                reference[frame] = sample;
+                _buffer[frame * 2] = sample;
+                _buffer[frame * 2 + 1] = sample;
+            }
+
+            Distortion.Process(_buffer, frames, _wet, p.DistortionMode, p.DistortionDrive, p.DistortionDriveDb, p.DistortionMix);
+            var trace = graph.Trace(frames);
+            for (var frame = 0; frame < frames; frame++) trace[frame] = _buffer[frame * 2];
+            graph.MarkDirtyRepaint();
+        }
+
+        // The static curve, input level across and output level up in dB, both CompressorFloorDb
+        // to 0 dBFS, so the grey diagonal is unity. Every band shares it.
+        private static void FillCompressor(FxGraphElement graph, in FxParams p)
+        {
+            var reference = graph.Reference(2);
+            reference[0] = 0f;
             reference[1] = 1f;
 
             var trace = graph.Trace(FxGraphElement.Capacity);
             for (var i = 0; i < trace.Length; i++)
             {
-                var x = (float)i / (trace.Length - 1) * 2f - 1f;
-                trace[i] = Mathf.Lerp(x, Distortion.Shape(x * p.DistortionDrive, p.DistortionMode), p.DistortionMix);
+                var inputDb = Mathf.Lerp(CompressorFloorDb, 0f, (float)i / (trace.Length - 1));
+                var gainDb = Compressor.GainDb(inputDb, p.CompressorUpward, p.CompressorDownward).x;
+                var gain = Mathf.Lerp(1f, AudioMath.DbToLinear(gainDb) * p.CompressorGain, p.CompressorDepth);
+                trace[i] = Mathf.Clamp01((inputDb + AudioMath.LinearToDb(gain) - CompressorFloorDb) / -CompressorFloorDb);
             }
 
             graph.MarkDirtyRepaint();

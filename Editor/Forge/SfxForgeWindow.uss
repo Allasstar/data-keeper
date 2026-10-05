@@ -722,8 +722,14 @@
     align-items: stretch;
 }
 
-.forge-strip__stepper--filter {
+.forge-strip__stepper--filter,
+.forge-strip__stepper--warp {
     margin: 0 2px 2px 2px;
+}
+
+/* One knob is narrower than the stepper needs. */
+.forge-strip__stepper--warp {
+    min-width: 76px;
 }
 
 .forge-strip__knob-row {
@@ -850,6 +856,19 @@
     background-color: var(--forge-panel-raised);
 }
 
+.forge-stepper__label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    height: 18px;
+    margin: 0;
+    padding: 0 2px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    font-size: 11px;
+    -unity-text-align: middle-center;
+}
+
 .forge-stepper__field {
     flex-grow: 1;
     flex-shrink: 1;
@@ -939,7 +958,7 @@
 }
 
 .forge-fx__mode {
-    width: 96px;
+    width: 108px;
     margin: 0 6px 0 0;
 }
 

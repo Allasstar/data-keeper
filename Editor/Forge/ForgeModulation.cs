@@ -71,7 +71,7 @@ namespace DataKeeper.Editor.Forge
             ModTarget.Level or ModTarget.Drive => KnobFormat.Decibels,
             ModTarget.Pan => KnobFormat.Pan,
             ModTarget.Resonance or ModTarget.ReverbMix or ModTarget.DelayMix or ModTarget.TransientAttack
-                or ModTarget.LfoDepth => KnobFormat.Percent,
+                or ModTarget.LfoDepth or ModTarget.Warp or ModTarget.CompressorDepth => KnobFormat.Percent,
             _ => KnobFormat.Octaves,
         };
 
@@ -80,8 +80,8 @@ namespace DataKeeper.Editor.Forge
 
         public static string UnsupportedReason(ModSource source, RandomMode randomMode) =>
             ModTargets.IsRandom(source)
-                ? $"{SourceName(source)} in {(randomMode == RandomMode.Smooth ? "Smooth" : "Sample & Hold")} mode only modulates Pitch, Cutoff, Level and Pan. Set it to Constant to reach other targets."
-                : $"{SourceName(source)} only modulates Pitch, Cutoff, Level and Pan.";
+                ? $"{SourceName(source)} in {(randomMode == RandomMode.Smooth ? "Smooth" : "Sample & Hold")} mode only modulates Pitch, Cutoff, Level, Pan and Warp. Set it to Constant to reach other targets."
+                : $"{SourceName(source)} only modulates Pitch, Cutoff, Level, Pan and Warp.";
 
         public static string RandomPath(ModSource source) => source switch
         {

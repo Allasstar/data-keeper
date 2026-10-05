@@ -15,6 +15,7 @@ namespace DataKeeper.Forge
         public FmSettings Fm;
         public SampleSettings Sample;
         public GranularSettings Granular;
+        public ShepardSettings Shepard;
 
         public static bool IsTonal(SourceType type) =>
             type == SourceType.Oscillator || type == SourceType.Wavetable || type == SourceType.FM;
@@ -28,6 +29,7 @@ namespace DataKeeper.Forge
             Fm = FmSettings.Default,
             Sample = new SampleSettings { Interpolation = SampleInterpolation.Cubic },
             Granular = GranularSettings.Default,
+            Shepard = ShepardSettings.Default,
         };
 
         public static bool UsesClip(SourceType type) => type == SourceType.Sample || type == SourceType.Granular;
@@ -106,6 +108,23 @@ namespace DataKeeper.Forge
         public static GranularSettings Default => new() { GrainMs = 60f, Density = 30f, SprayMs = 20f };
     }
 
+    // Old data deserializes as zeros: the renderer plays Partials 0 as MinPartials and Width 0
+    // as the narrowest window, and Rate 0 is a static octave stack.
+    [Serializable]
+    public struct ShepardSettings
+    {
+        public const float MaxRateOctaves = 4f;
+        public const int MinPartials = 4;
+        public const int MaxPartials = 10;
+
+        // Octaves per second every partial glides; negative falls.
+        public float RateOctaves;
+        public float Width;
+        public int Partials;
+
+        public static ShepardSettings Default => new() { RateOctaves = 1f, Width = 0.5f, Partials = 8 };
+    }
+
     // Tonal sources only. Old data deserializes Voices as 0, which the renderer reads as 1.
     [Serializable]
     public struct UnisonSettings
@@ -129,5 +148,15 @@ namespace DataKeeper.Forge
         // Fraction of a cycle; Random replaces it with a per-voice phase from the layer seed.
         public float Start;
         public bool Random;
+    }
+
+    // Oscillator and Wavetable only. Old data deserializes as Off, which renders as before.
+    [Serializable]
+    public struct WarpSettings
+    {
+        public WarpMode Mode;
+        public float Amount;
+
+        public static bool Supports(SourceType type) => type == SourceType.Oscillator || type == SourceType.Wavetable;
     }
 }

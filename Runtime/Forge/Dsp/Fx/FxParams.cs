@@ -12,7 +12,15 @@ namespace DataKeeper.Forge.Dsp.Fx
         public bool DistortionEnabled;
         public DistortionMode DistortionMode;
         public float DistortionDrive;
+        public float DistortionDriveDb;
         public float DistortionMix;
+
+        public bool CompressorEnabled;
+        public float CompressorDepth;
+        public float CompressorTime;
+        public float CompressorUpward;
+        public float CompressorDownward;
+        public float CompressorGain;
 
         public bool DelayEnabled;
         public int DelayFrames;
@@ -43,8 +51,17 @@ namespace DataKeeper.Forge.Dsp.Fx
 
             DistortionEnabled = fx.Distortion.Enabled,
             DistortionMode = fx.Distortion.Mode,
-            DistortionDrive = AudioMath.DbToLinear(math.clamp(fx.Distortion.DriveDb + mod.DriveDb, 0f, DistortionSettings.MaxDriveDb)),
+            DistortionDrive = AudioMath.DbToLinear(DriveDbOf(fx, mod)),
+            DistortionDriveDb = DriveDbOf(fx, mod),
             DistortionMix = math.saturate(fx.Distortion.Mix),
+
+            CompressorEnabled = fx.Compressor.Enabled,
+            CompressorDepth = math.saturate(fx.Compressor.Depth + mod.CompressorDepth),
+            CompressorTime = math.saturate(fx.Compressor.Time),
+            CompressorUpward = math.saturate(fx.Compressor.Upward),
+            CompressorDownward = math.saturate(fx.Compressor.Downward),
+            CompressorGain = AudioMath.DbToLinear(
+                math.clamp(fx.Compressor.GainDb, -CompressorSettings.MaxGainDb, CompressorSettings.MaxGainDb)),
 
             DelayEnabled = fx.Delay.Enabled,
             DelayFrames = DelayFramesFor(fx.Delay.TimeMs, sampleRate),
@@ -61,5 +78,8 @@ namespace DataKeeper.Forge.Dsp.Fx
             LimiterCeiling = AudioMath.DbToLinear(math.clamp(fx.Limiter.CeilingDb, LimiterSettings.MinCeilingDb, 0f)),
             LimiterReleaseMs = math.clamp(fx.Limiter.ReleaseMs, LimiterSettings.MinReleaseMs, LimiterSettings.MaxReleaseMs),
         };
+
+        private static float DriveDbOf(FxChain fx, in GlobalModulation mod) =>
+            math.clamp(fx.Distortion.DriveDb + mod.DriveDb, 0f, DistortionSettings.MaxDriveDb);
     }
 }

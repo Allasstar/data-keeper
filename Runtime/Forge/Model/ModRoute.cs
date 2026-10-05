@@ -71,10 +71,12 @@ namespace DataKeeper.Forge
 
     public static class ModTargets
     {
-        public static bool IsPerLayer(ModTarget target) => target <= ModTarget.Resonance;
+        public static bool IsPerLayer(ModTarget target) => target is ModTarget.Pitch or ModTarget.Cutoff
+            or ModTarget.Level or ModTarget.Pan or ModTarget.Decay or ModTarget.Resonance or ModTarget.Warp;
 
         // Only these are evaluated at control rate, so only they can follow a continuous source.
-        public static bool IsContinuous(ModTarget target) => target <= ModTarget.Pan;
+        public static bool IsContinuous(ModTarget target) =>
+            target is ModTarget.Pitch or ModTarget.Cutoff or ModTarget.Level or ModTarget.Pan or ModTarget.Warp;
 
         public static bool IsContinuous(ModSource source, RandomMode randomMode) => source switch
         {

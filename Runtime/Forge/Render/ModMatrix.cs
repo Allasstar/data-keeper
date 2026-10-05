@@ -10,6 +10,7 @@ namespace DataKeeper.Forge.Render
         public float Pan;
         public float DecayOctaves;
         public float Resonance;
+        public float Warp;
 
         // One depth per continuous source, x pitch (st), y cutoff (oct), z level (dB), w pan;
         // applied at control rate. LfoDepth and EnvelopeDepth are LFO 1 and Env 1.
@@ -22,6 +23,17 @@ namespace DataKeeper.Forge.Render
         public float4 RandomDepth;
         public float4 Random2Depth;
         public float4 Random3Depth;
+
+        // The Warp lane: one depth per continuous source, kept out of the float4s (FS2-D3).
+        public float LfoWarpDepth;
+        public float Lfo2WarpDepth;
+        public float Lfo3WarpDepth;
+        public float EnvelopeWarpDepth;
+        public float Env2WarpDepth;
+        public float Env3WarpDepth;
+        public float RandomWarpDepth;
+        public float Random2WarpDepth;
+        public float Random3WarpDepth;
     }
 
     public struct GlobalModulation
@@ -33,6 +45,7 @@ namespace DataKeeper.Forge.Render
         public float TransientAttack;
         public float LfoRateOctaves;
         public float LfoDepth;
+        public float CompressorDepth;
     }
 
     // Static sources (macros, Constant random) become fixed offsets before rendering; the LFOs,
@@ -79,7 +92,8 @@ namespace DataKeeper.Forge.Render
                 for (var layer = 0; layer < layerCount; layer++)
                 {
                     if (!Applies(route, layer)) continue;
-                    AddDepth(ref layers[layer], route.Source, Component((int)route.Target, amount));
+                    if (route.Target == ModTarget.Warp) AddWarpDepth(ref layers[layer], route.Source, amount);
+                    else AddDepth(ref layers[layer], route.Source, Component((int)route.Target, amount));
                 }
             }
 
@@ -167,6 +181,22 @@ namespace DataKeeper.Forge.Render
             }
         }
 
+        private static void AddWarpDepth(ref LayerModulation mod, ModSource source, float depth)
+        {
+            switch (source)
+            {
+                case ModSource.Lfo: mod.LfoWarpDepth += depth; break;
+                case ModSource.Lfo2: mod.Lfo2WarpDepth += depth; break;
+                case ModSource.Lfo3: mod.Lfo3WarpDepth += depth; break;
+                case ModSource.Envelope: mod.EnvelopeWarpDepth += depth; break;
+                case ModSource.Env2: mod.Env2WarpDepth += depth; break;
+                case ModSource.Env3: mod.Env3WarpDepth += depth; break;
+                case ModSource.Random: mod.RandomWarpDepth += depth; break;
+                case ModSource.Random2: mod.Random2WarpDepth += depth; break;
+                case ModSource.Random3: mod.Random3WarpDepth += depth; break;
+            }
+        }
+
         private static void AddLayer(ref LayerModulation mod, ModTarget target, float value)
         {
             switch (target)
@@ -177,6 +207,7 @@ namespace DataKeeper.Forge.Render
                 case ModTarget.Pan: mod.Pan += value; break;
                 case ModTarget.Decay: mod.DecayOctaves += value; break;
                 case ModTarget.Resonance: mod.Resonance += value; break;
+                case ModTarget.Warp: mod.Warp += value; break;
             }
         }
 
@@ -191,6 +222,7 @@ namespace DataKeeper.Forge.Render
                 case ModTarget.TransientAttack: mod.TransientAttack += value; break;
                 case ModTarget.LfoRate: mod.LfoRateOctaves += value; break;
                 case ModTarget.LfoDepth: mod.LfoDepth += value; break;
+                case ModTarget.CompressorDepth: mod.CompressorDepth += value; break;
             }
         }
     }

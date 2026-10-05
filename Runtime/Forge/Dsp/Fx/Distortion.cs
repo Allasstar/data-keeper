@@ -15,10 +15,26 @@ namespace DataKeeper.Forge.Dsp.Fx
         };
 
         private const float CenterTap = 0.5f;
+        private const float HalfPi = math.PI * 0.5f;
+        private const float MaxBits = 16f;
+        private const float MinBits = 2f;
 
         public static void Process(NativeArray<float> buffer, int frames, NativeArray<float> scratch,
-            DistortionMode mode, float drive, float mix)
+            DistortionMode mode, float drive, float driveDb, float mix)
         {
+            // Aliasing is the sound of these two; the halfband would smooth it away (FS2-D6).
+            if (mode == DistortionMode.BitCrush)
+            {
+                BitCrush(buffer, frames * 2, BitsFor(driveDb), mix);
+                return;
+            }
+
+            if (mode == DistortionMode.Downsample)
+            {
+                Downsample(buffer, frames, HoldFor(driveDb), mix);
+                return;
+            }
+
             for (var channel = 0; channel < 2; channel++)
             {
                 for (var n = 0; n < frames; n++)
@@ -49,8 +65,49 @@ namespace DataKeeper.Forge.Dsp.Fx
             }
         }
 
-        public static float Shape(float x, DistortionMode mode) =>
-            mode == DistortionMode.Foldback ? Fold(x) : math.tanh(x);
+        public static float Shape(float x, DistortionMode mode) => mode switch
+        {
+            DistortionMode.Foldback => Fold(x),
+            DistortionMode.HardClip => math.clamp(x, -1f, 1f),
+            DistortionMode.SineFold => math.sin(x * HalfPi),
+            _ => math.tanh(x),
+        };
+
+        public static int BitsFor(float driveDb) =>
+            (int)math.round(math.lerp(MaxBits, MinBits, math.saturate(driveDb / DistortionSettings.MaxDriveDb)));
+
+        public static int HoldFor(float driveDb) => math.max(1, (int)math.round(AudioMath.DbToLinear(driveDb)));
+
+        // Symmetric levels around an exact 0: silence stays silent and nothing gains DC, at the
+        // cost of one level (2 bits leaves -1, 0 and 1).
+        public static float Crush(float x, int bits)
+        {
+            var steps = (float)((1 << (bits - 1)) - 1);
+            return math.clamp(math.round(x * steps), -steps, steps) / steps;
+        }
+
+        private static void BitCrush(NativeArray<float> buffer, int length, int bits, float mix)
+        {
+            for (var i = 0; i < length; i++) buffer[i] = Blend(buffer[i], Crush(buffer[i], bits), mix);
+        }
+
+        private static void Downsample(NativeArray<float> buffer, int frames, int hold, float mix)
+        {
+            for (var channel = 0; channel < 2; channel++)
+            {
+                var held = 0f;
+                for (var n = 0; n < frames; n++)
+                {
+                    var index = n * 2 + channel;
+                    if (n % hold == 0) held = buffer[index];
+                    buffer[index] = Blend(buffer[index], held, mix);
+                }
+            }
+        }
+
+        // Not math.lerp: its x + (y - x) can land an ulp off y at Mix 1, which would smear the
+        // crushed levels and the held runs.
+        private static float Blend(float dry, float wet, float mix) => wet * mix + dry * (1f - mix);
 
         // Triangle-wave fold: identity inside [-1, 1], reflected back from the rails beyond.
         private static float Fold(float x)

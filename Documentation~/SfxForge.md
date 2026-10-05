@@ -38,7 +38,7 @@ Each layer strip has the same layout:
 - **Side tab:** on/off light, layer number, band colour. It turns red when the layer is locked.
 - **Header:** name, band, Mute, Solo, and `…` (Duplicate, Remove, Lock Layer, Lock Curves, Clear Parameter Locks; right-clicking the header or tab opens the same menu).
 - **Display:** `< >` steppers for the source type and its variant (wave, noise colour, wavetable bank, or the clip field), above two pictures of the layer's own render before mixing and FX. The left picture shows two cycles of the wave at its loudest point. The right one shows the whole layer over time, scaled to its own peak. A flat picture means the layer is silent.
-- **Boxes:** **VOICE** (Pitch, Offset, Decay), **AMP** (Level, Pan), **FILTER** (type, Cutoff, Reso), **SOURCE** (the FM, Wavetable, Sample or Granular controls; hidden for Oscillator and Noise), and **UNISON** (Voices, Detune, Spread, Phase, Rnd; Oscillator, Wavetable and FM only).
+- **Boxes:** **VOICE** (Pitch, Offset, Decay), **AMP** (Level, Pan), **FILTER** (type, Cutoff, Reso), **SOURCE** (the FM, Wavetable, Sample, Granular or Shepard controls; hidden for Oscillator and Noise), and **UNISON** (Voices, Detune, Spread, Phase, Rnd; Oscillator, Wavetable and FM only).
 
 `Compact` in the Layers header hides the boxes on every strip.
 
@@ -50,6 +50,7 @@ Each layer strip has the same layout:
 | FM | 2-operator; ratio, index, index follows the amp curve |
 | Sample | AudioClip, start, reverse, linear or cubic; pitch transposes the clip |
 | Granular | Uses the Sample clip settings, plus grain size, density, spray and per-grain detune. The read head moves in real time, so pitch does not change duration |
+| Shepard | Octave-spaced sines under a bell-shaped window that glide forever; rate, width, partials |
 
 **Unison and start phase** (Oscillator, Wavetable and FM):
 
@@ -60,13 +61,22 @@ Each layer strip has the same layout:
 - More than one voice sums to stereo before the filter, which then runs per channel. One voice with Phase 0 and Rnd off renders exactly as before.
 - Randomize and Mutate keep each layer's unison and phase (by layer index); the templates never generate them.
 
+**Shepard tone:** a stack of sines an octave apart under a Gaussian window (in octaves) centred
+on the layer pitch. Every partial glides at **Rate** (−4..+4 octaves per second); when one leaves
+the window at one edge, a new one fades in at the other, so the sweep never ends. Rate 0 is a still
+octave chord. **Width** (0–1) sets how wide the window is, from a nearly pure tone to a broad one,
+and **Partials** (4–10) how many octaves are stacked. Pitch, the Pitch curve, pitch routes and the
+root note move the window's centre. Partials fade out before 0.45 × the sample rate, so nothing
+aliases. Shepard has no unison, and the randomizer neither generates it nor transposes it with the
+harmony.
+
 Sample and granular clips are read with `AudioClip.GetData`, which only returns data for
 uncompressed clips or clips set to Decompress On Load.
 
 ## FX
 
-The FX page stacks the effects in the order they run on the mix of all layers: Transient,
-Distortion, Delay, Reverb, Limiter. The order is fixed. Each module has an on/off light in its
+The FX page stacks the six effects in the order they run on the mix of all layers: Transient,
+Distortion, Compressor, Delay, Reverb, Limiter. The order is fixed. Each module has an on/off light in its
 title (clicking the name works too); an effect that is off folds down to its title. The graph
 on the left of each module shows what the effect does with its current settings, using a test
 signal rather than your sound:
@@ -74,10 +84,26 @@ signal rather than your sound:
 | Effect | Graph |
 |---|---|
 | Transient | A test hit before (grey) and after (orange) the shaper |
-| Distortion | The shaping curve: input across, output up. The grey diagonal is the clean signal |
+| Distortion | The shaping curve: input across, output up. The grey diagonal is the clean signal. Bit Crush draws as a staircase; Downsample shows a test wave before (grey) and after (orange) |
+| Compressor | The level curve: input level across, output level up, both −80 to 0 dB. The grey diagonal is no change |
 | Delay | A click and its echoes over the length of the sound |
 | Reverb | The tail of a click fading over the length of the sound, 60 dB top to bottom |
 | Limiter | A quiet signal with a loud burst, in dB. The red line is the ceiling; the dip after the burst is the release |
+
+Distortion has six modes. Tanh, Hard Clip, Foldback and Sine Fold shape the sound at twice the
+sample rate, which keeps their aliasing down: Tanh is smooth saturation, Hard Clip is buzzier,
+and the two folds bounce loud peaks back for a hollow, metallic tone. Bit Crush and Downsample
+run at the sample rate, because their aliasing is the point. In those two the Drive knob is
+relabelled: Bit Crush maps 0–36 dB to 16–2 bits, and Downsample holds each sample for
+1–63 samples (×1 at 0 dB, ×8 at 18 dB). It is still the same stored Drive in dB, so routes to
+Drive (such as Energy's default one) work in every mode, and their amounts stay in dB.
+
+The Compressor is OTT-style: it splits the mix into three bands at 88 Hz and 2.5 kHz and, in each
+band, pushes loud parts down and pulls quiet parts up, so tails and detail come forward and peaks
+are evened out. **Depth** blends it with the clean sound, **Time** scales how fast each band
+reacts (higher is slower), **Upward** and **Downward** set how hard each side works, and **Gain**
+(±12 dB) sets the output. Nothing below −70 dB is lifted, so silence stays silent. It is off by
+default, and the randomizer never changes it.
 
 ## Randomizer
 
@@ -101,7 +127,7 @@ through **routes**: source → target × amount, with the amount in the target's
 | Rnd 1, Rnd 2, Rnd 3 | Bipolar, from the render seed; each has its own Mode and Rate and its own values. Mode: **Constant** gives one fixed value per route and layer; **Sample & Hold** jumps to a new value at Rate; **Smooth** glides between those values at Rate (0.1–40 Hz). The moving modes give each layer its own signal on the sound's timeline | Constant: every target. Moving modes: Pitch, Cutoff, Level, Pan |
 
 Targets are per layer (Pitch, Cutoff, Level, Pan, Decay, Resonance) or global (Length, Drive,
-Reverb Mix, Delay Mix, Transient Attack, LFO Rate, LFO Depth). LFO Rate and LFO Depth act on
+Reverb Mix, Delay Mix, Transient Attack, LFO Rate, LFO Depth, Compressor Depth). LFO Rate and LFO Depth act on
 LFO 1 only.
 
 The LFOs, the envelopes and moving Rnd are evaluated every 32 samples, so they only reach Pitch,

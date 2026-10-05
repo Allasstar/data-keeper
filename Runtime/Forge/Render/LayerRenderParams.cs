@@ -68,6 +68,16 @@ namespace DataKeeper.Forge.Render
         public float GrainSpray;
         public float GrainPitchRandom;
 
+        // Octaves per second, the window's Gaussian sigma in octaves, and the octave count.
+        public float ShepardRate;
+        public float ShepardWidthOctaves;
+        public int ShepardPartials;
+
+        // Off for sources without warp and for modes not implemented yet. WarpAmount is the knob
+        // plus static routes; the job adds the lane and saturates.
+        public WarpMode Warp;
+        public float WarpAmount;
+
         // Layer start in seconds: Free LFOs, Env 2/3 and moving Rnd run on the sound's timeline.
         public float StartSeconds;
         public LfoParams Lfo1;
@@ -86,6 +96,16 @@ namespace DataKeeper.Forge.Render
         public float4 RandomDepth;
         public float4 Random2Depth;
         public float4 Random3Depth;
+
+        public float LfoWarpDepth;
+        public float Lfo2WarpDepth;
+        public float Lfo3WarpDepth;
+        public float EnvelopeWarpDepth;
+        public float Env2WarpDepth;
+        public float Env3WarpDepth;
+        public float RandomWarpDepth;
+        public float Random2WarpDepth;
+        public float Random3WarpDepth;
 
         public CurveRef Env2Curve;
         public CurveRef Env3Curve;

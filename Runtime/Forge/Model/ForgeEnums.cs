@@ -23,6 +23,7 @@ namespace DataKeeper.Forge
         FM = 3,
         Sample = 4,
         Granular = 5,
+        Shepard = 6,
     }
 
     public enum WavetableBank
@@ -40,10 +41,24 @@ namespace DataKeeper.Forge
         Cubic = 1,
     }
 
+    public enum WarpMode
+    {
+        Off = 0,
+        Sync = 1,
+        Bend = 2,
+        Squeeze = 3,
+        Pulse = 4,
+        Quantize = 5,
+    }
+
     public enum DistortionMode
     {
         Tanh = 0,
         Foldback = 1,
+        HardClip = 2,
+        SineFold = 3,
+        BitCrush = 4,
+        Downsample = 5,
     }
 
     public enum Waveform
@@ -168,5 +183,7 @@ namespace DataKeeper.Forge
         TransientAttack = 10,
         LfoRate = 11,
         LfoDepth = 12,
+        Warp = 13,
+        CompressorDepth = 14,
     }
 }

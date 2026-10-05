@@ -2,12 +2,13 @@ using System;
 
 namespace DataKeeper.Forge
 {
-    // Fixed processing order: transient shaper, distortion, delay, reverb, limiter.
+    // Fixed processing order: transient shaper, distortion, compressor, delay, reverb, limiter.
     [Serializable]
     public class FxChain
     {
         public TransientSettings Transient = new() { Attack = 0.3f };
         public DistortionSettings Distortion = new() { DriveDb = 6f, Mix = 1f };
+        public CompressorSettings Compressor = new() { Depth = 1f, Time = 0.5f, Upward = 1f, Downward = 1f };
         public DelaySettings Delay = new() { TimeMs = 180f, Feedback = 0.35f, Mix = 0.25f };
         public ReverbSettings Reverb = new() { Size = 0.5f, Damping = 0.5f, Mix = 0.2f };
         public LimiterSettings Limiter = new() { Enabled = true, CeilingDb = -1f, ReleaseMs = 60f };
@@ -30,6 +31,19 @@ namespace DataKeeper.Forge
         public DistortionMode Mode;
         public float DriveDb;
         public float Mix;
+    }
+
+    [Serializable]
+    public struct CompressorSettings
+    {
+        public const float MaxGainDb = 12f;
+
+        public bool Enabled;
+        public float Depth;
+        public float Time;
+        public float Upward;
+        public float Downward;
+        public float GainDb;
     }
 
     [Serializable]

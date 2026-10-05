@@ -168,6 +168,7 @@ namespace DataKeeper.Forge
                 },
                 Sample = new SampleSettings { Interpolation = SampleInterpolation.Cubic },
                 Granular = GranularSettings.Default,
+                Shepard = ShepardSettings.Default,
             };
 
             var pitchRange = BandRules.FitPitch(t.Pitch, t.Band);
@@ -233,9 +234,10 @@ namespace DataKeeper.Forge
             to.LockedParams = locks;
             to.Mute = from.Mute;
             to.Solo = from.Solo;
-            // Unison and phase are the user's voicing, not generated content (FSF-D4).
+            // Unison, phase and warp are the user's voicing, not generated content (FSF-D4, FS2-D1).
             to.Unison = from.Unison;
             to.Phase = from.Phase;
+            to.Warp = from.Warp;
 
             if (Has(locks, LayerParam.Source)) to.Source = from.Source;
             if (Has(locks, LayerParam.Pitch)) to.Pitch = from.Pitch;
